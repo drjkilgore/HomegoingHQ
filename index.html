@@ -528,21 +528,33 @@ async function authSubmit(){
 async function signOut(){ await sb.auth.signOut(); location.reload(); }
 
 const MEMORIAL_MODE = !!new URLSearchParams(location.search).get("memorial");
-if(CONFIGURED) sb.auth.onAuthStateChange(async (_e, session)=>{
+let lastSessionUser = null;
+async function handleSession(session){
   if(MEMORIAL_MODE) return;
   S.session = session;
   if(session){
+    if(lastSessionUser === session.user.id && S.profile) return; // ignore token refreshes
+    lastSessionUser = session.user.id;
     $("btnSignOut").classList.remove("hidden");
-    const {data:p} = await sb.from("profiles").select("*").eq("id",session.user.id).single();
-    S.profile = p;
-    $("whoami").textContent = p?.full_name || session.user.email;
-    $("homeName").textContent = p?.full_name ? ", "+p.full_name.split(" ")[0] : "";
-    await sb.rpc("accept_my_invites");
-    await loadEstates(); goHome();
+    try{
+      const {data:p} = await sb.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
+      S.profile = p;
+      $("whoami").textContent = p?.full_name || session.user.email;
+      $("homeName").textContent = p?.full_name ? ", "+p.full_name.split(" ")[0] : "";
+      await sb.rpc("accept_my_invites");
+      await loadEstates();
+    }catch(err){ toast("Loading issue: "+err.message); }
+    goHome();
   } else {
+    lastSessionUser = null;
     $("btnSignOut").classList.add("hidden"); $("whoami").textContent="";
     $("guideFab").classList.add("hidden"); show("view-auth");
   }
+}
+// IMPORTANT: never do Supabase work inside this callback (deadlocks the auth
+// library). Defer to the next tick, then work freely.
+if(CONFIGURED) sb.auth.onAuthStateChange((_e, session)=>{
+  setTimeout(()=>handleSession(session), 0);
 });
 
 /* ---------- home / estates ---------- */
