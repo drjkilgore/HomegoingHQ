@@ -1,0 +1,1852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>LegacyHQ — Estate Settlement, Guided</title>
+<meta name="description" content="A calm, guided system for settling an estate and planning ahead — every task, deadline, and document in one place.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --ink:#26332E;          /* Ink Cedar — deep green-charcoal */
+  --ink-soft:#3D4B45;
+  --parchment:#F6F2EA;    /* warm paper */
+  --card:#FFFDF9;
+  --brass:#A67C2E;        /* heirloom brass */
+  --brass-deep:#8A651F;
+  --slate:#5B7183;        /* river slate */
+  --clay:#9C4A3C;         /* urgent only */
+  --sage:#6E8273;
+  --line:#E4DDCE;
+  --shadow:0 1px 2px rgba(38,51,46,.06), 0 8px 24px rgba(38,51,46,.08);
+  --r:14px;
+  --font-display:"Fraunces",Georgia,serif;
+  --font-body:"Public Sans",-apple-system,Segoe UI,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--font-body);background:var(--parchment);color:var(--ink);line-height:1.55;font-size:16px}
+h1,h2,h3,.display{font-family:var(--font-display);font-weight:500;letter-spacing:-.01em;line-height:1.2}
+button{font-family:var(--font-body);cursor:pointer}
+a{color:var(--brass-deep)}
+input,select,textarea{font-family:var(--font-body);font-size:16px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#fff;width:100%;color:var(--ink)}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--brass);outline-offset:1px}
+label{display:block;font-size:13px;font-weight:600;color:var(--ink-soft);margin:14px 0 6px}
+.hidden{display:none!important}
+.wrap{max-width:980px;margin:0 auto;padding:0 18px}
+
+/* Topbar */
+.topbar{position:sticky;top:0;z-index:40;background:rgba(246,242,234,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.topbar-inner{display:flex;align-items:center;justify-content:space-between;height:58px}
+.logo{font-family:var(--font-display);font-size:21px;font-weight:600;color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:9px}
+.logo .mark{width:26px;height:26px;border-radius:7px;background:var(--ink);color:var(--parchment);display:grid;place-items:center;font-size:14px;font-weight:600}
+.topbar .who{font-size:13px;color:var(--slate)}
+.btn{display:inline-flex;align-items:center;gap:7px;border:none;border-radius:10px;padding:11px 18px;font-size:15px;font-weight:600;transition:transform .08s ease, box-shadow .12s ease}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--ink);color:var(--parchment)}
+.btn-primary:hover{box-shadow:var(--shadow)}
+.btn-brass{background:var(--brass);color:#fff}
+.btn-ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line)}
+.btn-sm{padding:7px 12px;font-size:13px;border-radius:8px}
+.btn-danger{background:transparent;color:var(--clay);border:1px solid #E3C4BC}
+
+/* Cards & layout */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--shadow)}
+.grid{display:grid;gap:14px}
+.muted{color:var(--slate);font-size:14px}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brass-deep)}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:#fff;color:var(--ink-soft)}
+.pill.urgent{background:#F7E8E4;border-color:#E3C4BC;color:var(--clay)}
+.pill.done{background:#EAF0EB;border-color:#CDDCD1;color:var(--sage)}
+hr.rule{border:none;border-top:1px solid var(--line);margin:18px 0}
+
+/* Auth */
+.auth-hero{max-width:440px;margin:7vh auto 40px;padding:0 18px;text-align:center}
+.auth-hero h1{font-size:34px;margin:18px 0 8px}
+.auth-hero p{color:var(--slate)}
+.auth-card{max-width:440px;margin:0 auto;text-align:left}
+.seal{width:56px;height:56px;margin:0 auto;border-radius:16px;background:var(--ink);color:var(--parchment);display:grid;place-items:center;font-family:var(--font-display);font-size:26px}
+
+/* Triage */
+.triage{display:grid;gap:12px;margin-top:18px}
+.triage button{text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;font-size:16px;transition:border-color .12s}
+.triage button:hover{border-color:var(--brass)}
+.triage .t-title{font-weight:700;display:block}
+.triage .t-sub{font-size:13.5px;color:var(--slate)}
+
+/* THE SIGNATURE — Next Thing card stack */
+.stack-zone{margin:26px 0 10px;perspective:900px}
+.stack{position:relative;min-height:250px}
+.stack .scard{position:absolute;inset:0;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px;box-shadow:var(--shadow);transition:transform .25s ease,opacity .25s ease}
+.stack .scard:nth-child(2){transform:translateY(10px) scale(.965);opacity:.8;z-index:-1}
+.stack .scard:nth-child(3){transform:translateY(20px) scale(.93);opacity:.55;z-index:-2}
+.scard .phase-tag{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--brass-deep)}
+.scard h3{font-size:23px;margin:8px 0 8px}
+.scard .why{color:var(--ink-soft);font-size:15px}
+.scard-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.stack-count{font-size:13px;color:var(--slate);margin-top:30px;text-align:center}
+
+/* Roadmap */
+.phase-block{margin-bottom:26px}
+.phase-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.phase-head h2{font-size:20px}
+.progress{height:6px;background:#EBE4D6;border-radius:99px;overflow:hidden;margin:6px 0 12px}
+.progress i{display:block;height:100%;background:var(--brass);border-radius:99px;transition:width .3s}
+.task-row{display:flex;align-items:flex-start;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:8px;cursor:pointer}
+.task-row:hover{border-color:var(--brass)}
+.task-row.done .t-title{text-decoration:line-through;color:var(--slate)}
+.tick{flex:none;width:22px;height:22px;border-radius:7px;border:2px solid var(--line);background:#fff;display:grid;place-items:center;font-size:13px;color:#fff;margin-top:2px}
+.task-row.done .tick{background:var(--sage);border-color:var(--sage)}
+.t-title{font-weight:600;font-size:15px}
+.t-meta{font-size:12.5px;color:var(--slate);margin-top:2px}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;overflow-x:auto;padding:14px 0 2px;border-bottom:1px solid var(--line);margin-bottom:20px;-webkit-overflow-scrolling:touch}
+.tabs button{flex:none;background:transparent;border:none;padding:9px 14px;border-radius:9px 9px 0 0;font-size:14.5px;font-weight:600;color:var(--slate)}
+.tabs button.active{color:var(--ink);border-bottom:2.5px solid var(--brass)}
+
+/* Estate header */
+.estate-head{padding:24px 0 6px}
+.estate-head .name{font-size:30px}
+.estate-head .sub{color:var(--slate);font-size:14px;margin-top:2px}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(38,51,46,.45);z-index:60;display:grid;place-items:end center}
+@media(min-width:640px){.overlay{place-items:center}}
+.modal{background:var(--card);border-radius:18px 18px 0 0;width:100%;max-width:620px;max-height:92vh;overflow-y:auto;padding:24px}
+@media(min-width:640px){.modal{border-radius:18px}}
+.modal h3{font-size:22px;margin-bottom:4px}
+.modal .close{float:right;background:none;border:none;font-size:22px;color:var(--slate);padding:4px 8px}
+
+/* Guide drawer */
+.guide-fab{position:fixed;right:16px;bottom:16px;z-index:50;background:var(--ink);color:var(--parchment);border:none;border-radius:99px;padding:14px 20px;font-size:15px;font-weight:600;box-shadow:var(--shadow);display:flex;gap:8px;align-items:center}
+.guide-drawer{position:fixed;inset:auto 0 0 0;z-index:70;background:var(--card);border-radius:18px 18px 0 0;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(38,51,46,.25)}
+@media(min-width:760px){.guide-drawer{inset:0 0 0 auto;width:420px;border-radius:0;max-height:none}}
+.guide-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--line)}
+.guide-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.gm{max-width:88%;padding:11px 14px;border-radius:14px;font-size:14.5px;white-space:pre-wrap}
+.gm.user{align-self:flex-end;background:var(--ink);color:var(--parchment);border-bottom-right-radius:4px}
+.gm.ai{align-self:flex-start;background:var(--parchment);border:1px solid var(--line);border-bottom-left-radius:4px}
+.guide-input{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
+.guide-note{font-size:11.5px;color:var(--slate);padding:0 14px 12px;text-align:center}
+
+/* Templates */
+.tpl-card textarea{min-height:180px;font-size:14px;line-height:1.5}
+
+/* Toast */
+#toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%);background:var(--ink);color:var(--parchment);padding:11px 18px;border-radius:10px;font-size:14px;z-index:90;box-shadow:var(--shadow)}
+
+/* Intake wizard */
+.wiz-q{font-family:var(--font-display);font-size:24px;margin:6px 0 4px}
+.wiz-sub{color:var(--slate);font-size:14px;margin-bottom:16px}
+.choice{display:grid;gap:9px;margin:12px 0}
+.choice button{text-align:left;background:#fff;border:1px solid var(--line);border-radius:11px;padding:13px 15px;font-size:15.5px}
+.choice button.sel{border-color:var(--brass);background:#FCF7EC;font-weight:600}
+.wiz-nav{display:flex;justify-content:space-between;margin-top:22px}
+.wiz-dots{font-size:12.5px;color:var(--slate);align-self:center}
+
+.banner{background:#FCF7EC;border:1px solid #E9D9B4;border-radius:12px;padding:13px 16px;font-size:13.5px;color:var(--ink-soft);margin:14px 0}
+.footer-note{text-align:center;font-size:12px;color:var(--slate);padding:34px 18px 90px;max-width:640px;margin:0 auto}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header class="topbar"><div class="wrap topbar-inner">
+  <a class="logo" href="#" onclick="goHome();return false"><span class="mark">L</span>LegacyHQ</a>
+  <div style="display:flex;gap:10px;align-items:center">
+    <span class="who" id="whoami"></span>
+    <button class="btn btn-ghost btn-sm hidden" id="btnSignOut" onclick="signOut()">Sign out</button>
+  </div>
+</div></header>
+
+<!-- AUTH -->
+<section id="view-auth">
+  <div class="auth-hero">
+    <div class="seal">L</div>
+    <h1>When it matters most,<br>know exactly what to do.</h1>
+    <p>LegacyHQ turns the hardest weeks of life into a clear, guided path — every task, deadline, letter, and document in one calm place.</p>
+  </div>
+  <div class="auth-card card">
+    <div class="eyebrow" id="authModeLabel">Sign in</div>
+    <label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com">
+    <label>Password</label><input id="authPass" type="password" autocomplete="current-password" placeholder="••••••••">
+    <div id="authNameWrap" class="hidden"><label>Your full name</label><input id="authName" placeholder="First Last"></div>
+    <div style="margin-top:18px;display:grid;gap:9px">
+      <button class="btn btn-primary" id="authGo" onclick="authSubmit()">Sign in</button>
+      <button class="btn btn-ghost" onclick="toggleAuthMode()"><span id="authSwap">New here? Create an account</span></button>
+    </div>
+    <p class="muted" id="authMsg" style="margin-top:12px"></p>
+  </div>
+  <p class="footer-note">LegacyHQ provides organizational tools and general legal information, not legal, tax, or financial advice. For advice about your specific situation, consult a licensed attorney, CPA, or financial professional.</p>
+</section>
+
+<!-- HOME -->
+<section id="view-home" class="hidden"><div class="wrap">
+  <div class="estate-head"><div class="eyebrow">Your workspace</div><h1 class="name" style="font-size:26px">Welcome<span id="homeName"></span></h1></div>
+  <div class="grid" id="estateList"></div>
+  <div class="card" style="margin-top:14px">
+    <div class="eyebrow">Start</div>
+    <div class="triage">
+      <button onclick="startIntake()"><span class="t-title">Someone close to me has died</span><span class="t-sub">Build a step-by-step settlement roadmap in about two minutes.</span></button>
+      <button onclick="startPlanIntake()"><span class="t-title">I'm planning ahead</span><span class="t-sub">Organize everything your family will one day need — and see your Readiness Score.</span></button>
+      <button onclick="openEmergencyRequest()"><span class="t-title">I was named as someone's emergency contact</span><span class="t-sub">Request access to a plan that was prepared for this moment.</span></button>
+    </div>
+  </div>
+  <div class="card hidden" id="upgradeCard" style="margin-top:14px">
+    <div class="eyebrow">Your plan</div>
+    <h3 style="margin:6px 0">Free plan — 1 estate, core roadmap</h3>
+    <p class="muted">Settle ($249 one-time per estate) unlocks unlimited family members, the full notification letter library, document vault, and unlimited AI guidance.</p>
+    <div style="margin-top:12px"><button class="btn btn-brass" onclick="startCheckout('settle')">Upgrade to Settle</button></div>
+  </div>
+</div></section>
+
+<!-- INTAKE -->
+<section id="view-intake" class="hidden"><div class="wrap" style="max-width:560px">
+  <div class="estate-head"><div class="eyebrow">A few questions</div><h1 style="font-size:24px">We'll build your roadmap as you answer.</h1>
+  <p class="muted" style="margin-top:6px">Answer what you can. "I'm not sure" is always a fine answer — we'll add a step to help you find out.</p></div>
+  <div class="card" id="wizCard"></div>
+</div></section>
+
+<!-- ESTATE -->
+<section id="view-estate" class="hidden"><div class="wrap">
+  <div class="estate-head">
+    <div class="eyebrow">Estate of</div>
+    <h1 class="name" id="eName"></h1>
+    <div class="sub" id="eSub"></div>
+  </div>
+  <div class="tabs" id="eTabs">
+    <button data-tab="next" class="active" onclick="setTab('next')">Next</button>
+    <button data-tab="roadmap" onclick="setTab('roadmap')">Roadmap</button>
+    <button data-tab="funeral" onclick="setTab('funeral')">Funeral</button>
+    <button data-tab="notify" onclick="setTab('notify')">Notify</button>
+    <button data-tab="docs" onclick="setTab('docs')">Documents</button>
+    <button data-tab="ledger" onclick="setTab('ledger')">Ledger</button>
+    <button data-tab="probate" onclick="setTab('probate')">Probate</button>
+    <button data-tab="memories" onclick="setTab('memories')">Memories</button>
+    <button data-tab="family" onclick="setTab('family')">Family</button>
+  </div>
+
+  <div id="tab-next">
+    <div class="stack-zone"><div class="stack" id="nextStack"></div></div>
+    <div class="stack-count" id="nextCount"></div>
+    <div class="banner">A note for right now: don't pay the deceased's bills from your own money, don't distribute belongings yet, and don't announce dates the home will be empty. The roadmap will tell you when each of those is safe.</div>
+  </div>
+
+  <div id="tab-roadmap" class="hidden"></div>
+
+  <div id="tab-notify" class="hidden">
+    <div class="card">
+      <div class="eyebrow">Who to notify</div>
+      <p class="muted" style="margin:8px 0 14px">Track every institution in one list. Open a template, personalize it, and log the confirmation number when it's done.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="notifName" placeholder="Institution or person (e.g., Ally Bank)" style="flex:1;min-width:200px">
+        <select id="notifCat" style="width:auto"><option value="bank">Bank</option><option value="insurer">Insurer</option><option value="government">Government</option><option value="utility">Utility</option><option value="subscription">Subscription</option><option value="family">Family / friend</option><option value="other">Other</option></select>
+        <button class="btn btn-primary btn-sm" onclick="addNotification()">Add</button>
+      </div>
+    </div>
+    <div class="grid" id="notifList" style="margin-top:14px"></div>
+    <h2 style="margin:26px 0 12px;font-size:20px">Letter & script templates</h2>
+    <div class="grid" id="tplList"></div>
+  </div>
+
+  <div id="tab-docs" class="hidden">
+    <div class="card">
+      <div class="eyebrow">Document vault</div>
+      <p class="muted" style="margin:8px 0 14px">Death certificates, the will, policies, receipts. Stored privately — only members of this estate can open them.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="file" id="docFile" style="flex:1;min-width:200px;background:#fff">
+        <select id="docType" style="width:auto"><option value="death_certificate">Death certificate</option><option value="will">Will</option><option value="trust">Trust</option><option value="insurance">Insurance policy</option><option value="deed">Deed / title</option><option value="tax">Tax</option><option value="receipt">Receipt</option><option value="other">Other</option></select>
+        <button class="btn btn-primary btn-sm" onclick="uploadDoc()">Upload</button>
+      </div>
+    </div>
+    <div class="grid" id="docList" style="margin-top:14px"></div>
+  </div>
+
+  <div id="tab-funeral" class="hidden"></div>
+  <div id="tab-ledger" class="hidden"></div>
+  <div id="tab-probate" class="hidden"></div>
+  <div id="tab-memories" class="hidden"></div>
+
+  <div id="tab-family" class="hidden">
+    <div class="card">
+      <div class="eyebrow">Family & helpers</div>
+      <p class="muted" style="margin:8px 0 14px">Invite the people helping settle this estate. They'll see the roadmap, claim tasks, and everything is logged.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="invEmail" type="email" placeholder="their-email@example.com" style="flex:1;min-width:200px">
+        <select id="invRole" style="width:auto"><option value="member">Member</option><option value="executor">Executor</option><option value="viewer">Viewer</option></select>
+        <button class="btn btn-primary btn-sm" onclick="sendInvite()">Invite</button>
+      </div>
+    </div>
+    <div class="grid" id="memberList" style="margin-top:14px"></div>
+    <h2 style="margin:26px 0 12px;font-size:20px">Activity log</h2>
+    <div class="card"><div id="activityList" class="muted" style="font-size:13.5px"></div></div>
+  </div>
+</div></section>
+
+<!-- PLAN (Planner Mode) -->
+<section id="view-plan" class="hidden"><div class="wrap">
+  <div class="estate-head" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+    <div><div class="eyebrow">Life plan for</div><h1 class="name" id="pName"></h1><div class="sub" id="pSub"></div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="openEmergencySettings()">Emergency access</button>
+      <button class="btn btn-ghost btn-sm" onclick="openPlanShare()">Share</button>
+      <button class="btn btn-brass btn-sm" onclick="buildPacket()">Executor Packet</button>
+    </div>
+  </div>
+  <div class="card" id="readinessCard" style="margin-bottom:16px"></div>
+  <div id="planBody"></div>
+</div></section>
+
+<!-- PUBLIC MEMORIAL -->
+<section id="view-memorial" class="hidden"><div class="wrap" style="max-width:680px" id="memorialBody"></div></section>
+
+<!-- Guide -->
+<button class="guide-fab hidden" id="guideFab" onclick="openGuide()">✦ Ask the Guide</button>
+<div class="guide-drawer hidden" id="guideDrawer">
+  <div class="guide-head"><div><div class="eyebrow">LegacyHQ Guide</div><strong>Here to help, one step at a time</strong></div>
+  <button class="btn btn-ghost btn-sm" onclick="closeGuide()">Close</button></div>
+  <div class="guide-msgs" id="guideMsgs"><div class="gm ai">I'm here whenever you need something explained — a legal term, a letter drafted, or simply what to do next. What can I help with?</div></div>
+  <div class="guide-input"><input id="guideText" placeholder="Ask anything…" onkeydown="if(event.key==='Enter')sendGuide()"><button class="btn btn-primary" onclick="sendGuide()">Send</button></div>
+  <div class="guide-note">General information, not legal, tax, or financial advice.</div>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toast" class="hidden"></div>
+
+<script>
+/* ================= CONFIG — fill these two in ================= */
+const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+/* =============================================================== */
+</script>
+<script>
+/* ===================== RULESET v1 =====================
+   Conditions read intake keys. cond omitted = always include.
+   due = days offset from date of death (null = no fixed date). */
+const RULESET_VERSION = "v1";
+const PHASES = [
+  {key:"first24", label:"First 24–72 Hours"},
+  {key:"week1",   label:"First Week"},
+  {key:"month1",  label:"First Month"},
+  {key:"days90",  label:"First 90 Days"},
+  {key:"longterm",label:"Long-Term Administration"}
+];
+const RULES = [
+// ---- FIRST 24–72 HOURS ----
+{id:"pronounce",phase:"first24",cat:"Immediate",due:1,title:"Confirm legal pronouncement of death",why:"A legal pronouncement is required before a funeral home can act and before death certificates can be issued.",how:"If death occurred at home without hospice, call 911. With hospice, call the hospice nurse. In a hospital or facility, staff handle this — ask who signs the pronouncement."},
+{id:"funeralhome",phase:"first24",cat:"Immediate",due:1,cond:i=>i.funeralArranged!=="yes",title:"Choose a funeral home and arrange transport",why:"The funeral home transports your loved one and becomes your partner for the days ahead. You are allowed to compare — prices vary widely.",how:"Call 2–3 funeral homes. Under the FTC Funeral Rule each must give you an itemized price list. If a prepaid plan may exist, say so — check papers for a prepaid contract before paying for anything."},
+{id:"prepaid",phase:"first24",cat:"Immediate",due:2,cond:i=>i.funeralArranged==="yes",title:"Locate the pre-arranged funeral plan and contact that funeral home",why:"A prepaid or pre-planned arrangement covers decisions and often costs already paid — don't duplicate them.",how:"Find the contract or plan paperwork, call the named funeral home, and confirm exactly what is covered."},
+{id:"organ",phase:"first24",cat:"Immediate",due:1,title:"Check organ and tissue donation wishes",why:"Donation is extremely time-sensitive — usually within hours.",how:"Check the driver's license, advance directive, or state registry. Hospital staff can check the registry for you. If unsure, tell the care team immediately."},
+{id:"notifyfam",phase:"first24",cat:"Immediate",due:2,title:"Notify immediate family and closest friends",why:"Direct word from you prevents people learning from social media.",how:"Call the closest circle personally. Ask one or two people to help spread the word further. Hold off on public posts until family knows."},
+{id:"securehome",phase:"first24",cat:"Protect",due:2,cond:i=>i.homeUnoccupied==="yes",title:"Secure the home",why:"Homes known to be empty after a death are targets for theft — obituaries are read by the wrong people too.",how:"Lock up, collect mail daily or hold it, set light timers, remove obvious valuables, and tell a trusted neighbor. Don't publish the address or service times with the home clearly empty."},
+{id:"pets",phase:"first24",cat:"Protect",due:1,cond:i=>i.pets==="yes",title:"Arrange care for pets",why:"Pets need immediate care and routine — and moving them to a familiar person reduces stress for everyone.",how:"Place pets with a family member or friend for now. Locate vet records and food/medication routines. Long-term placement can wait."},
+{id:"finddocs",phase:"first24",cat:"Documents",due:3,title:"Locate the will, trust, and key papers",why:"The will names the executor and guides everything that follows. Finding it early prevents wrong turns.",how:"Look in the desk, fireproof box, safe, and with their attorney. Check for a safe deposit box (access rules vary by state — the bank will explain). Gather insurance policies and recent statements as you go."},
+{id:"dependents",phase:"first24",cat:"Protect",due:1,cond:i=>i.minorChildren==="yes",title:"Confirm care for minor children or dependents",why:"Immediate, stable care comes first; legal guardianship follows.",how:"Keep children with a familiar, trusted adult. Locate any guardianship nomination in the will. Contact an attorney early — courts formalize guardianship."},
+{id:"biz72",phase:"first24",cat:"Business",due:3,cond:i=>i.business==="yes",title:"Stabilize the business for the next two weeks",why:"Payroll, customers, and access issues can't wait for probate.",how:"Identify who can sign and pay employees. Notify partners/key staff privately. Locate the operating agreement or buy/sell agreement — it may dictate what happens next. Change shared passwords only with authority to do so."},
+
+// ---- FIRST WEEK ----
+{id:"deathcerts",phase:"week1",cat:"Documents",due:7,title:"Order 10–15 certified death certificates",why:"Nearly every institution requires one, many require certified originals, and re-ordering later wastes weeks. Under-ordering is the single most common mistake.",how:"The funeral home orders them for you — tell them the quantity. Banks, each insurer, DMV, pensions, and property transfers each consume copies."},
+{id:"meetdirector",phase:"week1",cat:"Funeral",due:5,title:"Plan the service with the funeral director",why:"Clear decisions now prevent overspending in a vulnerable moment.",how:"Bring another person with you. Ask for the itemized price list. You may decline packages and choose items individually. Bring clothing, photos, and any written wishes."},
+{id:"employer",phase:"week1",cat:"Benefits",due:7,cond:i=>i.employed==="yes",title:"Notify the employer",why:"Final paycheck, unused PTO payout, group life insurance, and possibly retirement or survivor benefits flow through HR.",how:"Call HR. Ask specifically about: final wages, group life insurance and how to claim it, 401(k)/pension beneficiaries, and health coverage continuation for dependents."},
+{id:"lifeins",phase:"week1",cat:"Insurance",due:7,cond:i=>i.lifeInsurance!=="no",title:"Notify life insurance companies and request claim forms",why:"Claims can take weeks — starting now brings money in when the family needs it. Proceeds are generally income-tax-free to beneficiaries.",how:"Call each insurer with the policy number. They'll send claim forms; each needs a certified death certificate. If you suspect a policy exists but can't find it, use the NAIC Life Insurance Policy Locator (free, online)."},
+{id:"attorney",phase:"week1",cat:"Legal",due:7,title:"Talk with an estate attorney (even one consultation)",why:"One hour with an attorney early prevents the expensive mistakes: distributing too soon, missing deadlines, mishandling probate.",how:"Bring the will, a rough list of assets, and your questions. Many offer free or flat-fee initial consultations. If the estate is small, ask directly whether a small-estate process fits."},
+{id:"cpa",phase:"week1",cat:"Taxes",due:10,title:"Contact their CPA or a tax professional",why:"A final personal tax return is required, and the estate itself may need returns. Missed filings create penalties for the executor.",how:"If they had a CPA, that person already knows the finances — call them. Otherwise gather last year's return and recent statements for whoever you hire."},
+{id:"mail",phase:"week1",cat:"Protect",due:7,title:"Forward or manage mail",why:"Mail reveals accounts, bills, and subscriptions you don't know about — it's a discovery tool.",how:"If the home is unoccupied, file USPS forwarding to the executor's address. Keep every statement that arrives; each is a lead for the notification list."},
+{id:"obituary",phase:"week1",cat:"Funeral",due:6,title:"Write and place the obituary",why:"It honors their life and informs the wider community of services.",how:"Draft it here — the Guide can help you write it in the tone you want. Caution: omit the exact home address and birth date (identity-theft protection)."},
+
+// ---- FIRST MONTH ----
+{id:"ssa",phase:"month1",cat:"Government",due:14,cond:i=>i.socialSecurity!=="no",title:"Notify Social Security and ask about survivor benefits",why:"Benefits paid for the month of death usually must be returned, and surviving spouses/children may qualify for survivor benefits and the $255 lump-sum payment.",how:"The funeral home often reports the death; confirm. Then call SSA (1-800-772-1213) about survivor benefits — a spouse, ex-spouse, or dependent children may qualify. Don't cash checks received after death; ask SSA first."},
+{id:"medicare",phase:"month1",cat:"Government",due:21,cond:i=>i.medicare==="yes",title:"Handle Medicare",why:"Coverage ends at death; premiums may be refundable.",how:"Reporting to Social Security also notifies Medicare. If premiums were paid ahead, ask about a refund. Keep the Medicare number for final medical bills."},
+{id:"medicaid",phase:"month1",cat:"Government",due:21,cond:i=>i.medicaid==="yes",title:"Notify Medicaid — and learn about estate recovery",why:"States may seek repayment of certain Medicaid costs from the estate. Knowing this early changes decisions about the home and assets.",how:"Notify the state Medicaid office. Ask an attorney about estate recovery rules and any exemptions (surviving spouse, disabled child, hardship) before transferring property."},
+{id:"pension",phase:"month1",cat:"Benefits",due:21,cond:i=>i.pension==="yes",title:"Contact pension and annuity providers",why:"Many pensions carry survivor benefits that don't start until you file.",how:"Call each plan administrator. Ask about survivor annuity options, beneficiary designations, and required documents."},
+{id:"va",phase:"month1",cat:"Benefits",due:21,cond:i=>i.veteran==="yes",title:"Claim Veterans burial and survivor benefits",why:"Veterans may receive burial allowances, a flag, a grave marker, national cemetery burial, and survivors may qualify for DIC or survivor pension.",how:"Locate the DD-214 (discharge papers) — if missing, request from the National Personnel Records Center. Contact the VA (800-827-1000) or a county Veterans Service Officer, who files claims for free."},
+{id:"banks",phase:"month1",cat:"Financial",due:30,title:"Notify banks and credit unions",why:"Sole accounts freeze into the estate; joint accounts usually pass to the co-owner; POD accounts pay the named beneficiary.",how:"Visit or call each institution with a certified death certificate. Ask how each account is titled before requesting changes. Don't close an account that auto-pays essential bills until replacements are set."},
+{id:"cards",phase:"month1",cat:"Financial",due:30,title:"Notify credit card companies",why:"Stops new charges and interest disputes; card debt is the estate's obligation, not automatically the family's.",how:"Call each issuer. Cancel cards in the deceased's name only. Authorized users must stop using cards. Don't pay balances from personal funds — they're claims against the estate."},
+{id:"bureaus",phase:"month1",cat:"Protect",due:30,title:"Place a deceased alert with the credit bureaus",why:"Identity thieves target the recently deceased at scale. A deceased alert blocks new credit.",how:"Mail or call Equifax, Experian, and TransUnion with a copy of the death certificate; request a 'deceased — do not issue credit' flag and a final credit report (it reveals unknown accounts)."},
+{id:"utilities",phase:"month1",cat:"Household",due:30,title:"Transfer or manage utilities and household bills",why:"Keeping the home insured, powered, and safe protects estate value.",how:"Transfer accounts to a survivor or the estate. Keep power and heat on for an unoccupied home. IMPORTANT: call the homeowner's insurer — vacant homes can lose coverage without a vacancy endorsement."},
+{id:"vehicles",phase:"month1",cat:"Property",due:30,title:"Handle vehicle titles and insurance",why:"An unregistered or uninsured vehicle is a liability sitting in the driveway.",how:"Locate titles. The DMV explains transfer options (some states allow transfer-on-death or small-estate transfer). Keep insurance active until the vehicle is transferred or sold."},
+{id:"subs",phase:"month1",cat:"Household",due:30,title:"Cancel subscriptions and memberships",why:"Recurring charges quietly drain the estate.",how:"Review 2–3 months of bank and card statements for recurring charges. Cancel streaming, memberships, deliveries. Log each in the Notify tab."},
+
+// ---- FIRST 90 DAYS ----
+{id:"probatepath",phase:"days90",cat:"Legal",due:45,cond:i=>i.trust!=="yes_all",title:"Determine the probate path",why:"Not every estate needs full probate. Small-estate procedures are faster and cheaper — but using the wrong path wastes months.",how:"Probate generally covers assets titled solely in the deceased's name with no beneficiary. Jointly-owned property, POD/TOD accounts, insurance with beneficiaries, and trust assets usually bypass it. Ask the attorney which path fits and what your state's small-estate threshold is."},
+{id:"trustadmin",phase:"days90",cat:"Legal",due:45,cond:i=>i.trust==="yes"||i.trust==="yes_all",title:"Begin trust administration",why:"The successor trustee has legal duties on a clock: notifying beneficiaries, inventorying trust assets, and managing them prudently.",how:"The successor trustee should read the trust with the attorney, send required beneficiary notices, retitle accounts to the trustee, and keep meticulous records — trustees are personally accountable."},
+{id:"ein",phase:"days90",cat:"Financial",due:45,title:"Get an EIN and open an estate bank account",why:"Estate money must never mix with personal money — a dedicated account protects the executor and creates a clean record.",how:"Apply for the estate EIN free at IRS.gov (minutes, online). Open an 'Estate of …' checking account with the EIN and letters of authority. Run every estate expense and deposit through it."},
+{id:"inventory",phase:"days90",cat:"Legal",due:60,title:"Inventory assets with date-of-death values",why:"The court and the tax return both need it — and date-of-death values set the stepped-up cost basis that saves heirs capital-gains tax later.",how:"List every asset with its value on the date of death: statements for accounts, appraisal or market analysis for real estate, KBB for vehicles. Keep the documentation forever."},
+{id:"claimsdone",phase:"days90",cat:"Insurance",due:60,cond:i=>i.lifeInsurance!=="no",title:"Complete insurance claims and log proceeds",why:"Unclaimed benefits are eventually surrendered to the state.",how:"Follow up on every claim from Week 1. Also check for forgotten coverage: employer group life, credit-card AD&D, union or association policies, travel insurance."},
+{id:"propxfer",phase:"days90",cat:"Property",due:75,cond:i=>i.property==="yes",title:"Begin real estate transfers",why:"Property can't be sold or refinanced until title is resolved, and taxes/insurance keep accruing meanwhile.",how:"How property passes depends on the deed: joint tenancy/tenancy by entirety passes automatically (record a death certificate); TOD deeds transfer to the named beneficiary; solely-owned property goes through probate or the trust. The attorney handles the recording."},
+{id:"esttax",phase:"days90",cat:"Taxes",due:75,title:"Assess estate and inheritance tax exposure",why:"Federal estate tax touches only very large estates, but a handful of states levy estate or inheritance taxes at much lower thresholds — with deadlines.",how:"Ask the CPA or attorney: does the estate owe federal estate tax, state estate tax, or state inheritance tax? Note the 9-month federal deadline (Form 706) if it applies — and that filing may be smart even when no tax is due (portability for a surviving spouse)."},
+
+// ---- LONG-TERM ----
+{id:"creditors",phase:"longterm",cat:"Legal",due:120,title:"Manage creditor claims properly",why:"Paying claims in the wrong order — or from personal funds — can make the executor personally liable.",how:"Follow your state's notice-to-creditors process (often publication). Claims are paid in a legal priority order from estate funds only. Insolvent estate? Stop and get the attorney's guidance before paying anyone."},
+{id:"finaltax",phase:"longterm",cat:"Taxes",due:270,title:"File the final tax returns",why:"The final personal return (1040) and, if the estate earned income, the estate return (1041) are the executor's legal duty.",how:"The final 1040 is due the usual April deadline for the year of death. The 1041 applies if the estate earns $600+ after death. Let the CPA drive; give them the inventory and the estate account records."},
+{id:"distribute",phase:"longterm",cat:"Closing",due:300,title:"Make final distributions — with receipts",why:"Distributing before debts and taxes are settled is the classic executor mistake; documented distributions protect you from later disputes.",how:"Only after claims and taxes are resolved. Pay per the will/trust, and have each beneficiary sign a receipt and release. Keep copies with the estate records."},
+{id:"closeestate",phase:"longterm",cat:"Closing",due:330,title:"Close the estate",why:"Formal closure ends the executor's liability and duties.",how:"File the final accounting with the court (or trust records to beneficiaries), obtain the order of discharge, close the estate bank account last, after every check clears."},
+{id:"records",phase:"longterm",cat:"Closing",due:360,title:"Archive the records (keep 7 years)",why:"Tax questions and beneficiary disputes can surface years later; the file is your protection.",how:"Keep the will, letters, inventory, accountings, tax returns, receipts/releases, and the estate account statements together — one physical folder plus scans in the vault here."}
+];
+
+/* ===================== TEMPLATES ===================== */
+const TEMPLATES = [
+{id:"bank",name:"Bank / financial institution letter",body:`[Date]
+
+[Institution Name]
+[Address]
+
+Re: Notification of Death — [Decedent Full Name]
+Account(s): [Account Number(s)]
+Date of Death: [DOD]
+
+To Whom It May Concern:
+
+I am writing to notify you that [Decedent Full Name], the holder of the above account(s), passed away on [DOD]. A certified copy of the death certificate is enclosed.
+
+I am the [executor / personal representative / surviving spouse] of the estate. Please advise:
+1. The titling of each account and what documentation you require;
+2. Any automatic payments or deposits on the account;
+3. The process and forms for transferring or closing the account.
+
+Please direct correspondence to me at the address below.
+
+Sincerely,
+[Your Name]
+[Relationship / Capacity]
+[Address · Phone · Email]
+
+Enclosure: Certified Death Certificate`},
+{id:"insurer",name:"Life insurance claim letter",body:`[Date]
+
+[Insurance Company] — Claims Department
+
+Re: Death Claim — Policy No. [Policy Number]
+Insured: [Decedent Full Name] · Date of Death: [DOD]
+
+To Whom It May Concern:
+
+I am notifying you of the death of the insured named above and requesting the claim forms required to process the death benefit. A certified death certificate is enclosed.
+
+I am [a named beneficiary / the executor of the estate]. Please send all claim documents and confirm the expected processing timeline.
+
+Sincerely,
+[Your Name]
+[Address · Phone · Email]`},
+{id:"bureau",name:"Credit bureau deceased alert",body:`[Date]
+
+[Equifax / Experian / TransUnion]
+
+Re: Deceased Alert Request — [Decedent Full Name]
+SSN: XXX-XX-[last 4] · DOB: [DOB] · Date of Death: [DOD]
+
+To Whom It May Concern:
+
+Please place a "Deceased — Do Not Issue Credit" alert on the credit file of the individual above, and mail a copy of the current credit report to the estate's representative at the address below. A copy of the death certificate and proof of my authority are enclosed.
+
+Sincerely,
+[Your Name], [Executor / Personal Representative]
+[Address · Phone]`},
+{id:"phone_ssa",name:"Phone script — Social Security",body:`Call 1-800-772-1213. Have in front of you: the decedent's SSN, your SSN, date of death, marriage certificate (if spouse), children's info (if minor children).
+
+"Hello, I'm calling to report a death and ask about survivor benefits. The deceased is [Name], Social Security number [SSN], who passed away on [DOD]. I am the [relationship].
+
+1. Can you confirm the death has been recorded?
+2. Do any payments need to be returned for the month of death?
+3. Am I — or the children — eligible for survivor benefits?
+4. Is the $255 lump-sum death payment available to us?
+5. What documents do you need, and do I need an appointment?"
+
+Write down: the representative's name, the date, and any confirmation number.`},
+{id:"employer",name:"Employer notification email",body:`Subject: Notification of Death — [Decedent Full Name]
+
+Dear [HR Contact],
+
+I am writing to inform you that [Decedent Full Name], who worked as [Title] in [Department], passed away on [DOD]. I am their [relationship] and am helping settle their affairs.
+
+When you are able, could you advise on:
+1. Final wages and any unused PTO payout;
+2. Group life insurance coverage and the claim process;
+3. Retirement plan (401(k)/pension) beneficiary procedures;
+4. Continuation of health coverage for dependents;
+5. Any other benefits owed to the estate or survivors.
+
+Thank you for your help during this difficult time.
+
+Sincerely,
+[Your Name] · [Phone] · [Email]`},
+{id:"announce",name:"Family & friends announcement",body:`Dear family and friends,
+
+It is with deep sorrow that we share the passing of [Decedent Full Name] on [DOD]. [He/She/They] passed [peacefully / surrounded by family / after a long illness] in [Location].
+
+[One or two sentences about their life — what they loved, who they were.]
+
+Service details:
+[Service type] · [Date & Time] · [Location]
+[In lieu of flowers, the family asks that donations be made to …]
+
+Thank you for your love and support. We will share any additional details as arrangements are finalized.
+
+With love,
+The [Family Name] Family`}
+];
+
+/* ===================== APP STATE ===================== */
+const CONFIGURED = !SUPABASE_URL.startsWith("YOUR_");
+const sb = CONFIGURED ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+let S = { session:null, profile:null, estates:[], estate:null, tasks:[], members:[], notifs:[], docs:[], guide:[] };
+let authMode = "signin";
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.remove("hidden"); clearTimeout(t._x); t._x=setTimeout(()=>t.classList.add("hidden"),3200); }
+function esc(s){ return (s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function show(view){ ["view-auth","view-home","view-intake","view-estate","view-plan","view-memorial"].forEach(v=>$(v).classList.add("hidden")); $(view).classList.remove("hidden"); window.scrollTo(0,0); }
+function fmtDate(d){ if(!d) return ""; return new Date(d+"T00:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); }
+async function logActivity(action, detail){ if(!S.estate) return; await sb.from("activity_log").insert({estate_id:S.estate.id, user_id:S.session.user.id, action, detail}); }
+
+/* ---------- auth ---------- */
+function toggleAuthMode(){
+  authMode = authMode==="signin" ? "signup" : "signin";
+  $("authModeLabel").textContent = authMode==="signin"?"Sign in":"Create account";
+  $("authGo").textContent = authMode==="signin"?"Sign in":"Create account";
+  $("authSwap").textContent = authMode==="signin"?"New here? Create an account":"Have an account? Sign in";
+  $("authNameWrap").classList.toggle("hidden", authMode==="signin");
+}
+async function authSubmit(){
+  const email=$("authEmail").value.trim(), password=$("authPass").value;
+  if(!email||!password) return $("authMsg").textContent="Enter your email and password.";
+  $("authMsg").textContent="One moment…";
+  if(authMode==="signup"){
+    const {error} = await sb.auth.signUp({email,password,options:{data:{full_name:$("authName").value.trim()}}});
+    if(error) return $("authMsg").textContent=error.message;
+    $("authMsg").textContent="Account created. If email confirmation is on, check your inbox — then sign in.";
+    authMode="signup"; toggleAuthMode();
+  } else {
+    const {error} = await sb.auth.signInWithPassword({email,password});
+    if(error) return $("authMsg").textContent=error.message;
+  }
+}
+async function signOut(){ await sb.auth.signOut(); location.reload(); }
+
+const MEMORIAL_MODE = !!new URLSearchParams(location.search).get("memorial");
+if(CONFIGURED) sb.auth.onAuthStateChange(async (_e, session)=>{
+  if(MEMORIAL_MODE) return;
+  S.session = session;
+  if(session){
+    $("btnSignOut").classList.remove("hidden");
+    const {data:p} = await sb.from("profiles").select("*").eq("id",session.user.id).single();
+    S.profile = p;
+    $("whoami").textContent = p?.full_name || session.user.email;
+    $("homeName").textContent = p?.full_name ? ", "+p.full_name.split(" ")[0] : "";
+    await sb.rpc("accept_my_invites");
+    await loadEstates(); goHome();
+  } else {
+    $("btnSignOut").classList.add("hidden"); $("whoami").textContent="";
+    $("guideFab").classList.add("hidden"); show("view-auth");
+  }
+});
+
+/* ---------- home / estates ---------- */
+async function loadEstates(){
+  const [{data:est},{data:pl}] = await Promise.all([
+    sb.from("estates").select("*").order("created_at",{ascending:false}),
+    sb.from("plans").select("*").order("created_at",{ascending:false})
+  ]);
+  S.estates = est||[]; S.plans = pl||[];
+}
+function goHome(){
+  if(!S.session) return show("view-auth");
+  $("guideFab").classList.remove("hidden");
+  const list=$("estateList"); list.innerHTML="";
+  if(S.estates.length===0 && (S.plans||[]).length===0){
+    list.innerHTML = `<div class="card"><div class="eyebrow">Nothing here yet</div><p class="muted" style="margin-top:8px">When you're ready, start below. It takes about two minutes and you can pause anytime.</p></div>`;
+  }
+  (S.plans||[]).forEach(p=>{
+    const d=document.createElement("div"); d.className="card"; d.style.cursor="pointer";
+    d.innerHTML = `<div class="eyebrow">Life plan</div><h3 style="margin:6px 0 2px">${esc(p.subject_name)}</h3><div class="muted">Planning ahead${p.state_code?" · "+esc(p.state_code):""}</div>`;
+    d.onclick=()=>openPlan(p.id); list.appendChild(d);
+  });
+  S.estates.forEach(e=>{
+    const d=document.createElement("div"); d.className="card"; d.style.cursor="pointer";
+    d.innerHTML = `<div class="eyebrow">Estate</div><h3 style="margin:6px 0 2px">${esc(e.decedent_name)}</h3><div class="muted">${e.date_of_death?("Passed "+fmtDate(e.date_of_death)+" · "):""}${esc(e.state_code||"")}</div>`;
+    d.onclick=()=>openEstate(e.id); list.appendChild(d);
+  });
+  $("upgradeCard").classList.toggle("hidden", S.profile?.plan_tier!=="free");
+  renderMyEmergencyRequests();
+  show("view-home");
+}
+
+/* ---------- billing ---------- */
+async function startCheckout(tier){
+  toast("Opening secure checkout…");
+  try{
+    const r = await fetch("/.netlify/functions/stripe-checkout",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({tier, userId:S.session.user.id, email:S.session.user.email})});
+    const d = await r.json();
+    if(d.url) location.href=d.url; else toast(d.error||"Checkout isn't configured yet.");
+  }catch(e){ toast("Checkout isn't configured yet."); }
+}
+</script>
+<script>
+/* ===================== INTAKE WIZARD ===================== */
+const WIZ = [
+ {k:"decedent_name",q:"What is the name of the person who passed?",sub:"We'll use their name gently throughout — never 'the deceased' where it matters.",type:"text",ph:"Full name"},
+ {k:"date_of_death",q:"When did they pass?",sub:"An approximate date is fine — you can correct it later.",type:"date"},
+ {k:"relationship",q:"What was your relationship to them?",type:"choice",opts:[["spouse","Spouse or partner"],["child","Son or daughter"],["parent","Parent"],["sibling","Sibling"],["family","Other family"],["friend","Friend or helper"]]},
+ {k:"state_code",q:"Which state did they live in?",sub:"Some steps vary by state — this helps us point you right.",type:"text",ph:"e.g., MI"},
+ {k:"funeralArranged",q:"Were funeral arrangements already made or prepaid?",type:"yn3"},
+ {k:"minorChildren",q:"Are there minor children or dependents who relied on them?",type:"yn"},
+ {k:"pets",q:"Did they have pets?",type:"yn"},
+ {k:"homeUnoccupied",q:"Is their home now unoccupied?",type:"yn"},
+ {k:"spouse",q:"Did they have a surviving spouse?",type:"yn"},
+ {k:"will",q:"Did they leave a will?",type:"yn3"},
+ {k:"trust",q:"Did they have a living trust?",type:"choice",opts:[["yes","Yes"],["yes_all","Yes — most assets are in it"],["no","No"],["unsure","I'm not sure"]]},
+ {k:"lifeInsurance",q:"Did they have life insurance?",type:"yn3"},
+ {k:"veteran",q:"Were they a veteran?",type:"yn"},
+ {k:"employed",q:"Were they employed at the time?",type:"yn"},
+ {k:"socialSecurity",q:"Were they receiving Social Security?",type:"yn3"},
+ {k:"medicare",q:"Were they on Medicare?",type:"yn"},
+ {k:"medicaid",q:"Were they on Medicaid?",type:"yn"},
+ {k:"pension",q:"Did they have a pension or annuity?",type:"yn3"},
+ {k:"property",q:"Did they own real estate?",type:"yn"},
+ {k:"business",q:"Did they own a business?",type:"yn"}
+];
+let wizStep=0, wizAnswers={};
+
+function startIntake(){
+  if(S.profile?.plan_tier==="free" && S.estates.length>=1){
+    toast("The free plan includes one estate. Upgrade to Settle to add another.");
+    return;
+  }
+  wizStep=0; wizAnswers={}; renderWiz(); show("view-intake");
+}
+function renderWiz(){
+  const q=WIZ[wizStep], c=$("wizCard");
+  let inner=`<div class="wiz-dots">Question ${wizStep+1} of ${WIZ.length}</div><div class="wiz-q">${q.q}</div>${q.sub?`<div class="wiz-sub">${q.sub}</div>`:""}`;
+  if(q.type==="text") inner+=`<input id="wizInput" placeholder="${q.ph||""}" value="${esc(wizAnswers[q.k]||"")}">`;
+  else if(q.type==="date") inner+=`<input id="wizInput" type="date" value="${esc(wizAnswers[q.k]||"")}">`;
+  else{
+    const opts = q.type==="yn"?[["yes","Yes"],["no","No"]] : q.type==="yn3"?[["yes","Yes"],["no","No"],["unsure","I'm not sure"]] : q.opts;
+    inner+=`<div class="choice">`+opts.map(([v,l])=>`<button class="${wizAnswers[q.k]===v?"sel":""}" onclick="wizPick('${v}')">${l}</button>`).join("")+`</div>`;
+  }
+  inner+=`<div class="wiz-nav">
+    <button class="btn btn-ghost" onclick="wizBack()" ${wizStep===0?"disabled style='opacity:.4'":""}>Back</button>
+    <button class="btn btn-primary" onclick="wizNext()">${wizStep===WIZ.length-1?"Build my roadmap":"Continue"}</button></div>`;
+  c.innerHTML=inner;
+  const inp=$("wizInput"); if(inp) inp.focus();
+}
+function wizPick(v){ wizAnswers[WIZ[wizStep].k]=v; setTimeout(wizNext,140); }
+function wizBack(){ if(wizStep>0){wizStep--; renderWiz();} }
+async function wizNext(){
+  const q=WIZ[wizStep], inp=$("wizInput");
+  if(inp) wizAnswers[q.k]=inp.value.trim();
+  if(q.k==="decedent_name" && !wizAnswers[q.k]) return toast("Their name helps us personalize everything.");
+  if(wizStep<WIZ.length-1){ wizStep++; renderWiz(); }
+  else await createEstate();
+}
+
+async function createEstate(){
+  $("wizCard").innerHTML=`<div class="wiz-q">Building the roadmap…</div><div class="wiz-sub">Personalizing steps for your situation.</div>`;
+  const intake={...wizAnswers};
+  const {data:est,error} = await sb.from("estates").insert({
+    created_by:S.session.user.id,
+    decedent_name:intake.decedent_name,
+    date_of_death:intake.date_of_death||null,
+    state_code:(intake.state_code||"").toUpperCase().slice(0,2)||null,
+    relationship:intake.relationship,
+    intake, ruleset_version:RULESET_VERSION
+  }).select().single();
+  if(error){ toast(error.message); return goHome(); }
+  await sb.from("estate_members").insert({estate_id:est.id,user_id:S.session.user.id,role:"owner"});
+
+  // Rules engine → tasks
+  const dod = intake.date_of_death ? new Date(intake.date_of_death+"T00:00:00") : new Date();
+  const rows = RULES.filter(r=>!r.cond||r.cond(intake)).map((r,i)=>{
+    let due=null;
+    if(r.due){ const d=new Date(dod); d.setDate(d.getDate()+r.due); if(d>new Date(Date.now()-864e5)) due=d.toISOString().slice(0,10); else {const t=new Date(); t.setDate(t.getDate()+3); due=t.toISOString().slice(0,10);} }
+    return {estate_id:est.id, rule_id:r.id, phase:r.phase, category:r.cat, title:r.title, why:r.why, how:r.how, due_at:due, sort_order:i};
+  });
+  // "I'm not sure" answers generate finder tasks
+  if(intake.will==="unsure") rows.push({estate_id:est.id,rule_id:"findwill",phase:"first24",category:"Documents",title:"Find out whether a will exists",why:"The will decides who is in charge and who inherits — everything downstream depends on it.",how:"Search the desk, safe, and fireproof box. Call any attorney they used. Check the county probate court (some hold wills for safekeeping). Ask family who might know.",sort_order:5});
+  if(intake.lifeInsurance==="unsure") rows.push({estate_id:est.id,rule_id:"findpolicy",phase:"week1",category:"Insurance",title:"Search for life insurance policies",why:"Unknown policies are common — and unclaimed benefits eventually go to the state.",how:"Check bank statements for premium payments, ask their employer about group life, search files and email, and submit a free request to the NAIC Life Insurance Policy Locator.",sort_order:40});
+  await sb.from("tasks").insert(rows);
+  await loadEstates();
+  await logActivityFor(est.id, "created estate", intake.decedent_name);
+  openEstate(est.id);
+}
+async function logActivityFor(estateId, action, detail){ await sb.from("activity_log").insert({estate_id:estateId,user_id:S.session.user.id,action,detail}); }
+
+/* ===================== ESTATE VIEW ===================== */
+async function openEstate(id){
+  const est = S.estates.find(e=>e.id===id); if(!est) return;
+  S.estate = est;
+  $("eName").textContent = est.decedent_name;
+  $("eSub").textContent = (est.date_of_death?("Passed "+fmtDate(est.date_of_death)):"") + (est.state_code?" · "+est.state_code:"") + (est.relationship?" · You: "+est.relationship:"");
+  await Promise.all([loadTasks(),loadMembers(),loadNotifs(),loadDocs()]);
+  setTab("next"); show("view-estate");
+}
+function setTab(t){
+  ["next","roadmap","funeral","notify","docs","ledger","probate","memories","family"].forEach(x=>{
+    $("tab-"+x).classList.toggle("hidden",x!==t);
+    document.querySelector(`#eTabs [data-tab="${x}"]`).classList.toggle("active",x===t);
+  });
+  if(t==="next") renderNext();
+  if(t==="roadmap") renderRoadmap();
+  if(t==="notify"){ renderNotifs(); renderTemplates(); }
+  if(t==="docs") renderDocs();
+  if(t==="funeral") loadFuneral();
+  if(t==="ledger") loadLedger();
+  if(t==="probate") renderProbate();
+  if(t==="memories") loadMemories();
+  if(t==="family"){ renderMembers(); renderActivity(); }
+}
+
+async function loadTasks(){
+  const {data} = await sb.from("tasks").select("*").eq("estate_id",S.estate.id).order("sort_order");
+  S.tasks = data||[];
+}
+
+/* ---- Next Thing card stack (signature) ---- */
+function renderNext(){
+  const open = S.tasks.filter(t=>t.status!=="done"&&t.status!=="na");
+  const phaseOrder = Object.fromEntries(PHASES.map((p,i)=>[p.key,i]));
+  open.sort((a,b)=>(phaseOrder[a.phase]-phaseOrder[b.phase])||(a.sort_order-b.sort_order));
+  const stack=$("nextStack"); stack.innerHTML="";
+  if(open.length===0){
+    stack.innerHTML=`<div class="scard" style="position:relative"><div class="phase-tag">All caught up</div><h3>Every step is done — one less thing to carry.</h3><p class="why">You can review the full roadmap anytime, or add your own tasks as new things come up.</p></div>`;
+    $("nextCount").textContent=""; return;
+  }
+  open.slice(0,3).forEach((t,i)=>{
+    const c=document.createElement("div"); c.className="scard";
+    const ph=PHASES.find(p=>p.key===t.phase);
+    if(i===0){
+      c.innerHTML=`<div class="phase-tag">${ph.label}${t.due_at?" · by "+fmtDate(t.due_at):""}</div>
+        <h3>${esc(t.title)}</h3><p class="why">${esc(t.why||"")}</p>
+        <div class="scard-actions">
+          <button class="btn btn-primary" onclick="openTask('${t.id}')">Open this step</button>
+          <button class="btn btn-ghost" onclick="quickDone('${t.id}')">Mark done</button>
+        </div>`;
+    } else c.innerHTML=`<div class="phase-tag">${ph.label}</div><h3>${esc(t.title)}</h3>`;
+    stack.appendChild(c);
+  });
+  $("nextCount").textContent = open.length+" step"+(open.length===1?"":"s")+" remaining · full list in Roadmap";
+}
+async function quickDone(id){
+  await sb.from("tasks").update({status:"done",updated_at:new Date().toISOString()}).eq("id",id);
+  const t=S.tasks.find(x=>x.id===id); if(t){t.status="done"; logActivity("completed task",t.title);}
+  renderNext();
+}
+
+/* ---- Roadmap ---- */
+function renderRoadmap(){
+  const root=$("tab-roadmap"); root.innerHTML="";
+  PHASES.forEach(p=>{
+    const items=S.tasks.filter(t=>t.phase===p.key); if(items.length===0) return;
+    const done=items.filter(t=>t.status==="done"||t.status==="na").length;
+    const blk=document.createElement("div"); blk.className="phase-block";
+    blk.innerHTML=`<div class="phase-head"><h2>${p.label}</h2><span class="muted">${done}/${items.length}</span></div>
+      <div class="progress"><i style="width:${items.length?Math.round(done/items.length*100):0}%"></i></div>`;
+    items.forEach(t=>{
+      const r=document.createElement("div"); r.className="task-row"+(t.status==="done"?" done":"");
+      r.innerHTML=`<div class="tick">${t.status==="done"?"✓":""}</div>
+        <div style="flex:1"><div class="t-title">${esc(t.title)}</div>
+        <div class="t-meta">${esc(t.category||"")}${t.due_at?" · by "+fmtDate(t.due_at):""}${t.status==="na"?" · marked not applicable":""}</div></div>`;
+      r.onclick=()=>openTask(t.id); blk.appendChild(r);
+    });
+    root.appendChild(blk);
+  });
+  const add=document.createElement("div"); add.className="card";
+  add.innerHTML=`<div class="eyebrow">Add your own step</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+    <input id="newTaskTitle" placeholder="e.g., Return medical equipment" style="flex:1;min-width:200px">
+    <select id="newTaskPhase" style="width:auto">${PHASES.map(p=>`<option value="${p.key}">${p.label}</option>`).join("")}</select>
+    <button class="btn btn-primary btn-sm" onclick="addCustomTask()">Add</button></div>`;
+  root.appendChild(add);
+}
+async function addCustomTask(){
+  const title=$("newTaskTitle").value.trim(); if(!title) return;
+  const {data} = await sb.from("tasks").insert({estate_id:S.estate.id,phase:$("newTaskPhase").value,title,custom:true,category:"Custom",sort_order:999}).select().single();
+  if(data){S.tasks.push(data); logActivity("added task",title); renderRoadmap(); toast("Step added.");}
+}
+
+/* ---- Task modal ---- */
+function openTask(id){
+  const t=S.tasks.find(x=>x.id===id); if(!t) return;
+  const ph=PHASES.find(p=>p.key===t.phase);
+  const memberOpts = S.members.map(m=>`<option value="${m.user_id}" ${t.assignee===m.user_id?"selected":""}>${esc(m.name||m.email||"Member")}</option>`).join("");
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal"><button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">${ph.label} · ${esc(t.category||"")}</div>
+    <h3>${esc(t.title)}</h3>
+    ${t.why?`<p style="margin:10px 0;color:var(--ink-soft)"><strong>Why this matters.</strong> ${esc(t.why)}</p>`:""}
+    ${t.how?`<p style="margin:10px 0"><strong>How to do it.</strong> ${esc(t.how)}</p>`:""}
+    <hr class="rule">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><label>Assigned to</label><select id="tAssign"><option value="">Unassigned</option>${memberOpts}</select></div>
+      <div><label>Due date</label><input type="date" id="tDue" value="${t.due_at||""}"></div>
+    </div>
+    <div class="scard-actions" style="margin-top:20px">
+      ${t.status!=="done"?`<button class="btn btn-primary" onclick="taskStatus('${t.id}','done')">Mark done</button>`:`<button class="btn btn-ghost" onclick="taskStatus('${t.id}','todo')">Reopen</button>`}
+      ${t.status!=="na"?`<button class="btn btn-ghost" onclick="taskStatus('${t.id}','na')">Doesn't apply</button>`:""}
+      <button class="btn btn-ghost" onclick="saveTaskMeta('${t.id}')">Save details</button>
+      <button class="btn btn-ghost" onclick="askAboutTask('${t.id}')">Ask the Guide</button>
+    </div></div></div>`;
+}
+function closeModal(){ $("modalRoot").innerHTML=""; }
+async function taskStatus(id,status){
+  await sb.from("tasks").update({status,updated_at:new Date().toISOString()}).eq("id",id);
+  const t=S.tasks.find(x=>x.id===id); if(t){t.status=status; logActivity(status==="done"?"completed task":status==="na"?"marked task N/A":"reopened task",t.title);}
+  closeModal(); renderRoadmap(); renderNext();
+}
+async function saveTaskMeta(id){
+  const assignee=$("tAssign").value||null, due_at=$("tDue").value||null;
+  await sb.from("tasks").update({assignee,due_at,updated_at:new Date().toISOString()}).eq("id",id);
+  const t=S.tasks.find(x=>x.id===id); if(t){t.assignee=assignee;t.due_at=due_at;}
+  closeModal(); renderRoadmap(); renderNext(); toast("Saved.");
+}
+function askAboutTask(id){
+  const t=S.tasks.find(x=>x.id===id); closeModal(); openGuide();
+  $("guideText").value=`Can you walk me through this step: "${t.title}"?`;
+}
+</script>
+<script>
+/* ===================== NOTIFY ===================== */
+async function loadNotifs(){
+  const {data} = await sb.from("notifications_log").select("*").eq("estate_id",S.estate.id).order("created_at");
+  S.notifs = data||[];
+}
+function renderNotifs(){
+  const root=$("notifList"); root.innerHTML="";
+  if(S.notifs.length===0){ root.innerHTML=`<div class="muted" style="padding:4px 6px">Nothing tracked yet. Add each institution above as you discover it — statements and mail are your best leads.</div>`; return; }
+  S.notifs.forEach(n=>{
+    const d=document.createElement("div"); d.className="card"; d.style.padding="14px 16px";
+    d.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+      <div><strong>${esc(n.recipient)}</strong> <span class="pill">${esc(n.category||"other")}</span>
+        ${n.confirmation?`<div class="muted" style="font-size:12.5px">Confirmation: ${esc(n.confirmation)}</div>`:""}</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <select onchange="notifStatus('${n.id}',this.value)" style="width:auto;padding:7px 10px;font-size:13px">
+          ${["pending","sent","confirmed"].map(s=>`<option ${n.status===s?"selected":""}>${s}</option>`).join("")}</select>
+        <button class="btn btn-ghost btn-sm" onclick="notifConfirm('${n.id}')">Log #</button>
+        <button class="btn btn-danger btn-sm" onclick="notifDelete('${n.id}')">Remove</button>
+      </div></div>`;
+    root.appendChild(d);
+  });
+}
+async function addNotification(){
+  const recipient=$("notifName").value.trim(); if(!recipient) return;
+  const {data} = await sb.from("notifications_log").insert({estate_id:S.estate.id,recipient,category:$("notifCat").value}).select().single();
+  if(data){S.notifs.push(data); $("notifName").value=""; renderNotifs(); logActivity("added notification",recipient);}
+}
+async function notifStatus(id,status){
+  await sb.from("notifications_log").update({status,updated_at:new Date().toISOString()}).eq("id",id);
+  const n=S.notifs.find(x=>x.id===id); if(n)n.status=status;
+}
+async function notifConfirm(id){
+  const c=prompt("Confirmation number or note:"); if(c===null) return;
+  await sb.from("notifications_log").update({confirmation:c,status:"confirmed",updated_at:new Date().toISOString()}).eq("id",id);
+  const n=S.notifs.find(x=>x.id===id); if(n){n.confirmation=c;n.status="confirmed";} renderNotifs();
+}
+async function notifDelete(id){
+  await sb.from("notifications_log").delete().eq("id",id);
+  S.notifs=S.notifs.filter(x=>x.id!==id); renderNotifs();
+}
+function mergeTemplate(body){
+  const e=S.estate, dod=e.date_of_death?fmtDate(e.date_of_death):"[DOD]";
+  return body.replaceAll("[Decedent Full Name]",e.decedent_name).replaceAll("[DOD]",dod)
+             .replaceAll("[Your Name]",S.profile?.full_name||"[Your Name]")
+             .replaceAll("[Date]",new Date().toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}));
+}
+function renderTemplates(){
+  const root=$("tplList"); root.innerHTML="";
+  const locked = S.profile?.plan_tier==="free";
+  TEMPLATES.forEach((t,i)=>{
+    const gated = locked && i>1;
+    const d=document.createElement("div"); d.className="card tpl-card";
+    d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <strong>${t.name}</strong>
+      ${gated?`<button class="btn btn-brass btn-sm" onclick="startCheckout('settle')">Unlock with Settle</button>`
+             :`<button class="btn btn-ghost btn-sm" onclick="copyTpl(${i},this)">Copy</button>`}</div>
+      ${gated?`<p class="muted" style="margin-top:8px">This template is part of the Settle plan.</p>`
+             :`<textarea id="tpl${i}" style="margin-top:10px">${esc(mergeTemplate(t.body))}</textarea>`}`;
+    root.appendChild(d);
+  });
+}
+function copyTpl(i,btn){
+  navigator.clipboard.writeText($("tpl"+i).value).then(()=>{btn.textContent="Copied"; setTimeout(()=>btn.textContent="Copy",1600);});
+}
+
+/* ===================== DOCUMENTS ===================== */
+async function loadDocs(){
+  const {data} = await sb.from("documents").select("*").eq("estate_id",S.estate.id).order("created_at",{ascending:false});
+  S.docs = data||[];
+}
+function renderDocs(){
+  const root=$("docList"); root.innerHTML="";
+  if(S.docs.length===0){ root.innerHTML=`<div class="muted" style="padding:4px 6px">Nothing uploaded yet. Start with a scan of the death certificate when you receive them.</div>`; return; }
+  S.docs.forEach(doc=>{
+    const d=document.createElement("div"); d.className="card"; d.style.padding="14px 16px";
+    d.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+      <div><strong>${esc(doc.name)}</strong> <span class="pill">${esc((doc.doc_type||"other").replace("_"," "))}</span>
+        <div class="muted" style="font-size:12.5px">${fmtDate(doc.created_at.slice(0,10))}</div></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="openDoc('${doc.id}')">Open</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteDoc('${doc.id}')">Delete</button>
+      </div></div>`;
+    root.appendChild(d);
+  });
+}
+async function uploadDoc(){
+  const f=$("docFile").files[0]; if(!f) return toast("Choose a file first.");
+  if(f.size>25*1024*1024) return toast("Files up to 25 MB, please.");
+  const path=`${S.estate.id}/${Date.now()}-${f.name.replace(/[^a-zA-Z0-9_.-]/g,"_")}`;
+  const {error} = await sb.storage.from("estate-docs").upload(path,f);
+  if(error) return toast(error.message);
+  const {data} = await sb.from("documents").insert({estate_id:S.estate.id,name:f.name,storage_path:path,doc_type:$("docType").value,uploaded_by:S.session.user.id}).select().single();
+  if(data){S.docs.unshift(data); $("docFile").value=""; renderDocs(); logActivity("uploaded document",f.name); toast("Uploaded.");}
+}
+async function openDoc(id){
+  const doc=S.docs.find(x=>x.id===id);
+  const {data,error} = await sb.storage.from("estate-docs").createSignedUrl(doc.storage_path,300);
+  if(error) return toast(error.message);
+  window.open(data.signedUrl,"_blank");
+  logActivity("viewed document",doc.name);
+}
+async function deleteDoc(id){
+  const doc=S.docs.find(x=>x.id===id);
+  if(!confirm(`Delete "${doc.name}"? This can't be undone.`)) return;
+  await sb.storage.from("estate-docs").remove([doc.storage_path]);
+  await sb.from("documents").delete().eq("id",id);
+  S.docs=S.docs.filter(x=>x.id!==id); renderDocs(); logActivity("deleted document",doc.name);
+}
+
+/* ===================== FAMILY ===================== */
+async function loadMembers(){
+  const {data:mem} = await sb.from("estate_members").select("*").eq("estate_id",S.estate.id);
+  const ids=(mem||[]).map(m=>m.user_id);
+  let profiles=[];
+  if(ids.length){ const {data:p}=await sb.from("profiles").select("id,full_name,email").in("id",ids); profiles=p||[]; }
+  S.members=(mem||[]).map(m=>{const p=profiles.find(x=>x.id===m.user_id)||{}; return {...m,name:p.full_name,email:p.email};});
+  const {data:inv} = await sb.from("estate_invites").select("*").eq("estate_id",S.estate.id).eq("accepted",false);
+  S.invites=inv||[];
+}
+function renderMembers(){
+  const root=$("memberList"); root.innerHTML="";
+  S.members.forEach(m=>{
+    const d=document.createElement("div"); d.className="card"; d.style.padding="14px 16px";
+    d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center">
+      <div><strong>${esc(m.name||m.email||"Member")}</strong><div class="muted" style="font-size:12.5px">${esc(m.email||"")}</div></div>
+      <span class="pill">${esc(m.role)}</span></div>`;
+    root.appendChild(d);
+  });
+  (S.invites||[]).forEach(i=>{
+    const d=document.createElement("div"); d.className="card"; d.style.padding="14px 16px";
+    d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center">
+      <div><strong>${esc(i.email)}</strong><div class="muted" style="font-size:12.5px">Invited — joins when they create an account with this email</div></div>
+      <span class="pill">${esc(i.role)} · pending</span></div>`;
+    root.appendChild(d);
+  });
+}
+async function sendInvite(){
+  const email=$("invEmail").value.trim().toLowerCase(); if(!email||!email.includes("@")) return toast("Enter their email address.");
+  if(S.profile?.plan_tier==="free" && (S.members.length+(S.invites||[]).length)>=2)
+    return toast("The free plan includes 2 people per estate. Settle unlocks unlimited family members.");
+  const {error} = await sb.from("estate_invites").insert({estate_id:S.estate.id,email,role:$("invRole").value,invited_by:S.session.user.id});
+  if(error) return toast(error.message);
+  $("invEmail").value=""; await loadMembers(); renderMembers();
+  logActivity("invited",email);
+  fetch("/.netlify/functions/send-invite",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({email,inviterName:S.profile?.full_name||S.session.user.email,contextName:S.estate.decedent_name,kind:"estate"})}).catch(()=>{});
+  toast("Invite sent. They'll join automatically when they sign up with that email.");
+}
+async function renderActivity(){
+  const {data} = await sb.from("activity_log").select("*").eq("estate_id",S.estate.id).order("created_at",{ascending:false}).limit(40);
+  const root=$("activityList");
+  if(!data||data.length===0){ root.textContent="Activity will appear here as the family works."; return; }
+  root.innerHTML=data.map(a=>{
+    const who=S.members.find(m=>m.user_id===a.user_id);
+    const when=new Date(a.created_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})+" "+new Date(a.created_at).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});
+    return `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>${esc(who?.name||who?.email||"Someone")}</strong> ${esc(a.action)}${a.detail?" — "+esc(a.detail):""} <span style="opacity:.7">· ${when}</span></div>`;
+  }).join("");
+}
+
+/* ===================== AI GUIDE ===================== */
+function openGuide(){ $("guideDrawer").classList.remove("hidden"); $("guideText").focus(); }
+function closeGuide(){ $("guideDrawer").classList.add("hidden"); }
+function guideBubble(text,cls){
+  const m=document.createElement("div"); m.className="gm "+cls; m.textContent=text;
+  $("guideMsgs").appendChild(m); $("guideMsgs").scrollTop=$("guideMsgs").scrollHeight; return m;
+}
+async function sendGuide(){
+  const q=$("guideText").value.trim(); if(!q) return;
+  $("guideText").value="";
+  guideBubble(q,"user");
+  S.guide.push({role:"user",content:q});
+  const thinking=guideBubble("…","ai");
+  const estateContext = S.estate ? {
+    decedent:S.estate.decedent_name, date_of_death:S.estate.date_of_death, state:S.estate.state_code,
+    relationship:S.estate.relationship, intake:S.estate.intake,
+    open_tasks:S.tasks.filter(t=>t.status==="todo").slice(0,15).map(t=>t.title),
+    completed:S.tasks.filter(t=>t.status==="done").length
+  } : null;
+  try{
+    const r=await fetch("/.netlify/functions/ai-guide",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({messages:S.guide,estateContext})});
+    const d=await r.json();
+    thinking.textContent = d.text || d.error || "I couldn't reach the Guide just now. Please try again.";
+    if(d.text) S.guide.push({role:"assistant",content:d.text});
+  }catch(e){ thinking.textContent="I couldn't reach the Guide just now. Please try again in a moment."; }
+}
+
+/* ---------- boot ---------- */
+if(SUPABASE_URL.startsWith("YOUR_")){
+  document.body.innerHTML='<div style="max-width:520px;margin:14vh auto;padding:24px;font-family:sans-serif"><h2>Almost ready</h2><p>Open <code>index.html</code> and paste your Supabase project URL and anon key into the CONFIG block near the top of the first &lt;script&gt; tag, then redeploy.</p></div>';
+}
+</script>
+<script>
+/* ===================== PLANNER MODE (Release 2) ===================== */
+const SECTIONS = [
+ {key:"legal",label:"Legal Documents",weight:16,desc:"The papers that put someone in charge and make wishes count.",sug:["Last Will and Testament","Living Trust","Durable Power of Attorney","Healthcare Directive / Living Will","Medical Power of Attorney","Guardianship nomination","Organ donation wishes"],hint:"For each document: when it was signed, which attorney prepared it, and — most important — where the ORIGINAL lives."},
+ {key:"team",label:"Estate Team",weight:8,desc:"The people you've chosen and the professionals who know your affairs.",sug:["Executor","Successor executor","Trustee","Estate attorney","CPA","Financial advisor","Insurance agent"],hint:"Include whether each person KNOWS they've been named — surprising an executor is a classic failure."},
+ {key:"financial",label:"Financial Accounts",weight:12,desc:"Every account your family would need to find.",sug:["Primary checking","Savings","Brokerage account","401(k) / IRA","Pension","Safe deposit box","Cryptocurrency wallet"],hint:"Institution, account type, and rough purpose. The 'number' field is masked — last 4 digits is often enough."},
+ {key:"insurance",label:"Insurance",weight:10,desc:"Policies your family could otherwise never find.",sug:["Life insurance","Employer group life","Long-term care","Disability","Homeowners","Auto","Umbrella"],hint:"Carrier, policy number, face amount in detail, and the agent's contact."},
+ {key:"personal",label:"Personal & Identity",weight:8,desc:"Vital records and identity documents.",sug:["Birth certificate","Social Security card","Driver's license","Passport","Military records (DD-214)","Marriage certificate","Citizenship documents"],hint:"Where each original is kept. Sensitive numbers stay masked."},
+ {key:"funeral",label:"Funeral Preferences",weight:8,desc:"Decisions that spare your family guessing at the worst moment.",sug:["Burial or cremation preference","Cemetery / resting place","Funeral home preference","Religious tradition & officiant","Music & scripture","Speakers","Obituary notes","Flowers or donations preference"],hint:"There are no wrong answers here — even partial wishes are a gift."},
+ {key:"digital",label:"Digital Life",weight:8,desc:"Accounts, devices, and the keys to them.",sug:["Password manager","Primary email","Phone unlock plan","Apple / Google account legacy contact","Social media accounts","Cloud storage","Domains & websites","Crypto keys location"],hint:"Never store full passwords here in this release — record WHERE credentials live (e.g., 'password manager, emergency kit in safe')."},
+ {key:"family",label:"Family & Contacts",weight:6,desc:"Who should be called, and how to reach them.",sug:["Spouse / partner","Children","Parents","Siblings","Emergency contact","Clergy / faith community"],hint:"Names, phone numbers, and relationships."},
+ {key:"realestate",label:"Real Estate",weight:6,desc:"Properties and how they're titled.",sug:["Primary home","Vacation home","Rental property","Land"],hint:"How the deed is titled matters most — joint, trust, or transfer-on-death changes everything. Note mortgage servicer too."},
+ {key:"debts",label:"Debts",weight:6,desc:"What's owed, so nothing surprises the estate.",sug:["Mortgage","Auto loan","Credit cards","Student loans","Personal loans","Medical debt"],hint:"Lender and rough balance. Federal student loans are discharged at death — worth noting."},
+ {key:"investments",label:"Investments & Beneficiaries",weight:5,desc:"Holdings — and whether beneficiary designations are current.",sug:["Stocks & funds summary","Bonds","Private investments","Beneficiary designation audit"],hint:"Beneficiary designations OVERRIDE the will. Note when each was last reviewed."},
+ {key:"property",label:"Personal Property",weight:4,desc:"Vehicles and valuables — and who should receive them.",sug:["Vehicles & titles","Jewelry","Artwork","Firearms","Collectibles","Family heirlooms"],hint:"For heirlooms, note intended recipients — many states honor a personal property memo referenced by the will."},
+ {key:"business",label:"Business Interests",weight:3,desc:"Entities, agreements, and what happens in the first 72 hours.",sug:["LLC / corporation","Operating agreement location","Buy/sell agreement","Succession plan","72-hour continuity note"],hint:"Who can sign, who runs payroll, and where the agreements live."}
+];
+S.plans = S.plans||[]; S.plan=null; S.entries=[];
+
+/* ---- create plan ---- */
+function startPlanIntake(){
+  if(S.profile?.plan_tier==="free" && (S.plans||[]).length>=1)
+    return toast("The free plan includes one life plan. Upgrade to add plans for parents or others.");
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">New life plan</div><h3>Whose affairs are we organizing?</h3>
+    <label>Their name</label><input id="npName" placeholder="Full name" value="${esc(S.profile?.full_name||"")}">
+    <label>This plan is for</label><select id="npRel"><option value="self">Myself</option><option value="spouse">My spouse / partner</option><option value="parent">A parent</option><option value="other">Someone else I'm helping</option></select>
+    <label>State they live in</label><input id="npState" placeholder="e.g., MI" maxlength="2">
+    <div class="scard-actions" style="margin-top:18px"><button class="btn btn-primary" onclick="createPlan()">Create plan</button></div>
+  </div></div>`;
+}
+async function createPlan(){
+  const subject_name=$("npName").value.trim(); if(!subject_name) return toast("A name helps us personalize the plan.");
+  const {data:p,error}=await sb.from("plans").insert({created_by:S.session.user.id,subject_name,relationship:$("npRel").value,state_code:($("npState").value||"").toUpperCase()||null}).select().single();
+  if(error) return toast(error.message);
+  await sb.from("plan_members").insert({plan_id:p.id,user_id:S.session.user.id,role:"owner"});
+  S.plans.unshift(p); closeModal(); openPlan(p.id);
+}
+
+/* ---- open & render plan ---- */
+async function openPlan(id){
+  const p=S.plans.find(x=>x.id===id); if(!p) return;
+  S.plan=p;
+  $("pName").textContent=p.subject_name;
+  $("pSub").textContent=(p.relationship==="self"?"Your plan":"Plan you manage")+(p.state_code?" · "+p.state_code:"");
+  const {data}=await sb.from("plan_entries").select("*").eq("plan_id",id).order("section").order("sort_order");
+  S.entries=data||[];
+  renderPlanHome(); show("view-plan");
+}
+function readiness(){
+  let score=0, gaps=[];
+  SECTIONS.forEach(s=>{
+    const n=S.entries.filter(e=>e.section===s.key).length;
+    score += s.weight*Math.min(1,n/2);
+    if(n===0) gaps.push(s);
+  });
+  gaps.sort((a,b)=>b.weight-a.weight);
+  return {score:Math.round(score),gaps:gaps.slice(0,3)};
+}
+function renderPlanHome(){
+  const r=readiness();
+  const tone = r.score>=75?"Your family is well protected.":r.score>=40?"Real progress — the foundation is forming.":"Every entry here is one less problem for your family later.";
+  $("readinessCard").innerHTML=`
+    <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+      <div style="font-family:var(--font-display);font-size:52px;line-height:1">${r.score}<span style="font-size:20px;color:var(--slate)">/100</span></div>
+      <div style="flex:1;min-width:220px"><div class="eyebrow">Readiness Score</div>
+      <div class="progress" style="margin:8px 0"><i style="width:${r.score}%"></i></div>
+      <div class="muted">${tone}</div></div>
+    </div>
+    ${r.gaps.length?`<hr class="rule"><div class="eyebrow">Next best steps</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${r.gaps.map(g=>`<button class="btn btn-ghost btn-sm" onclick="openSection('${g.key}')">Start ${g.label}</button>`).join("")}</div>`:""}`;
+  const body=$("planBody"); body.innerHTML="";
+  const grid=document.createElement("div"); grid.className="grid"; grid.style.gridTemplateColumns="repeat(auto-fill,minmax(260px,1fr))";
+  SECTIONS.forEach(s=>{
+    const n=S.entries.filter(e=>e.section===s.key).length;
+    const d=document.createElement("div"); d.className="card"; d.style.cursor="pointer"; d.style.padding="18px";
+    d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:baseline"><strong>${s.label}</strong><span class="pill ${n>0?"done":""}">${n||"—"}</span></div>
+      <div class="muted" style="font-size:13px;margin-top:6px">${s.desc}</div>`;
+    d.onclick=()=>openSection(s.key); grid.appendChild(d);
+  });
+  body.appendChild(grid);
+}
+
+/* ---- section screen ---- */
+function openSection(key){
+  const s=SECTIONS.find(x=>x.key===key);
+  const items=S.entries.filter(e=>e.section===key);
+  const done=items.map(i=>i.title.toLowerCase());
+  const chips=s.sug.filter(t=>!done.some(d=>d.includes(t.toLowerCase().slice(0,8)))).slice(0,7);
+  const body=$("planBody");
+  body.innerHTML=`<div class="card">
+    <button class="btn btn-ghost btn-sm" onclick="renderPlanHome()">← All sections</button>
+    <h2 style="margin:14px 0 4px">${s.label}</h2>
+    <p class="muted">${s.hint}</p>
+    ${chips.length?`<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:14px">${chips.map(c=>`<button class="btn btn-ghost btn-sm" onclick="entryModal('${key}',null,'${esc(c).replace(/'/g,"\\'")}')">+ ${c}</button>`).join("")}</div>`:""}
+    <div style="margin-top:14px"><button class="btn btn-primary btn-sm" onclick="entryModal('${key}')">+ Add your own</button></div>
+  </div>
+  <div class="grid" id="secList" style="margin-top:14px"></div>`;
+  const list=$("secList");
+  if(items.length===0){ list.innerHTML=`<div class="muted" style="padding:4px 6px">Nothing recorded yet — the suggestions above are the usual starting points.</div>`; }
+  items.forEach(e=>{
+    const d=document.createElement("div"); d.className="card"; d.style.padding="15px 17px"; d.style.cursor="pointer";
+    d.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+      <div><strong>${esc(e.title)}</strong>
+        ${e.detail?`<div class="muted" style="font-size:13px">${esc(e.detail)}</div>`:""}
+        ${e.location?`<div class="muted" style="font-size:12.5px">📍 ${esc(e.location)}</div>`:""}</div>
+      ${e.number?`<span class="pill">•••• ${esc(e.number.slice(-4))}</span>`:""}</div>`;
+    d.onclick=()=>entryModal(key,e.id); list.appendChild(d);
+  });
+}
+function entryModal(section,id,prefill){
+  if(!id && S.profile?.plan_tier==="free" && S.entries.length>=12)
+    return toast("The free plan includes 12 vault entries. Upgrade for an unlimited vault.");
+  const e=id?S.entries.find(x=>x.id===id):{};
+  const s=SECTIONS.find(x=>x.key===section);
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">${s.label}</div><h3>${id?"Edit entry":"New entry"}</h3>
+    <label>What is it</label><input id="enTitle" value="${esc(e.title||prefill||"")}" placeholder="e.g., ${s.sug[0]}">
+    <label>Details</label><input id="enDetail" value="${esc(e.detail||"")}" placeholder="Institution, amount, description…">
+    <label>Number (kept masked)</label><input id="enNumber" value="${esc(e.number||"")}" placeholder="Account / policy number — last 4 is often enough">
+    <label>Contact person</label><input id="enContact" value="${esc(e.contact||"")}" placeholder="Name · phone · email">
+    <label>Where the original lives</label><input id="enLocation" value="${esc(e.location||"")}" placeholder="e.g., fireproof box, top shelf, home office">
+    <label>Notes</label><textarea id="enNotes" rows="2">${esc(e.notes||"")}</textarea>
+    <div class="scard-actions" style="margin-top:18px">
+      <button class="btn btn-primary" onclick="saveEntry('${section}','${id||""}')">Save</button>
+      ${id?`<button class="btn btn-danger" onclick="deleteEntry('${id}')">Delete</button>`:""}
+    </div></div></div>`;
+}
+async function saveEntry(section,id){
+  const row={plan_id:S.plan.id,section,title:$("enTitle").value.trim(),detail:$("enDetail").value.trim(),
+    number:$("enNumber").value.trim(),contact:$("enContact").value.trim(),location:$("enLocation").value.trim(),
+    notes:$("enNotes").value.trim(),updated_at:new Date().toISOString()};
+  if(!row.title) return toast("Give it a name.");
+  if(id){ await sb.from("plan_entries").update(row).eq("id",id);
+    Object.assign(S.entries.find(x=>x.id===id),row); }
+  else { const {data,error}=await sb.from("plan_entries").insert(row).select().single();
+    if(error) return toast(error.message); S.entries.push(data); }
+  closeModal(); openSection(section); toast("Saved — one less thing for your family.");
+}
+async function deleteEntry(id){
+  const e=S.entries.find(x=>x.id===id);
+  if(!confirm(`Delete "${e.title}"?`)) return;
+  await sb.from("plan_entries").delete().eq("id",id);
+  S.entries=S.entries.filter(x=>x.id!==id); closeModal(); openSection(e.section);
+}
+
+/* ---- share plan ---- */
+function openPlanShare(){
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">Share this plan</div><h3>Who should have access?</h3>
+    <p class="muted" style="margin:8px 0 4px">Your executor and spouse are the usual choices. They'll see everything in the vault.</p>
+    <label>Their email</label><input id="psEmail" type="email" placeholder="their-email@example.com">
+    <label>Role</label><select id="psRole"><option value="executor">Executor</option><option value="member">Family member</option><option value="viewer">Viewer</option></select>
+    <div class="scard-actions" style="margin-top:18px"><button class="btn btn-primary" onclick="sendPlanInvite()">Send invite</button></div>
+  </div></div>`;
+}
+async function sendPlanInvite(){
+  const email=$("psEmail").value.trim().toLowerCase(); if(!email||!email.includes("@")) return toast("Enter their email address.");
+  const {error}=await sb.from("plan_invites").insert({plan_id:S.plan.id,email,role:$("psRole").value,invited_by:S.session.user.id});
+  if(error) return toast(error.message);
+  fetch("/.netlify/functions/send-invite",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({email,inviterName:S.profile?.full_name||S.session.user.email,contextName:S.plan.subject_name,kind:"plan"})}).catch(()=>{});
+  closeModal(); toast("Invite sent. They'll join automatically when they sign up with that email.");
+}
+
+/* ---- Executor Packet ---- */
+function buildPacket(){
+  const inc=confirm("Include sensitive numbers (account/policy numbers) in the packet?\n\nOK = include full numbers · Cancel = mask to last 4");
+  const r=readiness();
+  let html=`<!DOCTYPE html><html><head><title>Executor Packet — ${esc(S.plan.subject_name)}</title>
+  <style>body{font-family:Georgia,serif;color:#26332E;max-width:760px;margin:40px auto;padding:0 24px;line-height:1.5}
+  h1{font-size:28px;margin-bottom:2px}.sub{color:#5B7183;font-size:14px;margin-bottom:26px}
+  h2{font-size:18px;border-bottom:2px solid #A67C2E;padding-bottom:4px;margin:30px 0 10px}
+  .item{margin:0 0 12px;padding:10px 14px;border:1px solid #E4DDCE;border-radius:8px;page-break-inside:avoid}
+  .t{font-weight:bold}.m{color:#5B7183;font-size:13px}
+  .foot{margin-top:40px;font-size:11px;color:#5B7183;border-top:1px solid #E4DDCE;padding-top:12px}
+  @media print{.noprint{display:none}}</style></head><body>
+  <div class="noprint" style="background:#FCF7EC;border:1px solid #E9D9B4;border-radius:8px;padding:12px;margin-bottom:20px">
+  Use your browser's Print to save as PDF, then store a copy with your original documents. <button onclick="window.print()">Print / Save PDF</button></div>
+  <h1>Executor Packet</h1>
+  <div class="sub">Everything ${esc(S.plan.subject_name)} organized for you · Readiness ${r.score}/100 · Generated ${new Date().toLocaleDateString()} by LegacyHQ</div>`;
+  SECTIONS.forEach(s=>{
+    const items=S.entries.filter(e=>e.section===s.key);
+    if(items.length===0) return;
+    html+=`<h2>${s.label}</h2>`;
+    items.forEach(e=>{
+      const num=e.number?(inc?e.number:"•••• "+e.number.slice(-4)):"";
+      html+=`<div class="item"><div class="t">${esc(e.title)}</div>
+        ${e.detail?`<div>${esc(e.detail)}</div>`:""}
+        ${num?`<div>Number: ${esc(num)}</div>`:""}
+        ${e.contact?`<div>Contact: ${esc(e.contact)}</div>`:""}
+        ${e.location?`<div class="m">Original kept: ${esc(e.location)}</div>`:""}
+        ${e.notes?`<div class="m">${esc(e.notes)}</div>`:""}</div>`;
+    });
+  });
+  html+=`<div class="foot">This packet is an organizational index prepared from information entered in LegacyHQ. It is not a legal document and does not replace a will, trust, or professional advice.${inc?" It contains sensitive account information — store it as securely as the documents it describes.":""}</div></body></html>`;
+  const w=window.open("","_blank"); w.document.write(html); w.document.close();
+}
+</script>
+<script>
+/* ===================== RELEASE 3 ===================== */
+
+/* ---------- ESTATE LEDGER ---------- */
+const LEDGER_TABLES={assets:"estate_assets",debts:"estate_liabilities",expenses:"estate_expenses",bens:"estate_beneficiaries",dists:"estate_distributions"};
+let L={assets:[],debts:[],expenses:[],bens:[],dists:[],sub:"overview"};
+const money=n=>"$"+(Number(n)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+
+async function loadLedger(){
+  $("tab-ledger").innerHTML=`<div class="muted" style="padding:10px">Loading the ledger…</div>`;
+  const [a,d,x,b,t]=await Promise.all(Object.values(LEDGER_TABLES).map(tb=>sb.from(tb).select("*").eq("estate_id",S.estate.id).order("created_at")));
+  L.assets=a.data||[]; L.debts=d.data||[]; L.expenses=x.data||[]; L.bens=b.data||[]; L.dists=t.data||[];
+  renderLedger();
+}
+function ledgerTotals(){
+  const assets=L.assets.reduce((s,r)=>s+Number(r.dod_value||0),0);
+  const debts=L.debts.filter(r=>r.status!=="denied").reduce((s,r)=>s+Number(r.amount||0),0);
+  const debtsPaid=L.debts.filter(r=>r.status==="paid").reduce((s,r)=>s+Number(r.amount||0),0);
+  const exp=L.expenses.reduce((s,r)=>s+Number(r.amount||0),0);
+  const reimb=L.expenses.filter(r=>r.reimbursable).reduce((s,r)=>s+Number(r.amount||0),0);
+  const dist=L.dists.reduce((s,r)=>s+Number(r.amount||0),0);
+  return {assets,debts,debtsPaid,exp,reimb,dist,net:assets-debts-exp,remaining:assets-debtsPaid-exp-dist};
+}
+function renderLedger(){
+  const t=ledgerTotals();
+  const subs=[["overview","Overview"],["assets","Assets"],["debts","Debts & Claims"],["expenses","Expenses"],["bens","Beneficiaries"],["dists","Distributions"]];
+  let h=`<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">
+    ${subs.map(([k,l])=>`<button class="btn btn-sm ${L.sub===k?"btn-primary":"btn-ghost"}" onclick="L.sub='${k}';renderLedger()">${l}</button>`).join("")}</div>`;
+  if(L.sub==="overview"){
+    h+=`<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">
+      ${[["Estate value (at death)",money(t.assets)],["Debts & claims",money(t.debts)],["Estate expenses",money(t.exp)],["Projected net estate",money(t.net)],["Distributed so far",money(t.dist)],["Remaining to settle",money(t.remaining)]]
+        .map(([l,v])=>`<div class="card" style="padding:16px"><div class="eyebrow">${l}</div><div style="font-family:var(--font-display);font-size:26px;margin-top:4px">${v}</div></div>`).join("")}
+    </div>
+    ${t.reimb>0?`<div class="banner">Family members are owed ${money(t.reimb)} in reimbursable expenses — pay these from the estate account before distributions.</div>`:""}
+    <div class="card" style="margin-top:14px"><div class="eyebrow">Court-ready reports</div>
+      <p class="muted" style="margin:8px 0 12px">Formatted for filing with the probate court or sharing with the attorney and beneficiaries.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="exportInventory()">Inventory of Assets</button>
+        <button class="btn btn-primary btn-sm" onclick="exportAccounting()">Estate Accounting</button>
+      </div></div>`;
+  } else {
+    const cfg=ledgerCfg(L.sub), rows=L[L.sub];
+    h+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div><strong>${cfg.title}</strong><div class="muted" style="font-size:13px">${cfg.hint}</div></div>
+      <button class="btn btn-primary btn-sm" onclick="ledgerModal('${L.sub}')">+ Add</button></div></div>
+      <div class="grid" style="margin-top:12px">`;
+    if(rows.length===0) h+=`<div class="muted" style="padding:4px 6px">Nothing recorded yet.</div>`;
+    rows.forEach(r=>{
+      h+=`<div class="card" style="padding:14px 16px;cursor:pointer" onclick="ledgerModal('${L.sub}','${r.id}')">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+          <div><strong>${esc(cfg.name(r))}</strong><div class="muted" style="font-size:12.5px">${esc(cfg.meta(r))}</div></div>
+          <div style="font-weight:700">${cfg.amt(r)}</div></div></div>`;
+    });
+    h+=`</div>`;
+  }
+  $("tab-ledger").innerHTML=h;
+}
+function ledgerCfg(sub){
+  return {
+    assets:{title:"Assets",hint:"Value each asset as of the date of death — the court and the tax return both need it, and it sets the heirs' cost basis.",
+      name:r=>r.name,amt:r=>money(r.dod_value),meta:r=>[r.category,r.titling,r.probate_asset?"probate asset":"non-probate"].filter(Boolean).join(" · "),
+      fields:[["name","Asset name","text"],["category","Category","select",["bank","brokerage","retirement","realestate","vehicle","personal","business","other"]],["titling","How it's titled","select",["sole","joint","tod_pod","trust","unknown"]],["probate_asset","Goes through probate?","bool"],["dod_value","Value at date of death ($)","number"],["notes","Notes","text"]]},
+    debts:{title:"Debts & Creditor Claims",hint:"Track every claim and its status. Claims are paid in legal priority order — from estate funds only, never your own.",
+      name:r=>r.creditor,amt:r=>money(r.amount),meta:r=>[r.category,r.status].filter(Boolean).join(" · "),
+      fields:[["creditor","Creditor","text"],["category","Category","select",["mortgage","card","loan","medical","tax","funeral","other"]],["amount","Amount ($)","number"],["status","Status","select",["pending","allowed","denied","paid"]],["notes","Notes","text"]]},
+    expenses:{title:"Estate Expenses",hint:"Funeral costs, court fees, attorney fees, property upkeep. Mark who paid — reimbursable expenses are settled before distributions.",
+      name:r=>r.payee,amt:r=>money(r.amount),meta:r=>[r.category,r.paid_on?fmtDate(r.paid_on):"",r.reimbursable?"reimbursable":""].filter(Boolean).join(" · "),
+      fields:[["payee","Paid to","text"],["category","Category","select",["funeral","admin","legal","tax","property","other"]],["amount","Amount ($)","number"],["paid_on","Date paid","date"],["paid_by","Paid by","select",["estate account","executor (personal funds)","family member"]],["reimbursable","Reimbursable to the payer?","bool"],["notes","Notes","text"]]},
+    bens:{title:"Beneficiaries",hint:"Everyone named in the will or trust, with their share.",
+      name:r=>r.name,amt:r=>esc(r.share||""),meta:r=>[r.relation,r.contact].filter(Boolean).join(" · "),
+      fields:[["name","Name","text"],["relation","Relationship","text"],["share","Share (e.g., 50%, residuary)","text"],["contact","Contact","text"],["notes","Notes","text"]]},
+    dists:{title:"Distributions",hint:"Only after debts and taxes are resolved. A signed receipt for every distribution protects the executor.",
+      name:r=>r.beneficiary,amt:r=>money(r.amount),meta:r=>[r.description,r.distributed_on?fmtDate(r.distributed_on):"",r.receipt_signed?"receipt signed ✓":"NO receipt yet"].filter(Boolean).join(" · "),
+      fields:[["beneficiary","Beneficiary","text"],["description","What was distributed","text"],["amount","Value ($)","number"],["distributed_on","Date","date"],["receipt_signed","Receipt & release signed?","bool"],["notes","Notes","text"]]}
+  }[sub];
+}
+function ledgerModal(sub,id){
+  const cfg=ledgerCfg(sub), r=id?L[sub].find(x=>x.id===id):{};
+  let f=cfg.fields.map(([k,label,type,opts])=>{
+    if(type==="select") return `<label>${label}</label><select id="lf_${k}">${opts.map(o=>`<option ${r[k]===o?"selected":""}>${o}</option>`).join("")}</select>`;
+    if(type==="bool") return `<label>${label}</label><select id="lf_${k}"><option value="true" ${r[k]?"selected":""}>Yes</option><option value="false" ${r[k]===false||r[k]===undefined?"selected":""}>No</option></select>`;
+    return `<label>${label}</label><input id="lf_${k}" type="${type==="number"?"number":type==="date"?"date":"text"}" ${type==="number"?'step="0.01"':""} value="${esc(r[k]??"")}">`;
+  }).join("");
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">${cfg.title}</div><h3>${id?"Edit":"Add"}</h3>${f}
+    <div class="scard-actions" style="margin-top:18px">
+      <button class="btn btn-primary" onclick="saveLedger('${sub}','${id||""}')">Save</button>
+      ${id?`<button class="btn btn-danger" onclick="deleteLedger('${sub}','${id}')">Delete</button>`:""}
+    </div></div></div>`;
+}
+async function saveLedger(sub,id){
+  const cfg=ledgerCfg(sub), row={estate_id:S.estate.id};
+  cfg.fields.forEach(([k,_l,type])=>{
+    let v=$("lf_"+k).value;
+    if(type==="bool") v=(v==="true");
+    else if(type==="number") v=Number(v||0);
+    else if(type==="date") v=v||null;
+    else v=v.trim();
+    row[k]=v;
+  });
+  const first=cfg.fields[0][0];
+  if(!row[first]) return toast("A name is needed.");
+  const tbl=LEDGER_TABLES[sub];
+  if(id){ row.updated_at=new Date().toISOString(); delete row.estate_id;
+    await sb.from(tbl).update(row).eq("id",id); }
+  else { const {error}=await sb.from(tbl).insert(row); if(error) return toast(error.message); }
+  closeModal(); await loadLedger(); logActivity(id?"updated ledger entry":"added ledger entry",row[first]);
+}
+async function deleteLedger(sub,id){
+  if(!confirm("Delete this entry?")) return;
+  await sb.from(LEDGER_TABLES[sub]).delete().eq("id",id);
+  closeModal(); await loadLedger();
+}
+function reportShell(title,body){
+  return `<!DOCTYPE html><html><head><title>${title}</title><style>
+  body{font-family:Georgia,serif;color:#26332E;max-width:760px;margin:40px auto;padding:0 24px;line-height:1.5;font-size:14px}
+  h1{font-size:24px;margin-bottom:2px}.sub{color:#5B7183;font-size:13px;margin-bottom:24px}
+  h2{font-size:16px;border-bottom:2px solid #A67C2E;padding-bottom:4px;margin:26px 0 8px}
+  table{width:100%;border-collapse:collapse;margin:6px 0}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#5B7183;border-bottom:1px solid #E4DDCE;padding:6px 8px}
+  td{padding:7px 8px;border-bottom:1px solid #F0EADD;vertical-align:top}
+  td.num,th.num{text-align:right;white-space:nowrap}
+  tr.total td{font-weight:bold;border-top:2px solid #26332E}
+  .sig{margin-top:50px;display:flex;gap:40px}.sig div{flex:1;border-top:1px solid #26332E;padding-top:6px;font-size:12px;color:#5B7183}
+  .foot{margin-top:36px;font-size:11px;color:#5B7183;border-top:1px solid #E4DDCE;padding-top:10px}
+  @media print{.noprint{display:none}}</style></head><body>
+  <div class="noprint" style="background:#FCF7EC;border:1px solid #E9D9B4;border-radius:8px;padding:12px;margin-bottom:20px">
+  <button onclick="window.print()">Print / Save as PDF</button></div>${body}
+  <div class="sig"><div>Personal Representative — Signature & Date</div><div>Prepared by</div></div>
+  <div class="foot">Prepared with LegacyHQ from records entered by the estate's representatives. Figures should be verified against source documents. This report is an organizational aid, not legal or accounting advice.</div>
+  </body></html>`;
+}
+function gateExports(){
+  if(S.profile?.plan_tier==="free"){ startCheckout('settle'); toast("Court-ready reports are part of the Settle plan."); return true; }
+  return false;
+}
+function exportInventory(){
+  if(gateExports()) return;
+  const t=ledgerTotals();
+  const rows=L.assets.map(r=>`<tr><td>${esc(r.name)}</td><td>${esc(r.category||"")}</td><td>${esc(r.titling||"")}</td><td>${r.probate_asset?"Probate":"Non-probate"}</td><td class="num">${money(r.dod_value)}</td></tr>`).join("");
+  const body=`<h1>Inventory of Assets</h1>
+    <div class="sub">Estate of ${esc(S.estate.decedent_name)}${S.estate.date_of_death?" · Date of death: "+fmtDate(S.estate.date_of_death):""}${S.estate.state_code?" · "+esc(S.estate.state_code):""} · Prepared ${new Date().toLocaleDateString()}</div>
+    <table><tr><th>Asset</th><th>Category</th><th>Titling</th><th>Class</th><th class="num">Value at Date of Death</th></tr>
+    ${rows}<tr class="total"><td colspan="4">Total</td><td class="num">${money(t.assets)}</td></tr></table>`;
+  const w=window.open("","_blank"); w.document.write(reportShell("Inventory — "+S.estate.decedent_name,body)); w.document.close();
+}
+function exportAccounting(){
+  if(gateExports()) return;
+  const t=ledgerTotals();
+  const sec=(title,rows,cols,total)=>`<h2>${title}</h2><table><tr>${cols.map(c=>`<th class="${c[2]||""}">${c[0]}</th>`).join("")}</tr>
+    ${rows.length?rows.join(""):`<tr><td colspan="${cols.length}" style="color:#5B7183">None recorded</td></tr>`}
+    ${total!==undefined?`<tr class="total"><td colspan="${cols.length-1}">Total</td><td class="num">${money(total)}</td></tr>`:""}</table>`;
+  const body=`<h1>Estate Accounting</h1>
+    <div class="sub">Estate of ${esc(S.estate.decedent_name)}${S.estate.date_of_death?" · Date of death: "+fmtDate(S.estate.date_of_death):""} · Prepared ${new Date().toLocaleDateString()}</div>
+    ${sec("Assets (at date of death)",L.assets.map(r=>`<tr><td>${esc(r.name)}</td><td>${esc(r.titling||"")}</td><td class="num">${money(r.dod_value)}</td></tr>`),[["Asset"],["Titling"],["Value","","num"]],t.assets)}
+    ${sec("Debts & Claims",L.debts.map(r=>`<tr><td>${esc(r.creditor)}</td><td>${esc(r.status)}</td><td class="num">${money(r.amount)}</td></tr>`),[["Creditor"],["Status"],["Amount","","num"]],t.debts)}
+    ${sec("Administration Expenses",L.expenses.map(r=>`<tr><td>${esc(r.payee)}</td><td>${esc(r.category||"")}${r.reimbursable?" · reimbursable":""}</td><td>${r.paid_on?fmtDate(r.paid_on):""}</td><td class="num">${money(r.amount)}</td></tr>`),[["Payee"],["Category"],["Date"],["Amount","","num"]],t.exp)}
+    ${sec("Distributions to Beneficiaries",L.dists.map(r=>`<tr><td>${esc(r.beneficiary)}</td><td>${esc(r.description||"")}</td><td>${r.receipt_signed?"Receipt ✓":"—"}</td><td class="num">${money(r.amount)}</td></tr>`),[["Beneficiary"],["Description"],["Receipt"],["Amount","","num"]],t.dist)}
+    <h2>Summary</h2><table>
+    <tr><td>Total assets at date of death</td><td class="num">${money(t.assets)}</td></tr>
+    <tr><td>Less: debts & allowed claims</td><td class="num">(${money(t.debts)})</td></tr>
+    <tr><td>Less: administration expenses</td><td class="num">(${money(t.exp)})</td></tr>
+    <tr class="total"><td>Net estate</td><td class="num">${money(t.net)}</td></tr>
+    <tr><td>Less: distributions to date</td><td class="num">(${money(t.dist)})</td></tr>
+    <tr class="total"><td>Remaining to distribute / close</td><td class="num">${money(t.remaining)}</td></tr></table>`;
+  const w=window.open("","_blank"); w.document.write(reportShell("Accounting — "+S.estate.decedent_name,body)); w.document.close();
+}
+
+/* ---------- PROBATE ASSISTANT + MICHIGAN STATE PACK ---------- */
+const STATE_PACKS={
+ MI:{name:"Michigan",reviewed:"July 2026",term:"personal representative",
+  smallEstate:"Michigan's small-estate limit is adjusted every year (it has been in the high-$20,000s to low-$30,000s range in recent years, calculated after subtracting funeral/burial costs and liens). Verify the current figure with the county probate court or at courts.mi.gov before choosing this path.",
+  notes:[
+   "Michigan calls the executor the 'personal representative' (PR) — that's the term on every court form.",
+   "Most Michigan estates use UNSUPERVISED (informal) probate — faster, fewer hearings. Supervised probate is for conflict or complexity.",
+   "Creditors generally have 4 months from published notice to bring claims.",
+   "An estate generally must stay open at least 5 months from the PR's appointment before closing.",
+   "Michigan charges an inventory fee based on the estate's value, paid to the court.",
+   "Vehicles: if vehicles are the only assets (under the state cap) the Secretary of State has a simple transfer-by-affidavit process — no probate needed.",
+   "Common SCAO forms: PC 556 (Petition & Order for Assignment — small estates), PC 558 (Application for Informal Probate), PC 572 (Letters of Authority), PC 577 (Inventory), PC 591 (Sworn Statement to Close). Confirm current versions at courts.mi.gov."
+  ],
+  paths:{
+   none:{label:"No probate likely needed",steps:["Record a certified death certificate with the register of deeds for jointly-owned real estate","Present death certificates + beneficiary claims to each institution (POD/TOD accounts, life insurance, retirement plans)","Confirm with the attorney that no solely-titled assets remain"]},
+   small:{label:"Small estate — Petition for Assignment",steps:["Confirm the estate (minus funeral/burial costs and liens) is under this year's small-estate limit","File Petition & Order for Assignment (PC 556) with the county probate court + certified death certificate + filing fee","Bring the funeral bill or proof of payment — the person who paid it has priority","Use the signed order to collect and transfer the assets","Keep copies of everything for 7 years"]},
+   informal:{label:"Unsupervised (informal) probate",steps:["File Application for Informal Probate (PC 558) with the will and certified death certificate at the county probate court","Receive Letters of Authority (PC 572) — this is your legal power to act","Open the estate bank account with an EIN; notify heirs and devisees","Publish notice to creditors — the 4-month claim window starts at publication","File the Inventory (PC 577) within the required window and pay the inventory fee","Review and pay allowed claims in priority order from estate funds","Prepare accountings; distribute with signed receipts after claims and taxes","After 5+ months, file the Sworn Statement to Close (PC 591)"]},
+   formal:{label:"Supervised / formal probate",steps:["This path runs through court hearings — retain a Michigan probate attorney before filing","File the Petition for Probate; the court supervises major steps","Follow the court's schedule for inventory, accountings, and approvals","Distribute only on court approval; obtain the order of discharge"]}
+  }},
+ GENERIC:{name:"General guidance",reviewed:"July 2026",term:"executor / personal representative",
+  smallEstate:"Most states offer a simplified small-estate process (affidavit or summary administration) under a dollar threshold that varies widely by state. The county probate court's website usually states the current figure.",
+  notes:[
+   "Probate covers assets titled solely in the deceased's name with no beneficiary designation.",
+   "Joint property, POD/TOD accounts, trust assets, and insurance with living beneficiaries generally bypass probate.",
+   "Never pay estate debts from personal funds; claims are paid from estate assets in a legal priority order.",
+   "Deadlines for inventories, creditor notices, and accountings vary by state — the probate court clerk can tell you the local rules (clerks can't give legal advice, but they know the procedure)."
+  ],
+  paths:{
+   none:{label:"No probate likely needed",steps:["Record the death certificate where required for jointly-owned real estate","Claim POD/TOD accounts and insurance directly with each institution","Confirm with an attorney that nothing solely-titled remains"]},
+   small:{label:"Small-estate process",steps:["Confirm the estate is under your state's small-estate threshold","Obtain the small-estate affidavit or petition from the county probate court","File with a certified death certificate; follow the court's instructions to collect assets","Keep records of everything collected and paid"]},
+   informal:{label:"Standard probate",steps:["File the will and petition/application at the county probate court","Receive letters (your legal authority); get an EIN and open the estate account","Notify heirs; publish creditor notice; file the inventory on the court's schedule","Pay allowed claims in priority order; keep meticulous records","Prepare accountings, distribute with signed receipts, and close per the court's process"]},
+   formal:{label:"Formal / supervised probate",steps:["Retain a probate attorney — this path involves court hearings","Follow the court's supervision for each major step through discharge"]}
+  }}
+};
+let probateAnswers={};
+function packFor(){ return STATE_PACKS[S.estate?.state_code] || STATE_PACKS.GENERIC; }
+function renderProbate(){
+  const pack=packFor();
+  const rec=probateRecommend();
+  let h=`<div class="card">
+    <div class="eyebrow">Probate Assistant · ${pack.name} · content reviewed ${pack.reviewed}</div>
+    <h2 style="margin:10px 0 6px;font-size:21px">Which path fits this estate?</h2>
+    <p class="muted">Three questions. In ${pack.name==="Michigan"?"Michigan":"most states"}, the person in charge is called the <strong>${pack.term}</strong>.</p>
+    ${probateQ("q1","Are there assets titled ONLY in their name, with no beneficiary and no co-owner?",[["no","No — everything is joint, in trust, or has beneficiaries"],["yes","Yes"],["unsure","I'm not sure"]])}
+    ${probateAnswers.q1==="yes"||probateAnswers.q1==="unsure"?probateQ("q2","Roughly, what do those solely-owned assets add up to?",[["tiny","Under ~$25–30k (or vehicles only)"],["modest","More than that"],["unsure","I'm not sure yet"]]):""}
+    ${probateAnswers.q1==="yes"&&probateAnswers.q2==="modest"?probateQ("q3","Is family conflict, an insolvent estate, or a contested will likely?",[["no","No — everyone's aligned"],["yes","Yes, or possibly"]]):""}
+  </div>`;
+  if(rec){
+    const path=pack.paths[rec];
+    h+=`<div class="card" style="margin-top:14px;border-color:var(--brass)">
+      <div class="eyebrow">Likely path</div><h3 style="margin:6px 0">${path.label}</h3>
+      ${rec==="small"?`<p class="muted" style="margin:6px 0 10px">${pack.smallEstate}</p>`:""}
+      <ol style="margin:10px 0 0 20px;display:grid;gap:8px">${path.steps.map(s=>`<li>${s}</li>`).join("")}</ol>
+      <div class="scard-actions" style="margin-top:16px">
+        <button class="btn btn-primary btn-sm" onclick="addProbateSteps('${rec}')">Add these steps to my roadmap</button>
+        <button class="btn btn-ghost btn-sm" onclick="openGuide()">Ask the Guide about this</button>
+      </div></div>`;
+  }
+  h+=`<div class="card" style="margin-top:14px"><div class="eyebrow">${pack.name} — worth knowing</div>
+    <ul style="margin:10px 0 0 18px;display:grid;gap:7px;font-size:14.5px">${pack.notes.map(n=>`<li>${n}</li>`).join("")}</ul></div>
+    <p class="footer-note" style="padding:20px 0 10px">General information about court procedure, not legal advice. Thresholds, forms, and deadlines change — verify with the county probate court or a licensed attorney. Contested, insolvent, or complex estates need an attorney.</p>`;
+  $("tab-probate").innerHTML=h;
+}
+function probateQ(k,q,opts){
+  return `<div style="margin-top:16px"><strong style="font-size:15px">${q}</strong>
+    <div class="choice" style="margin-top:8px">${opts.map(([v,l])=>`<button class="${probateAnswers[k]===v?"sel":""}" onclick="probateAnswers.${k}='${v}';renderProbate()">${l}</button>`).join("")}</div></div>`;
+}
+function probateRecommend(){
+  const a=probateAnswers;
+  if(a.q1==="no") return "none";
+  if(!a.q2) return null;
+  if(a.q2==="tiny") return "small";
+  if(a.q2==="unsure") return null;
+  if(!a.q3) return null;
+  return a.q3==="yes"?"formal":"informal";
+}
+async function addProbateSteps(rec){
+  const pack=packFor(), path=pack.paths[rec];
+  const existing=S.tasks.filter(t=>t.rule_id==="probate_step").length;
+  if(existing) return toast("Probate steps are already on the roadmap.");
+  const rows=path.steps.map((s,i)=>({estate_id:S.estate.id,rule_id:"probate_step",phase:"days90",category:"Probate — "+path.label,title:s,sort_order:200+i}));
+  const {data,error}=await sb.from("tasks").insert(rows).select();
+  if(error) return toast(error.message);
+  S.tasks.push(...data); logActivity("added probate steps",path.label);
+  toast(path.steps.length+" steps added under First 90 Days."); setTab("roadmap");
+}
+
+/* ---------- EMERGENCY ACCESS ---------- */
+async function openEmergencySettings(){
+  const {data:contacts}=await sb.from("emergency_contacts").select("*").eq("plan_id",S.plan.id);
+  const {data:reqs}=await sb.from("emergency_requests").select("*").eq("plan_id",S.plan.id).eq("status","pending");
+  const list=(contacts||[]).map(c=>`<div class="card" style="padding:13px 15px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+    <div><strong>${esc(c.name||c.email)}</strong><div class="muted" style="font-size:12.5px">${esc(c.email)} · ${c.waiting_hours}-hour waiting period · gets ${esc(c.grant_role)} access</div></div>
+    <button class="btn btn-danger btn-sm" onclick="removeEmergencyContact('${c.id}')">Remove</button></div></div>`).join("");
+  const pending=(reqs||[]).map(r=>`<div class="card" style="padding:13px 15px;border-color:var(--clay)">
+    <strong style="color:var(--clay)">Access requested</strong>
+    <div class="muted" style="font-size:13px">Unlocks ${new Date(r.unlock_at).toLocaleString()} unless you decline.${r.attestation?" Reason given: "+esc(r.attestation):""}</div>
+    <div style="margin-top:8px"><button class="btn btn-danger btn-sm" onclick="vetoEmergency('${r.id}')">Decline this request</button></div></div>`).join("");
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">Emergency access</div><h3>If something happens to you</h3>
+    <p class="muted" style="margin:8px 0 4px">Designated people can request access to this plan. You're alerted immediately, and access only unlocks after your waiting period passes without you declining.</p>
+    ${pending?`<div style="margin-top:12px">${pending}</div>`:""}
+    <div style="margin-top:12px;display:grid;gap:8px">${list||'<div class="muted">No one designated yet.</div>'}</div>
+    <hr class="rule">
+    <label>Their email</label><input id="ecEmail" type="email" placeholder="trusted-person@example.com">
+    <label>Their name</label><input id="ecName" placeholder="Name">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><label>Waiting period</label><select id="ecHours"><option value="48">48 hours</option><option value="72" selected>72 hours</option><option value="168">7 days</option><option value="336">14 days</option></select></div>
+      <div><label>Access granted</label><select id="ecRole"><option value="executor">Executor (full)</option><option value="viewer">Viewer</option></select></div>
+    </div>
+    <div class="scard-actions" style="margin-top:18px"><button class="btn btn-primary" onclick="addEmergencyContact()">Add designated contact</button></div>
+  </div></div>`;
+}
+async function addEmergencyContact(){
+  const email=$("ecEmail").value.trim().toLowerCase(); if(!email.includes("@")) return toast("Enter their email address.");
+  const {error}=await sb.from("emergency_contacts").insert({plan_id:S.plan.id,email,name:$("ecName").value.trim(),waiting_hours:Number($("ecHours").value),grant_role:$("ecRole").value});
+  if(error) return toast(error.message);
+  toast("Designated. Tell them: if the time comes, they choose 'emergency contact' on the LegacyHQ home screen.");
+  openEmergencySettings();
+}
+async function removeEmergencyContact(id){
+  await sb.from("emergency_contacts").delete().eq("id",id); openEmergencySettings();
+}
+async function vetoEmergency(id){
+  await sb.rpc("veto_emergency_access",{req:id});
+  toast("Request declined. Consider changing your password if this was unexpected.");
+  openEmergencySettings();
+}
+
+/* requester side */
+function openEmergencyRequest(){
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">Emergency access</div><h3>Request access to a plan</h3>
+    <p class="muted" style="margin:8px 0 4px">If someone designated you as their emergency contact, enter the email address they use for LegacyHQ. They'll be alerted, and access unlocks after their chosen waiting period unless they decline.</p>
+    <label>Plan owner's email</label><input id="erEmail" type="email" placeholder="their-account-email@example.com">
+    <label>Briefly, why you're requesting access</label><textarea id="erWhy" rows="2" placeholder="e.g., They passed away on July 2 / They are incapacitated and I am handling their affairs"></textarea>
+    <div class="scard-actions" style="margin-top:18px"><button class="btn btn-primary" onclick="fileEmergencyRequest()">Submit request</button></div>
+  </div></div>`;
+}
+async function fileEmergencyRequest(){
+  const owner=$("erEmail").value.trim(); if(!owner.includes("@")) return toast("Enter the plan owner's email.");
+  const {data,error}=await sb.rpc("request_emergency_access",{owner_search_email:owner,attestation_text:$("erWhy").value.trim()});
+  if(error) return toast(error.message);
+  if(data.error) return toast(data.error);
+  fetch("/.netlify/functions/send-invite",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({email:data.owner_email,inviterName:S.profile?.full_name||S.session.user.email,contextName:data.subject,kind:"emergency",unlockAt:data.unlock_at})}).catch(()=>{});
+  closeModal();
+  toast("Request filed. Access unlocks "+new Date(data.unlock_at).toLocaleString()+" unless declined.");
+  renderMyEmergencyRequests();
+}
+async function renderMyEmergencyRequests(){
+  try{
+    const {data}=await sb.rpc("my_emergency_requests");
+    const reqs=(data||[]).map(r=>typeof r==="string"?JSON.parse(r):r).filter(r=>r.status!=="granted");
+    if(!reqs.length) return;
+    const list=$("estateList");
+    reqs.forEach(r=>{
+      const ready=r.status==="pending"&&new Date(r.unlock_at)<=new Date();
+      const d=document.createElement("div"); d.className="card";
+      d.innerHTML=`<div class="eyebrow">Emergency access request</div>
+        <h3 style="margin:6px 0 2px">Plan for ${esc(r.subject)}</h3>
+        <div class="muted">${r.status==="vetoed"?"Declined by the plan owner.":ready?"The waiting period has passed.":"Unlocks "+new Date(r.unlock_at).toLocaleString()+" unless declined."}</div>
+        ${ready?`<div style="margin-top:10px"><button class="btn btn-brass btn-sm" onclick="claimEmergency('${r.id}')">Open the plan</button></div>`:""}`;
+      list.prepend(d);
+    });
+  }catch(e){}
+}
+async function claimEmergency(id){
+  const {data,error}=await sb.rpc("claim_emergency_access",{req:id});
+  if(error) return toast(error.message);
+  if(data.error==="waiting") return toast("Not yet — unlocks "+new Date(data.unlock_at).toLocaleString());
+  if(data.error) return toast(data.error);
+  await loadEstates(); goHome(); toast("Access granted. The plan is now in your workspace.");
+}
+</script>
+<script>
+/* ===================== RELEASE 4 ===================== */
+
+/* ---------- FUNERAL PLANNING CENTER ---------- */
+const FUNERAL_STARTERS=[
+ ["Funeral home basic services fee","service"],["Transfer of remains","transport"],
+ ["Embalming / preparation","service"],["Casket or urn","disposition"],
+ ["Viewing / visitation","service"],["Ceremony / chapel","service"],
+ ["Cemetery plot or niche","cemetery"],["Opening & closing","cemetery"],
+ ["Headstone / marker","cemetery"],["Cremation fee","disposition"],
+ ["Flowers","flowers"],["Programs & printing","printing"],
+ ["Obituary placement","printing"],["Repast / catering","catering"],
+ ["Limousine / family transport","transport"]
+];
+let F={budget:[],options:[]};
+async function loadFuneral(){
+  $("tab-funeral").innerHTML=`<div class="muted" style="padding:10px">Loading…</div>`;
+  const [b,o]=await Promise.all([
+    sb.from("funeral_budget").select("*").eq("estate_id",S.estate.id).order("created_at"),
+    sb.from("funeral_options").select("*").eq("estate_id",S.estate.id).order("created_at")
+  ]);
+  F.budget=b.data||[]; F.options=o.data||[];
+  renderFuneral();
+}
+function renderFuneral(){
+  const est=F.budget.reduce((s,r)=>s+Number(r.estimated||0),0);
+  const act=F.budget.reduce((s,r)=>s+Number(r.actual||0),0);
+  let h=`<div class="card">
+    <div class="eyebrow">Budget</div>
+    <div style="display:flex;gap:26px;flex-wrap:wrap;margin-top:8px">
+      <div><div class="muted" style="font-size:12px">Planned</div><div style="font-family:var(--font-display);font-size:26px">${money(est)}</div></div>
+      <div><div class="muted" style="font-size:12px">Actual so far</div><div style="font-family:var(--font-display);font-size:26px">${money(act)}</div></div>
+      <div><div class="muted" style="font-size:12px">${act>est?"Over plan":"Under plan"}</div><div style="font-family:var(--font-display);font-size:26px;color:${act>est?"var(--clay)":"var(--sage)"}">${money(Math.abs(est-act))}</div></div>
+    </div>
+    <p class="muted" style="margin-top:10px;font-size:13px">Under the FTC Funeral Rule, every funeral home must give you an itemized price list, and you may choose items individually instead of packages. Bring this budget to the meeting.</p>
+    ${F.budget.length===0?`<div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="seedFuneralBudget()">Start with the standard 15 line items</button></div>`:""}
+    <div style="margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="funeralItemModal()">+ Add line item</button></div>
+  </div>
+  <div class="grid" style="margin-top:12px">`;
+  F.budget.forEach(r=>{
+    h+=`<div class="card" style="padding:13px 16px;cursor:pointer" onclick="funeralItemModal('${r.id}')">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+        <div><strong>${esc(r.item)}</strong><div class="muted" style="font-size:12.5px">${esc(r.category||"")}${r.vendor?" · "+esc(r.vendor):""}</div></div>
+        <div style="text-align:right"><div style="font-weight:700">${r.actual!=null?money(r.actual):"—"}</div><div class="muted" style="font-size:12px">plan ${money(r.estimated)}</div></div>
+      </div></div>`;
+  });
+  h+=`</div>
+  <h2 style="margin:26px 0 10px;font-size:20px">Compare providers</h2>
+  <div class="card"><p class="muted" style="margin-bottom:10px">Enter each quote as you call around — prices for identical services vary widely between funeral homes.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input id="foName" placeholder="Provider name" style="flex:1;min-width:170px">
+      <select id="foType" style="width:auto"><option value="funeral_home">Funeral home</option><option value="cemetery">Cemetery</option><option value="florist">Florist</option><option value="caterer">Caterer</option><option value="other">Other</option></select>
+      <input id="foQuote" type="number" step="0.01" placeholder="Quote $" style="width:110px">
+      <button class="btn btn-primary btn-sm" onclick="addFuneralOption()">Add</button>
+    </div></div>
+  <div class="grid" style="margin-top:12px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">`;
+  F.options.forEach(o=>{
+    h+=`<div class="card" style="padding:15px;border-color:${o.chosen?"var(--brass)":"var(--line)"}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><strong>${esc(o.name)}</strong>${o.chosen?'<span class="pill done">chosen</span>':""}</div>
+      <div class="muted" style="font-size:12.5px">${esc(o.option_type.replace("_"," "))}${o.phone?" · "+esc(o.phone):""}</div>
+      <div style="font-family:var(--font-display);font-size:22px;margin:6px 0">${o.quote!=null?money(o.quote):"—"}</div>
+      ${o.notes?`<div class="muted" style="font-size:12.5px">${esc(o.notes)}</div>`:""}
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button class="btn btn-ghost btn-sm" onclick="chooseFuneralOption('${o.id}')">${o.chosen?"Unchoose":"Choose"}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteFuneralOption('${o.id}')">Remove</button>
+      </div></div>`;
+  });
+  h+=`</div>
+  <h2 style="margin:26px 0 10px;font-size:20px">Obituary builder</h2>
+  <div class="card">
+    <p class="muted" style="margin-bottom:6px">Answer what you'd like — the Guide drafts it in your chosen tone, and you edit every word. For safety, we omit the exact birth date and home address.</p>
+    <label>Their life — career, passions, character</label><textarea id="obLife" rows="2" placeholder="e.g., 34 years teaching in Detroit Public Schools; deacon at …; loved jazz, fishing, and his grandkids"></textarea>
+    <label>Survived by</label><input id="obSurvived" placeholder="wife Barbara; children …; 6 grandchildren">
+    <label>Preceded in death by</label><input id="obPre" placeholder="parents …">
+    <label>Service details (optional)</label><input id="obService" placeholder="Saturday July 18, 11 AM, …">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><label>Tone</label><select id="obTone"><option>Traditional</option><option>Celebratory</option><option>Faith-centered</option><option>Brief (for paid placement)</option></select></div>
+      <div><label>&nbsp;</label><button class="btn btn-brass" style="width:100%" onclick="draftObituary()">Draft obituary</button></div>
+    </div>
+    <div id="obOut" class="hidden"><label>Draft — edit freely</label><textarea id="obText" rows="12"></textarea>
+      <div class="scard-actions"><button class="btn btn-ghost btn-sm" onclick="copyObit(this)">Copy</button><button class="btn btn-ghost btn-sm" onclick="printObit()">Print</button></div></div>
+  </div>`;
+  $("tab-funeral").innerHTML=h;
+}
+async function seedFuneralBudget(){
+  const rows=FUNERAL_STARTERS.map(([item,category])=>({estate_id:S.estate.id,item,category,estimated:0}));
+  await sb.from("funeral_budget").insert(rows);
+  loadFuneral();
+}
+function funeralItemModal(id){
+  const r=id?F.budget.find(x=>x.id===id):{};
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">Funeral budget</div><h3>${id?"Edit":"Add"} line item</h3>
+    <label>Item</label><input id="fbItem" value="${esc(r.item||"")}">
+    <label>Category</label><select id="fbCat">${["service","disposition","cemetery","flowers","catering","transport","printing","other"].map(c=>`<option ${r.category===c?"selected":""}>${c}</option>`).join("")}</select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><label>Planned ($)</label><input id="fbEst" type="number" step="0.01" value="${r.estimated??""}"></div>
+      <div><label>Actual ($)</label><input id="fbAct" type="number" step="0.01" value="${r.actual??""}"></div>
+    </div>
+    <label>Vendor</label><input id="fbVendor" value="${esc(r.vendor||"")}">
+    <label>Notes</label><input id="fbNotes" value="${esc(r.notes||"")}">
+    <div class="scard-actions" style="margin-top:18px">
+      <button class="btn btn-primary" onclick="saveFuneralItem('${id||""}')">Save</button>
+      ${id?`<button class="btn btn-danger" onclick="deleteFuneralItem('${id}')">Delete</button>`:""}
+    </div></div></div>`;
+}
+async function saveFuneralItem(id){
+  const row={estate_id:S.estate.id,item:$("fbItem").value.trim(),category:$("fbCat").value,
+    estimated:Number($("fbEst").value||0),actual:$("fbAct").value===""?null:Number($("fbAct").value),
+    vendor:$("fbVendor").value.trim(),notes:$("fbNotes").value.trim()};
+  if(!row.item) return toast("Name the item.");
+  if(id){delete row.estate_id; await sb.from("funeral_budget").update(row).eq("id",id);}
+  else await sb.from("funeral_budget").insert(row);
+  closeModal(); loadFuneral();
+}
+async function deleteFuneralItem(id){ await sb.from("funeral_budget").delete().eq("id",id); closeModal(); loadFuneral(); }
+async function addFuneralOption(){
+  const name=$("foName").value.trim(); if(!name) return;
+  await sb.from("funeral_options").insert({estate_id:S.estate.id,name,option_type:$("foType").value,quote:$("foQuote").value===""?null:Number($("foQuote").value)});
+  loadFuneral();
+}
+async function chooseFuneralOption(id){
+  const o=F.options.find(x=>x.id===id);
+  await sb.from("funeral_options").update({chosen:!o.chosen}).eq("id",id);
+  if(!o.chosen) logActivity("chose provider",o.name);
+  loadFuneral();
+}
+async function deleteFuneralOption(id){ await sb.from("funeral_options").delete().eq("id",id); loadFuneral(); }
+async function draftObituary(){
+  const btn=event.target; btn.disabled=true; btn.textContent="Drafting…";
+  const prompt=`Please write a complete obituary (350-450 words unless tone is Brief, then 120-160 words) for ${S.estate.decedent_name}, who passed on ${S.estate.date_of_death||"(date)"}.
+Tone: ${$("obTone").value}.
+Their life: ${$("obLife").value||"(use graceful general language)"}.
+Survived by: ${$("obSurvived").value||"(omit if unknown)"}.
+Preceded in death by: ${$("obPre").value||"(omit if unknown)"}.
+Service details: ${$("obService").value||"(omit)"}.
+Do not include an exact birth date or any street address. Return only the obituary text.`;
+  try{
+    const r=await fetch("/.netlify/functions/ai-guide",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({messages:[{role:"user",content:prompt}]})});
+    const d=await r.json();
+    if(d.text){$("obOut").classList.remove("hidden");$("obText").value=d.text;}
+    else toast(d.error||"Couldn't draft just now — try again.");
+  }catch(e){toast("Couldn't reach the Guide — try again.");}
+  btn.disabled=false; btn.textContent="Draft obituary";
+}
+function copyObit(btn){ navigator.clipboard.writeText($("obText").value).then(()=>{btn.textContent="Copied";setTimeout(()=>btn.textContent="Copy",1500);}); }
+function printObit(){
+  const w=window.open("","_blank");
+  w.document.write(`<html><head><title>Obituary — ${esc(S.estate.decedent_name)}</title><style>body{font-family:Georgia,serif;max-width:640px;margin:50px auto;line-height:1.7;color:#26332E;white-space:pre-wrap;padding:0 24px}</style></head><body>${esc($("obText").value)}</body></html>`);
+  w.document.close(); w.print();
+}
+
+/* ---------- MEMORIES & MEMORIAL PAGE ---------- */
+let M={items:[],settings:null};
+async function loadMemories(){
+  $("tab-memories").innerHTML=`<div class="muted" style="padding:10px">Loading…</div>`;
+  const [mm,ms]=await Promise.all([
+    sb.from("memories").select("*").eq("estate_id",S.estate.id).order("created_at",{ascending:false}),
+    sb.from("memorial_settings").select("*").eq("estate_id",S.estate.id).maybeSingle()
+  ]);
+  M.items=mm.data||[]; M.settings=ms.data||null;
+  renderMemories();
+}
+function memorialUrl(){ return location.origin+location.pathname+"?memorial="+M.settings.token; }
+function renderMemories(){
+  const st=M.settings;
+  let h=`<div class="card">
+    <div class="eyebrow">Public memorial page</div>
+    ${st&&st.enabled
+      ?`<p class="muted" style="margin:8px 0 10px">The page is live. Only memories marked <strong>Published</strong> appear on it.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="window.open(memorialUrl(),'_blank')">View page</button>
+          <button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText(memorialUrl()).then(()=>toast('Link copied.'))">Copy link</button>
+          <button class="btn btn-ghost btn-sm" onclick="memorialSettingsModal()">Edit details</button>
+          <button class="btn btn-danger btn-sm" onclick="toggleMemorial(false)">Take offline</button>
+        </div>`
+      :`<p class="muted" style="margin:8px 0 10px">Create a gentle public page for ${esc(S.estate.decedent_name)} — service details, tributes, and photos the family chooses to share. Anyone with the link can view it.</p>
+        <button class="btn btn-brass btn-sm" onclick="memorialSettingsModal()">Set up the memorial page</button>`}
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="eyebrow">Add a memory</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <select id="memKind" style="width:auto"><option value="story">Story</option><option value="tribute">Tribute</option><option value="letter">Letter</option><option value="recipe">Recipe</option><option value="photo">Photo</option></select>
+      <input id="memTitle" placeholder="Title (e.g., The fishing trip of 1987)" style="flex:1;min-width:180px">
+      <button class="btn btn-primary btn-sm" onclick="memoryModal()">Write it</button>
+    </div></div>
+  <div class="grid" style="margin-top:14px">`;
+  if(M.items.length===0) h+=`<div class="muted" style="padding:4px 6px">No memories yet. The first one is usually the hardest and the most healing.</div>`;
+  M.items.forEach(m=>{
+    h+=`<div class="card" style="padding:15px 17px">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px"><strong>${esc(m.title)}</strong> <span class="pill">${esc(m.kind)}</span> ${m.published?'<span class="pill done">published</span>':""}
+          ${m.author?`<div class="muted" style="font-size:12.5px">by ${esc(m.author)}</div>`:""}
+          ${m.body?`<div style="font-size:14px;margin-top:6px;white-space:pre-wrap">${esc(m.body.length>240?m.body.slice(0,240)+"…":m.body)}</div>`:""}
+          ${m.media_path?`<img src="${SUPABASE_URL}/storage/v1/object/public/memorial-media/${esc(m.media_path)}" style="max-width:220px;border-radius:10px;margin-top:8px">`:""}</div>
+        <div style="display:flex;gap:6px;flex-direction:column">
+          <button class="btn btn-ghost btn-sm" onclick="togglePublish('${m.id}')">${m.published?"Unpublish":"Publish"}</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteMemory('${m.id}')">Delete</button>
+        </div></div></div>`;
+  });
+  h+=`</div>`;
+  $("tab-memories").innerHTML=h;
+}
+function memoryModal(){
+  const kind=$("memKind").value, title=$("memTitle").value.trim();
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">${kind}</div><h3>${esc(title||"New memory")}</h3>
+    ${!title?`<label>Title</label><input id="mmTitle">`:""}
+    <label>Shared by</label><input id="mmAuthor" value="${esc(S.profile?.full_name||"")}">
+    ${kind==="photo"?`<label>Photo</label><input type="file" id="mmFile" accept="image/*" style="background:#fff"><p class="muted" style="font-size:12px;margin-top:6px">Photos are stored in the public memorial library once uploaded — only add photos the family is comfortable sharing.</p><label>Caption</label>`:`<label>The memory</label>`}
+    <textarea id="mmBody" rows="${kind==="photo"?2:7}" placeholder="${kind==="recipe"?"Ingredients and the way they actually made it…":"In their words, or yours…"}"></textarea>
+    <div class="scard-actions" style="margin-top:18px"><button class="btn btn-primary" onclick="saveMemory('${kind}','${esc(title).replace(/'/g,"\\'")}')">Save memory</button></div>
+  </div></div>`;
+}
+async function saveMemory(kind,titlePre){
+  const title=titlePre||$("mmTitle")?.value.trim(); if(!title) return toast("Give it a title.");
+  let media_path=null;
+  const f=$("mmFile")?.files[0];
+  if(kind==="photo"){
+    if(!f) return toast("Choose a photo.");
+    media_path=`${S.estate.id}/${Date.now()}-${f.name.replace(/[^a-zA-Z0-9_.-]/g,"_")}`;
+    const {error}=await sb.storage.from("memorial-media").upload(media_path,f);
+    if(error) return toast(error.message);
+  }
+  const {error}=await sb.from("memories").insert({estate_id:S.estate.id,kind,title,body:$("mmBody").value.trim(),author:$("mmAuthor").value.trim(),media_path,created_by:S.session.user.id});
+  if(error) return toast(error.message);
+  $("memTitle").value=""; closeModal(); loadMemories(); logActivity("added a memory",title);
+}
+async function togglePublish(id){
+  const m=M.items.find(x=>x.id===id);
+  if(!m.published && (!M.settings||!M.settings.enabled)) toast("Tip: the memorial page isn't live yet — set it up above.");
+  await sb.from("memories").update({published:!m.published}).eq("id",id);
+  loadMemories();
+}
+async function deleteMemory(id){
+  const m=M.items.find(x=>x.id===id);
+  if(!confirm(`Delete "${m.title}"?`)) return;
+  if(m.media_path) await sb.storage.from("memorial-media").remove([m.media_path]);
+  await sb.from("memories").delete().eq("id",id);
+  loadMemories();
+}
+function memorialSettingsModal(){
+  const st=M.settings||{};
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">Memorial page</div><h3>In memory of ${esc(S.estate.decedent_name)}</h3>
+    <label>Headline</label><input id="msHead" value="${esc(st.headline||("Celebrating the life of "+S.estate.decedent_name))}">
+    <label>Service information</label><textarea id="msService" rows="3" placeholder="Visitation … · Service … · Repast …">${esc(st.service_info||"")}</textarea>
+    <label>In lieu of flowers</label><input id="msDonate" value="${esc(st.donation_note||"")}" placeholder="The family asks that donations be made to …">
+    <div class="scard-actions" style="margin-top:18px"><button class="btn btn-primary" onclick="saveMemorial()">Publish page</button></div>
+  </div></div>`;
+}
+async function saveMemorial(){
+  const row={estate_id:S.estate.id,enabled:true,headline:$("msHead").value.trim(),service_info:$("msService").value.trim(),donation_note:$("msDonate").value.trim(),updated_at:new Date().toISOString()};
+  const {error}=await sb.from("memorial_settings").upsert(row);
+  if(error) return toast(error.message);
+  closeModal(); await loadMemories(); toast("Memorial page is live — copy the link to share.");
+}
+async function toggleMemorial(on){
+  await sb.from("memorial_settings").update({enabled:on,updated_at:new Date().toISOString()}).eq("estate_id",S.estate.id);
+  loadMemories();
+}
+
+/* ---------- PUBLIC MEMORIAL VIEW (no sign-in) ---------- */
+async function showMemorial(token){
+  document.querySelector(".topbar").style.display="none";
+  show("view-memorial");
+  const body=$("memorialBody");
+  body.innerHTML=`<div style="padding:60px 0;text-align:center" class="muted">Loading…</div>`;
+  const {data,error}=await sb.rpc("get_memorial",{tok:token});
+  if(error||!data||data.error){ body.innerHTML=`<div style="padding:60px 0;text-align:center"><h2>This memorial page isn't available.</h2><p class="muted">The link may have changed or the page was taken offline by the family.</p></div>`; return; }
+  const mems=data.memories||[];
+  body.innerHTML=`
+    <div style="text-align:center;padding:54px 0 30px">
+      <div class="eyebrow">In loving memory</div>
+      <h1 style="font-size:40px;margin:12px 0 6px">${esc(data.name)}</h1>
+      ${data.date_of_death?`<div class="muted">Passed ${fmtDate(data.date_of_death)}</div>`:""}
+      ${data.headline?`<p style="font-family:var(--font-display);font-size:20px;margin-top:16px;color:var(--ink-soft)">${esc(data.headline)}</p>`:""}
+    </div>
+    ${data.service_info?`<div class="card" style="margin-bottom:14px;text-align:center"><div class="eyebrow">Services</div><p style="margin-top:8px;white-space:pre-wrap">${esc(data.service_info)}</p></div>`:""}
+    ${data.donation_note?`<div class="banner" style="text-align:center">${esc(data.donation_note)}</div>`:""}
+    <div class="grid" style="margin-top:18px">
+    ${mems.map(m=>`<div class="card">
+      ${m.media_path?`<img src="${SUPABASE_URL}/storage/v1/object/public/memorial-media/${esc(m.media_path)}" style="width:100%;border-radius:10px;margin-bottom:10px">`:""}
+      <strong>${esc(m.title)}</strong>
+      ${m.body?`<p style="margin-top:6px;white-space:pre-wrap;font-size:15px">${esc(m.body)}</p>`:""}
+      ${m.author?`<div class="muted" style="font-size:12.5px;margin-top:8px">— ${esc(m.author)}</div>`:""}
+    </div>`).join("")||'<div class="muted" style="text-align:center;padding:20px">Tributes from the family will appear here.</div>'}
+    </div>
+    <p class="footer-note">Memorial pages by <strong>LegacyHQ</strong></p>`;
+}
+(function(){
+  const tok=new URLSearchParams(location.search).get("memorial");
+  if(tok && CONFIGURED) showMemorial(tok);
+})();
+</script>
+</body>
+</html>
