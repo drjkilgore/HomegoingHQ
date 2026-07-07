@@ -1896,12 +1896,12 @@ function renderFuneral(){
       <button class="btn btn-brass btn-sm" onclick="openProgram()">Design the program</button>
     </div>
   </div>
-  <h2 style="margin:26px 0 10px;font-size:20px">Music & special tributes</h2>
+  <h2 style="margin:26px 0 10px;font-size:20px">Music, Special Tributes & Officiants</h2>
   <div class="card" style="border-top:3px solid var(--brass)">
-    <p style="margin-bottom:6px"><strong>A voice that carries the service.</strong> A soloist for the processional, musicians for the repast, a full choir — or a personal tribute video from a beloved gospel, jazz, or R&B artist.</p>
+    <p style="margin-bottom:6px"><strong>A voice that carries the service.</strong> Do you need an officiant, a soloist, musicians, a DJ for the repast, a full choir — or a personal tribute video from a beloved gospel, jazz, or R&B artist? We can help.</p>
     <p class="muted" style="font-size:13.5px">Requests go to our booking partner, <strong>VisionWorks Entertainment</strong> — 25 years of direct artist relationships, trusted by churches nationwide. They handle everything: the artist, the contract, travel, and timing. No obligation to inquire.</p>
     <div class="scard-actions" style="margin-top:12px">
-      <button class="btn btn-brass btn-sm" onclick="talentModal()">Request music or a tribute</button>
+      <button class="btn btn-brass btn-sm" onclick="talentModal()">Request music, a tribute, or an officiant</button>
     </div>
     <div class="grid" id="talentList" style="margin-top:12px"></div>
   </div>
@@ -2910,7 +2910,7 @@ function witnessCertificate(id){
 </script>
 <script>
 /* ===================== MUSIC & SPECIAL TRIBUTES (Release 11) ===================== */
-const TALENT_TYPES=[["soloist","Soloist / vocalist"],["musicians","Musicians / band"],["choir","Choir"],["tribute_video","Personal tribute video from an artist"],["appearance","Special guest appearance"],["repast_host","Host / comedian for the repast"],["other","Something else"]];
+const TALENT_TYPES=[["officiant","Officiant / minister"],["soloist","Soloist / vocalist"],["musicians","Musicians / band"],["dj","DJ for the repast"],["choir","Choir"],["tribute_video","Personal tribute video from an artist"],["appearance","Special guest appearance"],["repast_host","Host / comedian for the repast"],["other","Something else"]];
 const TALENT_BUDGETS=["Under $500","$500–$1,500","$1,500–$5,000","$5,000–$15,000","$15,000+","Not sure yet"];
 async function loadTalent(){
   const {data}=await sb.from("talent_requests").select("*").eq("estate_id",S.estate.id).order("created_at",{ascending:false});
