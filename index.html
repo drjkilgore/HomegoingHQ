@@ -210,7 +210,7 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:18px 0}
     <h3 style="margin:6px 0">Free plan — 1 estate, core roadmap</h3>
     <p class="muted">Free covers the first 72 hours. <strong>Companion ($39)</strong> opens the full roadmap with 25 Guide conversations. <strong>Settle ($249)</strong> makes everything unlimited and adds the court-ready reports, sealed recordings, all templates, and bank import.</p>
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-primary" onclick="startCheckout('companion')">Companion — $39</button>
+      <button class="btn btn-primary" id="btnBuyCompanion" onclick="startCheckout('companion')">Companion — $39</button>
       <button class="btn btn-brass" onclick="startCheckout('settle')">Settle — $249</button>
       <button class="btn btn-ghost" onclick="openGiftModal()">🎁 Give as a gift</button>
       <button class="btn btn-ghost" onclick="openRedeemModal()">Redeem a gift code</button>
@@ -752,6 +752,10 @@ function goHome(){
     d.onclick=()=>openEstate(e.id); list.appendChild(d);
   });
   $("upgradeCard").classList.toggle("hidden", TIER_RANK[tier()]>=TIER_RANK.settle);
+  const onCompanion = TIER_RANK[tier()]>=TIER_RANK.companion;
+  $("btnBuyCompanion").classList.toggle("hidden", onCompanion);
+  const planLabel=$("upgradeCard").querySelector("h3");
+  if(planLabel) planLabel.textContent = onCompanion ? "Companion plan — the full roadmap is yours" : planLabel.textContent;
   renderClientsSection();
   renderMyEmergencyRequests();
   show("view-home");
