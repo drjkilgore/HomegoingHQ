@@ -2996,13 +2996,13 @@ async function sendConcierge(){
 
 /* Optional intro video (HeyGen). After rendering your avatar video in HeyGen,
    download the MP4, drop it in this folder as intro.mp4, and set:  */
-const INTRO_VIDEO_URL = "";   // e.g. "/intro.mp4"  — leave "" to hide
+const INTRO_VIDEO_URL = "/intro.mp4";   // e.g. "/intro.mp4"  — leave "" to hide
 (function(){
   if(!INTRO_VIDEO_URL) return;
   const slot=$("introVideoSlot"); if(!slot) return;
   slot.innerHTML=`<div class="card" style="padding:10px">
     <video controls playsinline preload="metadata" style="width:100%;border-radius:12px;background:#000" src="${INTRO_VIDEO_URL}"></video>
-    <div class="muted" style="font-size:12px;text-align:center;margin-top:6px">A welcome from Dr. Kilgore, founder of ${BRAND.name}</div></div>`;
+    <div class="muted" style="font-size:12px;text-align:center;margin-top:6px">A welcome from Dr. Kilgore </div></div>`;
 })();
 
 /* ---------- HOW-TO GUIDE (tier-aware) ---------- */
