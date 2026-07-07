@@ -208,9 +208,10 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="card hidden" id="upgradeCard" style="margin-top:14px">
     <div class="eyebrow">Your plan</div>
     <h3 style="margin:6px 0">Free plan — 1 estate, core roadmap</h3>
-    <p class="muted">Settle ($249 one-time per estate) unlocks unlimited family members, the full notification letter library, document vault, and unlimited AI guidance.</p>
+    <p class="muted">Free covers the first 72 hours. <strong>Companion ($39)</strong> opens the full roadmap with 25 Guide conversations. <strong>Settle ($249)</strong> makes everything unlimited and adds the court-ready reports, sealed recordings, all templates, and bank import.</p>
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-brass" onclick="startCheckout('settle')">Upgrade to Settle</button>
+      <button class="btn btn-primary" onclick="startCheckout('companion')">Companion — $39</button>
+      <button class="btn btn-brass" onclick="startCheckout('settle')">Settle — $249</button>
       <button class="btn btn-ghost" onclick="openGiftModal()">🎁 Give as a gift</button>
       <button class="btn btn-ghost" onclick="openRedeemModal()">Redeem a gift code</button>
     </div>
@@ -601,6 +602,42 @@ let S = { session:null, profile:null, estates:[], estate:null, tasks:[], members
 let authMode = "signin";
 
 /* ---------- helpers ---------- */
+const TIER_RANK={free:0,companion:1,settle:2,premium:3};
+const LIMITS={
+  free:      {ai:3,  docs:3,  ledger:0,  templates:1, vault:5,  phases:["first24"]},
+  companion: {ai:25, docs:10, ledger:10, templates:2, vault:12, phases:null},
+  settle:    {ai:Infinity, docs:Infinity, ledger:Infinity, templates:Infinity, vault:Infinity, phases:null},
+  premium:   {ai:Infinity, docs:Infinity, ledger:Infinity, templates:Infinity, vault:Infinity, phases:null}
+};
+function tier(){ return S.profile?.plan_tier||"free"; }
+function lim(){ return LIMITS[tier()]||LIMITS.free; }
+function isFree(){ return tier()==="free"; }
+function phaseLocked(p){ const ph=lim().phases; return ph && !ph.includes(p); }
+function upgradeModal(context){
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">Unlock the road ahead</div><h3>${context||"This is part of the paid plans"}</h3>
+    <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+      <div class="card" style="padding:16px">
+        <div class="eyebrow">Companion</div>
+        <div style="font-family:var(--font-display);font-size:28px;margin:4px 0">$39</div>
+        <div class="muted" style="font-size:12px">once, per estate</div>
+        <ul style="list-style:none;font-size:13px;margin-top:10px;display:grid;gap:5px">
+          <li>✓ The full roadmap, every phase</li><li>✓ 25 Guide conversations</li>
+          <li>✓ 10 documents · 10 ledger entries</li><li>✓ Bank & insurer letter templates</li></ul>
+        <button class="btn btn-primary btn-sm" style="width:100%;margin-top:12px" onclick="startCheckout('companion')">Get Companion</button>
+      </div>
+      <div class="card" style="padding:16px;border:2px solid var(--brass)">
+        <div class="eyebrow">Settle</div>
+        <div style="font-family:var(--font-display);font-size:28px;margin:4px 0">$249</div>
+        <div class="muted" style="font-size:12px">once, per estate · often reimbursable from the estate</div>
+        <ul style="list-style:none;font-size:13px;margin-top:10px;display:grid;gap:5px">
+          <li>✓ Everything unlimited</li><li>✓ Court-ready inventory & accounting</li>
+          <li>✓ All letter templates · bank import</li><li>✓ Sealed last-wishes recordings</li></ul>
+        <button class="btn btn-brass btn-sm" style="width:100%;margin-top:12px" onclick="startCheckout('settle')">Get Settle</button>
+      </div>
+    </div></div></div>`;
+}
 const $ = id => document.getElementById(id);
 (function applyBrand(){
   document.title=BRAND.name+" — Estate Settlement, Guided";
@@ -714,7 +751,7 @@ function goHome(){
     d.innerHTML = `<div class="eyebrow">Estate</div><h3 style="margin:6px 0 2px">${esc(e.decedent_name)}</h3><div class="muted">${e.date_of_death?("Passed "+fmtDate(e.date_of_death)+" · "):""}${esc(e.state_code||"")}</div>`;
     d.onclick=()=>openEstate(e.id); list.appendChild(d);
   });
-  $("upgradeCard").classList.toggle("hidden", S.profile?.plan_tier!=="free");
+  $("upgradeCard").classList.toggle("hidden", TIER_RANK[tier()]>=TIER_RANK.settle);
   renderClientsSection();
   renderMyEmergencyRequests();
   show("view-home");
@@ -759,9 +796,8 @@ const WIZ = [
 let wizStep=0, wizAnswers={};
 
 function startIntake(){
-  if(S.profile?.plan_tier==="free" && S.estates.length>=1){
-    toast("The free plan includes one estate. Upgrade to Settle to add another.");
-    return;
+  if(TIER_RANK[tier()]<TIER_RANK.settle && S.estates.length>=1){
+    return upgradeModal("Settle includes unlimited estates");
   }
   wizStep=0; wizAnswers={tradition:BRAND.tradition}; renderWiz(); show("view-intake");
 }
@@ -861,11 +897,17 @@ async function loadTasks(){
 
 /* ---- Next Thing card stack (signature) ---- */
 function renderNext(){
-  const open = S.tasks.filter(t=>t.status!=="done"&&t.status!=="na");
+  let open = S.tasks.filter(t=>t.status!=="done"&&t.status!=="na");
+  const lockedCount = open.filter(t=>phaseLocked(t.phase)).length;
+  open = open.filter(t=>!phaseLocked(t.phase));
   const phaseOrder = Object.fromEntries(PHASES.map((p,i)=>[p.key,i]));
   open.sort((a,b)=>(phaseOrder[a.phase]-phaseOrder[b.phase])||(a.sort_order-b.sort_order));
   const stack=$("nextStack"); stack.innerHTML="";
   if(open.length===0){
+    if(lockedCount>0){
+      stack.innerHTML=`<div class="scard" style="position:relative"><div class="phase-tag">The first 72 hours — done</div><h3>You've handled the urgent steps. ${lockedCount} more are waiting on the road ahead.</h3><p class="why">The first week, the first month, probate, taxes, and closing the estate — Companion ($39) opens every remaining step with the same gentle guidance.</p><div class="scard-actions"><button class="btn btn-brass" onclick="upgradeModal('Open the rest of the roadmap')">See the plans</button></div></div>`;
+      $("nextCount").textContent=lockedCount+" steps waiting on the full roadmap"; return;
+    }
     stack.innerHTML=`<div class="scard" style="position:relative"><div class="phase-tag">All caught up</div><h3>Every step is done — one less thing to carry.</h3><p class="why">You can review the full roadmap anytime, or add your own tasks as new things come up.</p></div>`;
     $("nextCount").textContent=""; return;
   }
@@ -900,11 +942,13 @@ function renderRoadmap(){
     blk.innerHTML=`<div class="phase-head"><h2>${p.label}</h2><span class="muted">${done}/${items.length}</span></div>
       <div class="progress"><i class="${done===items.length?"full":""}" style="width:${items.length?Math.round(done/items.length*100):0}%"></i></div>`;
     items.forEach(t=>{
+      const locked=phaseLocked(t.phase);
       const r=document.createElement("div"); r.className="task-row"+(t.status==="done"?" done":"");
-      r.innerHTML=`<div class="tick">${t.status==="done"?"✓":""}</div>
+      if(locked) r.style.opacity=".62";
+      r.innerHTML=`<div class="tick">${t.status==="done"?"✓":locked?"🔒":""}</div>
         <div style="flex:1"><div class="t-title">${esc(t.title)}</div>
-        <div class="t-meta">${esc(t.category||"")}${t.due_at?" · by "+fmtDate(t.due_at):""}${t.status==="na"?" · marked not applicable":""}</div></div>`;
-      r.onclick=()=>openTask(t.id); blk.appendChild(r);
+        <div class="t-meta">${locked?"Included with Companion":esc(t.category||"")+(t.due_at?" · by "+fmtDate(t.due_at):"")+(t.status==="na"?" · marked not applicable":"")}</div></div>`;
+      r.onclick=()=>locked?upgradeModal("Open the rest of the roadmap"):openTask(t.id); blk.appendChild(r);
     });
     root.appendChild(blk);
   });
@@ -1011,15 +1055,14 @@ function mergeTemplate(body){
 }
 function renderTemplates(){
   const root=$("tplList"); root.innerHTML="";
-  const locked = S.profile?.plan_tier==="free";
   TEMPLATES.forEach((t,i)=>{
-    const gated = locked && i>1;
+    const gated = i>=lim().templates;
     const d=document.createElement("div"); d.className="card tpl-card";
     d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
       <strong>${t.name}</strong>
-      ${gated?`<button class="btn btn-brass btn-sm" onclick="startCheckout('settle')">Unlock with Settle</button>`
+      ${gated?`<button class="btn btn-brass btn-sm" onclick="upgradeModal('Every letter, ready to send')">Unlock</button>`
              :`<button class="btn btn-ghost btn-sm" onclick="copyTpl(${i},this)">Copy</button>`}</div>
-      ${gated?`<p class="muted" style="margin-top:8px">This template is part of the Settle plan.</p>`
+      ${gated?`<p class="muted" style="margin-top:8px">Included with ${i<2?"Companion":"Settle"}.</p>`
              :`<textarea id="tpl${i}" style="margin-top:10px">${esc(mergeTemplate(t.body))}</textarea>`}`;
     root.appendChild(d);
   });
@@ -1049,6 +1092,9 @@ function renderDocs(){
   });
 }
 async function uploadDoc(){
+  if(S.docs.length>=lim().docs){
+    return upgradeModal("Room for every document");
+  }
   const f=$("docFile").files[0]; if(!f) return toast("Choose a file first.");
   if(f.size>25*1024*1024) return toast("Files up to 25 MB, please.");
   const path=`${S.estate.id}/${Date.now()}-${f.name.replace(/[^a-zA-Z0-9_.-]/g,"_")}`;
@@ -1101,8 +1147,8 @@ function renderMembers(){
 }
 async function sendInvite(){
   const email=$("invEmail").value.trim().toLowerCase(); if(!email||!email.includes("@")) return toast("Enter their email address.");
-  if(S.profile?.plan_tier==="free" && (S.members.length+(S.invites||[]).length)>=2)
-    return toast("The free plan includes 2 people per estate. Settle unlocks unlimited family members.");
+  if(TIER_RANK[tier()]<TIER_RANK.settle && (S.members.length+(S.invites||[]).length)>=2)
+    return upgradeModal("Settle includes the whole family");
   const {error} = await sb.from("estate_invites").insert({estate_id:S.estate.id,email,role:$("invRole").value,invited_by:S.session.user.id});
   if(error) return toast(error.message);
   $("invEmail").value=""; await loadMembers(); renderMembers();
@@ -1131,6 +1177,17 @@ function guideBubble(text,cls){
 }
 async function sendGuide(){
   const q=$("guideText").value.trim(); if(!q) return;
+  if(lim().ai!==Infinity){
+    const {data:n}=await sb.rpc("increment_ai_use");
+    if(typeof n==="number"){ S.profile.ai_uses=n; }
+    if((S.profile.ai_uses||0)>lim().ai){
+      guideBubble("You've used your "+lim().ai+" Guide conversations on this plan. "+(tier()==="free"?"Companion ($39) includes 25, and Settle makes the Guide unlimited.":"Settle makes the Guide unlimited — along with the court-ready reports."),"ai");
+      const m=document.createElement("div"); m.style.cssText="align-self:flex-start";
+      m.innerHTML='<button class="btn btn-brass btn-sm" onclick="upgradeModal(\'Keep the Guide beside you\')">See the plans</button>';
+      $("guideMsgs").appendChild(m); $("guideText").value=q; return;
+    }
+    if((S.profile.ai_uses||0)===lim().ai) toast("That's your last included Guide message on this plan.");
+  }
   $("guideText").value="";
   guideBubble(q,"user");
   S.guide.push({role:"user",content:q});
@@ -1176,8 +1233,8 @@ S.plans = S.plans||[]; S.plan=null; S.entries=[];
 
 /* ---- create plan ---- */
 function startPlanIntake(){
-  if(S.profile?.plan_tier==="free" && (S.plans||[]).length>=1)
-    return toast("The free plan includes one life plan. Upgrade to add plans for parents or others.");
+  if(TIER_RANK[tier()]<TIER_RANK.settle && (S.plans||[]).length>=1)
+    return upgradeModal("Settle includes plans for parents and spouses too");
   $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <button class="close" onclick="closeModal()">×</button>
     <div class="eyebrow">New life plan</div><h3>Whose affairs are we organizing?</h3>
@@ -1268,8 +1325,8 @@ function openSection(key){
   });
 }
 function entryModal(section,id,prefill){
-  if(!id && S.profile?.plan_tier==="free" && S.entries.length>=12)
-    return toast("The free plan includes 12 vault entries. Upgrade for an unlimited vault.");
+  if(!id && S.entries.length>=lim().vault)
+    return upgradeModal("Room for everything your family will need");
   const e=id?S.entries.find(x=>x.id===id):{};
   const s=SECTIONS.find(x=>x.key===section);
   $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
@@ -1435,7 +1492,11 @@ function ledgerCfg(sub){
       fields:[["beneficiary","Beneficiary","text"],["description","What was distributed","text"],["amount","Value ($)","number"],["distributed_on","Date","date"],["receipt_signed","Receipt & release signed?","bool"],["notes","Notes","text"]]}
   }[sub];
 }
+function ledgerTotalEntries(){ return L.assets.length+L.debts.length+L.expenses.length+L.bens.length+L.dists.length; }
 function ledgerModal(sub,id){
+  if(!id && ledgerTotalEntries()>=lim().ledger){
+    return upgradeModal(tier()==="free"?"The estate ledger is part of the paid plans":"Room for the whole estate");
+  }
   const cfg=ledgerCfg(sub), r=id?L[sub].find(x=>x.id===id):{};
   let f=cfg.fields.map(([k,label,type,opts])=>{
     if(type==="select") return `<label>${label}</label><select id="lf_${k}">${opts.map(o=>`<option ${r[k]===o?"selected":""}>${o}</option>`).join("")}</select>`;
@@ -1493,7 +1554,7 @@ function reportShell(title,body){
   </body></html>`;
 }
 function gateExports(){
-  if(S.profile?.plan_tier==="free"){ startCheckout('settle'); toast("Court-ready reports are part of the Settle plan."); return true; }
+  if(TIER_RANK[tier()]<TIER_RANK.settle){ upgradeModal("Court-ready reports are part of Settle"); return true; }
   return false;
 }
 function exportInventory(){
@@ -1880,6 +1941,13 @@ async function chooseFuneralOption(id){
 }
 async function deleteFuneralOption(id){ await sb.from("funeral_options").delete().eq("id",id); loadFuneral(); }
 async function draftObituary(){
+  if(lim().ai!==Infinity){
+    const {data:n}=await sb.rpc("increment_ai_use");
+    if(typeof n==="number") S.profile.ai_uses=n;
+    if((S.profile.ai_uses||0)>lim().ai){
+      return upgradeModal("Obituary drafting uses the Guide");
+    }
+  }
   const btn=event.target; btn.disabled=true; btn.textContent="Drafting…";
   const prompt=`Please write a complete obituary (350-450 words unless tone is Brief, then 120-160 words) for ${S.estate.decedent_name}, who passed on ${S.estate.date_of_death||"(date)"}.
 Tone: ${$("obTone").value}.
@@ -2465,7 +2533,7 @@ function loadPlaidScript(){
   });
 }
 async function plaidDiscover(){
-  if(S.profile?.plan_tier==="free"){ toast("Bank import is part of the Settle plan."); return startCheckout('settle'); }
+  if(TIER_RANK[tier()]<TIER_RANK.settle){ return upgradeModal("Bank import is part of Settle"); }
   toast("Opening secure bank connection…");
   try{
     await loadPlaidScript();
@@ -2729,6 +2797,9 @@ function witnessSealForm(mime){
     <div class="muted" id="wProgress" style="margin-top:8px"></div>`;
 }
 async function witnessSeal(){
+  if(TIER_RANK[tier()]<TIER_RANK.settle){
+    return upgradeModal("Sealed recordings are part of Settle");
+  }
   const declared_name=$("wName").value.trim(); if(!declared_name) return toast("State your legal name.");
   if(!W.blob) return toast("No recording found — please record again.");
   const prog=$("wProgress");
