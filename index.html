@@ -9,6 +9,7 @@
 <meta name="theme-color" content="#26332E">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Cinzel:wght@400;600&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -226,6 +227,9 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:18px 0}
   <p class="muted" style="margin-top:6px">Answer what you can. "I'm not sure" is always a fine answer — we'll add a step to help you find out.</p></div>
   <div class="card" id="wizCard"></div>
 </div></section>
+
+<!-- PROGRAM DESIGNER -->
+<section id="view-program" class="hidden"></section>
 
 <!-- ESTATE -->
 <section id="view-estate" class="hidden"><div class="wrap">
@@ -654,7 +658,7 @@ const $ = id => document.getElementById(id);
 })();
 function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.remove("hidden"); clearTimeout(t._x); t._x=setTimeout(()=>t.classList.add("hidden"),3200); }
 function esc(s){ return (s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
-function show(view){ ["view-auth","view-home","view-intake","view-estate","view-plan","view-memorial","view-admin"].forEach(v=>$(v).classList.add("hidden")); $(view).classList.remove("hidden"); window.scrollTo(0,0); }
+function show(view){ ["view-auth","view-home","view-intake","view-estate","view-plan","view-memorial","view-admin","view-program"].forEach(v=>$(v).classList.add("hidden")); $(view).classList.remove("hidden"); window.scrollTo(0,0); }
 function fmtDate(d){ if(!d) return ""; return new Date(d+"T00:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); }
 async function logActivity(action, detail){ if(!S.estate) return; await sb.from("activity_log").insert({estate_id:S.estate.id, user_id:S.session.user.id, action, detail}); }
 
@@ -1869,6 +1873,13 @@ function renderFuneral(){
       </div></div>`;
   });
   h+=`</div>
+  <div class="card" style="margin-top:16px;border-top:3px solid var(--brass)">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1;min-width:230px"><strong>🕊 Program Designer</strong>
+      <div class="muted" style="font-size:13.5px;margin-top:3px">Create a beautiful printed homegoing program — guided questions, your photos, professional templates, print-ready in minutes.</div></div>
+      <button class="btn btn-brass btn-sm" onclick="openProgram()">Design the program</button>
+    </div>
+  </div>
   <h2 style="margin:26px 0 10px;font-size:20px">Music & special tributes</h2>
   <div class="card" style="border-top:3px solid var(--brass)">
     <p style="margin-bottom:6px"><strong>A voice that carries the service.</strong> A soloist for the processional, musicians for the repast, a full choir — or a personal tribute video from a beloved gospel, jazz, or R&B artist.</p>
@@ -2996,13 +3007,13 @@ async function sendConcierge(){
 
 /* Optional intro video (HeyGen). After rendering your avatar video in HeyGen,
    download the MP4, drop it in this folder as intro.mp4, and set:  */
-const INTRO_VIDEO_URL = "/intro.mp4";   // e.g. "/intro.mp4"  — leave "" to hide
+const INTRO_VIDEO_URL = "";   // e.g. "/intro.mp4"  — leave "" to hide
 (function(){
   if(!INTRO_VIDEO_URL) return;
   const slot=$("introVideoSlot"); if(!slot) return;
   slot.innerHTML=`<div class="card" style="padding:10px">
     <video controls playsinline preload="metadata" style="width:100%;border-radius:12px;background:#000" src="${INTRO_VIDEO_URL}"></video>
-    <div class="muted" style="font-size:12px;text-align:center;margin-top:6px">A welcome from Dr. Kilgore </div></div>`;
+    <div class="muted" style="font-size:12px;text-align:center;margin-top:6px">A welcome from Dr. Kilgore</div></div>`;
 })();
 
 /* ---------- HOW-TO GUIDE (tier-aware) ---------- */
@@ -3177,6 +3188,393 @@ function tourSettle(){
   };
   window.renderClientsSection=function(){ _orig(); offer(); };
 })();
+</script>
+<style>
+/* ===================== PROGRAM DESIGNER (Release 16) ===================== */
+.pg-wrap{display:grid;grid-template-columns:400px 1fr;gap:18px;padding:18px;align-items:start}
+@media(max-width:980px){.pg-wrap{grid-template-columns:1fr}}
+.pg-form{max-height:calc(100vh - 120px);overflow-y:auto;padding-right:6px}
+.pg-preview{position:sticky;top:76px;max-height:calc(100vh - 96px);overflow-y:auto;background:#8a8177;border-radius:16px;padding:22px}
+.sheet{width:11in;height:8.5in;background:#fff;display:flex;box-shadow:0 8px 30px rgba(0,0,0,.35);margin:0 auto 22px;transform-origin:top left}
+.panel{width:5.5in;height:8.5in;overflow:hidden;position:relative;box-sizing:border-box}
+.pg-zoom{transform:scale(var(--pgz,.62))}
+.pg-zoombox{width:calc(11in * var(--pgz,.62));margin:0 auto}
+.pnum{position:absolute;bottom:.28in;left:0;right:0;text-align:center;font-size:9px;letter-spacing:2px;opacity:.55}
+.pg-step{display:none}
+.pg-step.active{display:block}
+.pg-dots{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 14px}
+.pg-dots button{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:5px 11px;font-size:12px;cursor:pointer}
+.pg-dots button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.theme-pick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.theme-card{border:2px solid var(--line);border-radius:12px;padding:0;cursor:pointer;overflow:hidden;background:#fff;text-align:left}
+.theme-card.on{border-color:var(--brass);box-shadow:0 0 0 3px rgba(143,106,36,.2)}
+.theme-swatch{height:64px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.theme-card .tn{padding:7px 10px;font-size:12.5px;font-weight:700}
+.pg-warn{background:#F7E8E4;border:1px solid #E3C4BC;color:#7A4A3A;border-radius:10px;padding:9px 12px;font-size:12.5px;margin:8px 0}
+.pg-ok{background:#EAF0EB;border:1px solid #C9D8CC;color:#3F5C46;border-radius:10px;padding:9px 12px;font-size:12.5px;margin:8px 0}
+.ph-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.ph-grid .ph{position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;background:#eee}
+.ph-grid img{width:100%;height:100%;object-fit:cover}
+.ph-grid .rm{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:99px;width:22px;height:22px;cursor:pointer}
+@media print{
+  body *{visibility:hidden}
+  #printRoot,#printRoot *{visibility:visible}
+  #printRoot{position:absolute;left:0;top:0}
+  #printRoot .sheet{box-shadow:none;margin:0;page-break-after:always}
+  @page{size:letter landscape;margin:0}
+}
+</style>
+<script>
+/* ===================== PROGRAM DESIGNER MODULE ===================== */
+const PG_THEMES={
+ pearl:{name:"Pearl Homegoing",ink:"#5a4a42",accent:"#b48c5a",bg:"linear-gradient(160deg,#fdf6f0 0%,#f9e8e2 45%,#fdf3ea 100%)",
+   script:"'Great Vibes',cursive",display:"'Playfair Display',serif",body:"'Cormorant Garamond',serif",
+   border:"radial-gradient(circle,#f3e6d8 30%,transparent 32%)",motif:"❦",swatch:"linear-gradient(135deg,#fdf1ec,#f6e0d6)",sw:"🤍"},
+ traditional:{name:"Traditional",ink:"#2b2b2b",accent:"#6b1f1f",bg:"#fffdf8",
+   script:"'Playfair Display',serif",display:"'Playfair Display',serif",body:"'EB Garamond','Cormorant Garamond',serif",
+   motif:"✝",swatch:"linear-gradient(135deg,#fffdf8,#efe6d8)",sw:"🕊"},
+ minimal:{name:"Elegant Minimalist",ink:"#26332E",accent:"#8F6A24",bg:"#FBFAF7",
+   script:"'Montserrat',sans-serif",display:"'Montserrat',sans-serif",body:"'Montserrat',sans-serif",
+   motif:"—",swatch:"linear-gradient(135deg,#FBFAF7,#E9E6DE)",sw:"◽"},
+ faith:{name:"Faith · Christian",ink:"#2c3350",accent:"#7d6b31",bg:"linear-gradient(180deg,#f7f6ff,#fdfcf6)",
+   script:"'Great Vibes',cursive",display:"'Cormorant Garamond',serif",body:"'Cormorant Garamond',serif",
+   motif:"✝",swatch:"linear-gradient(135deg,#f3f2fb,#e6e3f2)",sw:"✝️"},
+ celebration:{name:"Celebration of Life",ink:"#31404a",accent:"#c05a3c",bg:"linear-gradient(160deg,#fff8ef,#fdeee2)",
+   script:"'Great Vibes',cursive",display:"'Playfair Display',serif",body:"'Montserrat',sans-serif",
+   motif:"☀",swatch:"linear-gradient(135deg,#ffe9d2,#fdd7bd)",sw:"🌅"},
+ floral:{name:"Floral Watercolor",ink:"#4a3f4a",accent:"#a96a8a",bg:"linear-gradient(160deg,#fdf4f7,#f3f7f2)",
+   script:"'Great Vibes',cursive",display:"'Cormorant Garamond',serif",body:"'Cormorant Garamond',serif",
+   motif:"✿",swatch:"linear-gradient(135deg,#fbe7ee,#e7f2e6)",sw:"🌸"},
+ luxury:{name:"Black & Gold Luxury",ink:"#e8dcc0",accent:"#d4af61",bg:"linear-gradient(160deg,#151412,#241f18)",panel:"#1b1916",
+   script:"'Great Vibes',cursive",display:"'Cinzel',serif",body:"'Cormorant Garamond',serif",
+   motif:"◆",swatch:"linear-gradient(135deg,#1b1916,#3a3222)",sw:"✨",dark:true},
+ military:{name:"Military Honor",ink:"#1e2a3a",accent:"#8a1f2b",bg:"linear-gradient(180deg,#f5f7fa,#eef1f6)",
+   script:"'Cinzel',serif",display:"'Cinzel',serif",body:"'EB Garamond','Cormorant Garamond',serif",
+   motif:"★",swatch:"linear-gradient(135deg,#e8edf5,#c9d3e2)",sw:"🎖"}
+};
+let PG=null, PG_STEP=0;
+const PG_STEPS=["Design","Their name","The service","Cover photo","Obituary","Order of service","Family & honors","Photos & extras","Finish & print"];
+
+function pgDefault(){
+  const i=S.estate?.intake||{};
+  return {theme:"pearl", name:S.estate?.decedent_name||"", firstName:(S.estate?.decedent_name||"").split(" ")[0]||"",
+    sunrise:"", sunset:S.estate?.date_of_death||"", tagline:"Homegoing Celebration",
+    serviceDate:"", serviceTime:"", venue:"", officiant:"", funeralHome:"", interment:"", repast:"", streaming:"",
+    obituary:"", poem:"", poemTitle:"", ack:"There are truly no words to express our deepest appreciation for the outpouring of love shown through calls, visits, cards, meals, and prayers. The family loves and appreciates every one of you.",
+    order:[["Musical Prelude",""],["Processional","Clergy & Family"],["Hymn of Celebration",""],["Prayer of Comfort",""],["Scripture — Old Testament",""],["Scripture — New Testament",""],["Selection",""],["Obituary Reading","Read Silently"],["Remarks","(2 minutes please)"],["Selection",""],["Eulogy",""],["Recessional",""]],
+    pall:"", honorary:"", flower:"Family & Friends", thanks:"", donations:"",
+    cover:null, photos:[], show:{poem:true,ack:true,pall:true,honorary:false,flower:true,thanks:false,donations:false,repast:true,streaming:false,qr:true,photosPage:false},
+    memorialUrl:""};
+}
+async function openProgram(){
+  PG=pgDefault(); PG_STEP=0;
+  // load saved design + memorial link + chosen funeral home
+  try{
+    const {data:row}=await sb.from("funeral_programs").select("design").eq("estate_id",S.estate.id).maybeSingle();
+    if(row?.design?.name) PG={...PG,...row.design};
+  }catch(e){}
+  try{
+    const {data:ms}=await sb.from("memorial_settings").select("token,published").eq("estate_id",S.estate.id).maybeSingle();
+    if(ms?.token) PG.memorialUrl=location.origin+location.pathname+"?memorial="+ms.token;
+  }catch(e){}
+  try{
+    if(!PG.funeralHome){
+      const {data:fo}=await sb.from("funeral_options").select("name").eq("estate_id",S.estate.id).eq("chosen",true).limit(1);
+      if(fo&&fo[0]) PG.funeralHome=fo[0].name;
+    }
+  }catch(e){}
+  renderProgram(); show("view-program");
+}
+function pgSet(k,v){ PG[k]=v; pgPreview(); }
+function pgShow(k,v){ PG.show[k]=v; pgPreview(); }
+function pgGo(i){ PG_STEP=Math.max(0,Math.min(PG_STEPS.length-1,i)); 
+  document.querySelectorAll(".pg-step").forEach((el,ix)=>el.classList.toggle("active",ix===PG_STEP));
+  document.querySelectorAll(".pg-dots button").forEach((b,ix)=>b.classList.toggle("on",ix===PG_STEP));
+}
+function renderProgram(){
+  const T=PG_THEMES;
+  $("view-program").innerHTML=`<div class="wrap" style="max-width:1500px">
+   <div class="estate-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+     <div><div class="eyebrow">Program Designer</div><h1 class="name" style="font-size:24px">A program worthy of the life</h1></div>
+     <div style="display:flex;gap:8px;flex-wrap:wrap">
+       <button class="btn btn-ghost btn-sm" onclick="pgSave()">Save draft</button>
+       <button class="btn btn-brass btn-sm" onclick="pgPrint('shop')">Print / PDF — print shop</button>
+       <button class="btn btn-ghost btn-sm" onclick="pgPrint('home')">Print — home duplex</button>
+       <button class="btn btn-ghost btn-sm" onclick="openEstate(S.estate.id);setTab('funeral')">← Back</button>
+     </div>
+   </div>
+   <div class="pg-dots">${PG_STEPS.map((s,i)=>`<button onclick="pgGo(${i})" class="${i===PG_STEP?'on':''}">${i+1}. ${s}</button>`).join("")}</div>
+   <div class="pg-wrap">
+    <div class="pg-form card" id="pgForm">${pgFormHtml()}</div>
+    <div class="pg-preview"><div class="pg-zoombox"><div class="pg-zoom" id="pgPages"></div></div></div>
+   </div></div>`;
+  pgGo(PG_STEP); pgPreview();
+}
+function pgFormHtml(){
+  const t=PG, esc2=esc;
+  const inp=(k,label,ph,type)=>`<label>${label}</label><input type="${type||"text"}" value="${esc2(t[k]||"")}" placeholder="${ph||""}" oninput="pgSet('${k}',this.value)">`;
+  const ta=(k,label,rows,ph)=>`<label>${label}</label><textarea rows="${rows}" placeholder="${ph||""}" oninput="pgSet('${k}',this.value)">${esc2(t[k]||"")}</textarea>`;
+  const tog=(k,label)=>`<label style="display:flex;gap:8px;align-items:center;font-weight:400;margin-top:8px"><input type="checkbox" ${t.show[k]?"checked":""} onchange="pgShow('${k}',this.checked)" style="width:auto"> ${label}</label>`;
+  return `
+  <div class="pg-step">
+    <div class="eyebrow">Choose the design</div>
+    <p class="muted" style="font-size:13px;margin:6px 0 10px">Eight collections, each print-tested. You can switch anytime — everything you enter stays.</p>
+    <div class="theme-pick">${Object.entries(PG_THEMES).map(([k,th])=>`
+      <button class="theme-card ${t.theme===k?"on":""}" onclick="pgSet('theme','${k}');renderProgram()">
+        <div class="theme-swatch" style="background:${th.swatch}">${th.sw}</div><div class="tn">${th.name}</div></button>`).join("")}
+    </div>
+    <div class="scard-actions" style="margin-top:14px"><button class="btn btn-primary btn-sm" onclick="pgGo(1)">Next →</button></div>
+  </div>
+  <div class="pg-step">
+    <div class="eyebrow">Their name</div>
+    ${inp("name","Full name","Vivian Martin McDowell")}
+    ${inp("firstName","First name (for the script cover)","Vivian")}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>${inp("sunrise","Sunrise (born)","May 9, 1926")}</div>
+      <div>${inp("sunset","Sunset (passed)","March 24, 2021")}</div></div>
+    ${inp("tagline","Cover line","Homegoing Celebration")}
+    <div class="scard-actions" style="margin-top:14px"><button class="btn btn-primary btn-sm" onclick="pgGo(2)">Next →</button></div>
+  </div>
+  <div class="pg-step">
+    <div class="eyebrow">The service</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>${inp("serviceDate","Date","Wednesday · March 30, 2021")}</div>
+      <div>${inp("serviceTime","Time","11:00 AM")}</div></div>
+    ${inp("venue","Church / venue (name & address)","Holy Temple Church · 8590 Esper St, Detroit, MI")}
+    ${inp("officiant","Officiant","Pastor Pamela Dixon")}
+    ${inp("funeralHome","Funeral home","Swanson Funeral Home · Northwest Chapel")}
+    ${inp("interment","Interment","Great Lakes National Cemetery · Holly, Michigan")}
+    ${tog("repast","Include repast details")} ${t.show.repast?inp("repast","Repast","Immediately following — church fellowship hall"):""}
+    ${tog("streaming","Include live-stream link")} ${t.show.streaming?inp("streaming","Streaming","youtube.com/…"):""}
+    <div class="scard-actions" style="margin-top:14px"><button class="btn btn-primary btn-sm" onclick="pgGo(3)">Next →</button></div>
+  </div>
+  <div class="pg-step">
+    <div class="eyebrow">Cover photo</div>
+    <p class="muted" style="font-size:13px;margin:6px 0">Choose their most beloved portrait. We'll check it's sharp enough for print.</p>
+    <label class="btn btn-ghost" style="cursor:pointer">Choose photo<input type="file" accept="image/*" style="display:none" onchange="pgCover(this)"></label>
+    <div id="coverInfo" style="margin-top:8px">${t.cover?'<div class="pg-ok">Cover photo set ✓</div>':""}</div>
+    <div class="scard-actions" style="margin-top:14px"><button class="btn btn-primary btn-sm" onclick="pgGo(4)">Next →</button></div>
+  </div>
+  <div class="pg-step">
+    <div class="eyebrow">Obituary</div>
+    ${ta("obituary","The life story (it will flow and size itself to fit)",14,"Vivian \u201cMartin\u201d McDowell began an incredible journey of life on…")}
+    <div class="muted" style="font-size:12px">Tip: the AI obituary builder on the Funeral tab can draft this — paste it here and refine.</div>
+    <div id="obitFit"></div>
+    <div class="scard-actions" style="margin-top:14px"><button class="btn btn-primary btn-sm" onclick="pgGo(5)">Next →</button></div>
+  </div>
+  <div class="pg-step">
+    <div class="eyebrow">Order of service</div>
+    <div id="oosList">${t.order.map((r,i)=>`
+      <div style="display:grid;grid-template-columns:1fr 1fr 26px;gap:6px;margin-bottom:6px">
+        <input value="${esc2(r[0])}" oninput="PG.order[${i}][0]=this.value;pgPreview()">
+        <input value="${esc2(r[1])}" placeholder="who / detail" oninput="PG.order[${i}][1]=this.value;pgPreview()">
+        <button class="btn btn-ghost btn-sm" style="padding:4px" onclick="PG.order.splice(${i},1);renderProgram()">×</button>
+      </div>`).join("")}</div>
+    <button class="btn btn-ghost btn-sm" onclick="PG.order.push(['','']);renderProgram()">+ Add line</button>
+    <div class="scard-actions" style="margin-top:14px"><button class="btn btn-primary btn-sm" onclick="pgGo(6)">Next →</button></div>
+  </div>
+  <div class="pg-step">
+    <div class="eyebrow">Family & honors</div>
+    ${tog("pall","Pallbearers")} ${t.show.pall?ta("pall","Names (separate with commas)",2,"Lamont Hatton, Kenneth Wright Jr., …"):""}
+    ${tog("honorary","Honorary pallbearers")} ${t.show.honorary?ta("honorary","Names",2,""):""}
+    ${tog("flower","Flower bearers")} ${t.show.flower?inp("flower","Flower bearers","Family & Friends"):""}
+    ${tog("ack","Acknowledgements")} ${t.show.ack?ta("ack","Acknowledgements",4,""):""}
+    ${tog("thanks","Special thanks")} ${t.show.thanks?ta("thanks","Special thanks",3,"Special thanks and love to…"):""}
+    ${tog("donations","Donations in lieu of flowers")} ${t.show.donations?inp("donations","Donations line","In lieu of flowers, donations may be made to…"):""}
+    <div class="scard-actions" style="margin-top:14px"><button class="btn btn-primary btn-sm" onclick="pgGo(7)">Next →</button></div>
+  </div>
+  <div class="pg-step">
+    <div class="eyebrow">Photos & extras</div>
+    ${tog("photosPage","Add a photo memories sheet (4 more panels)")}
+    ${t.show.photosPage?`<label class="btn btn-ghost btn-sm" style="cursor:pointer;margin-top:6px">Add photos<input type="file" accept="image/*" multiple style="display:none" onchange="pgPhotos(this)"></label>
+    <div class="ph-grid">${t.photos.map((p,i)=>`<div class="ph"><img src="${p.url}"><button class="rm" onclick="PG.photos.splice(${i},1);renderProgram()">×</button></div>`).join("")}</div>
+    <div id="phWarn"></div>`:""}
+    ${ta("poemTitle","Poem / letter title (optional)",1,"To my dear sister")}
+    ${tog("poem","Include the poem/letter")} ${t.show.poem?ta("poem","Poem, letter, or favorite quote",5,"Guess how much I love you…"):""}
+    ${tog("qr","Include QR code to the memorial page")} ${t.show.qr&&!t.memorialUrl?'<div class="pg-warn">No memorial page yet — publish one from the Funeral tab and the QR will appear automatically.</div>':""}
+    <div class="scard-actions" style="margin-top:14px"><button class="btn btn-primary btn-sm" onclick="pgGo(8)">Next →</button></div>
+  </div>
+  <div class="pg-step">
+    <div class="eyebrow">Finish & print</div>
+    <div id="pgChecklist"></div>
+    <p class="muted" style="font-size:13px;line-height:1.6;margin-top:10px">
+    <strong>Print shop:</strong> use \u201cPrint / PDF — print shop\u201d and save as PDF (reading order, full-bleed backgrounds). Shops accept these high-quality PDFs and handle color conversion.<br>
+    <strong>Home printing:</strong> use \u201cPrint — home duplex\u201d (booklet order). Print two-sided, flip on <em>short edge</em>, fold, done.</p>
+    <div class="scard-actions" style="margin-top:10px">
+      <button class="btn btn-brass" onclick="pgPrint('shop')">Print / PDF — print shop</button>
+      <button class="btn btn-ghost" onclick="pgPrint('home')">Print — home duplex</button>
+    </div>
+  </div>`;
+}
+async function pgCover(input){
+  const f=input.files[0]; if(!f) return;
+  const url=await pgRead(f);
+  const img=new Image(); img.onload=()=>{
+    PG.cover={url,w:img.width,h:img.height};
+    const dpi=Math.min(img.width/4.5,img.height/5);
+    $("coverInfo").innerHTML = dpi>=250?'<div class="pg-ok">Beautiful — sharp enough for professional print ✓</div>'
+      : dpi>=140?'<div class="pg-warn">This photo will print acceptably, but a higher-resolution version would be crisper. If a better scan exists, use it.</div>'
+      : '<div class="pg-warn"><strong>This photo is low resolution</strong> and will look soft in print. It works for the on-screen memorial; for the printed cover, try to find a larger original.</div>';
+    pgPreview();
+  }; img.src=url;
+}
+async function pgPhotos(input){
+  for(const f of input.files){
+    if(PG.photos.length>=12) break;
+    const url=await pgRead(f);
+    await new Promise(res=>{const im=new Image();im.onload=()=>{PG.photos.push({url,w:im.width,h:im.height});res();};im.src=url;});
+  }
+  renderProgram();
+  const low=PG.photos.filter(p=>Math.min(p.w,p.h)<600).length;
+  if(low&&$("phWarn")) $("phWarn").innerHTML=`<div class="pg-warn">${low} photo(s) are low resolution — they'll print small and soft. They're placed smaller automatically.</div>`;
+}
+function pgRead(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f);});}
+
+/* ---------- RENDER PANELS ---------- */
+function pgPanels(){
+  const t=PG, th=PG_THEMES[t.theme], pbg=th.panel||"transparent";
+  const F=(css)=>`font-family:${css};`;
+  const base=`background:${th.bg};color:${th.ink};`;
+  const hr=`<div style="width:56px;height:2px;background:${th.accent};margin:10px auto"></div>`;
+  const motifLine=`<div style="text-align:center;color:${th.accent};font-size:13px;letter-spacing:6px">${th.motif} ${th.motif} ${th.motif}</div>`;
+  const panels=[];
+  // FRONT COVER
+  panels.push(`<div class="panel" style="${base}display:flex;flex-direction:column;justify-content:flex-end;padding:.45in;background-size:cover">
+    ${t.cover?`<div style="position:absolute;inset:0;background:url('${t.cover.url}') center 20%/cover no-repeat;${th.dark?"opacity:.85":""}"></div>
+    <div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,${th.dark?"rgba(15,14,12,.92)":"rgba(253,246,240,.94)"} 78%)"></div>`:""}
+    <div style="position:relative;text-align:center">
+      <div style="${F(th.script)}font-size:64px;line-height:.9;color:${th.accent}">${esc(t.firstName||" ")}</div>
+      <div style="${F(th.display)}font-size:20px;letter-spacing:5px;text-transform:uppercase;margin-top:6px">${esc(t.name)}</div>
+      <div style="${F(th.body)}font-size:13px;margin-top:8px;letter-spacing:2px">${esc(t.sunrise)}${t.sunrise&&t.sunset?"  —  ":""}${esc(t.sunset)}</div>
+      ${hr}
+      <div style="${F(th.display)}font-size:12px;letter-spacing:4px;text-transform:uppercase">${esc(t.tagline)}</div>
+      <div style="${F(th.body)}font-size:12px;margin-top:6px">${esc(t.serviceDate)}${t.serviceTime?" · "+esc(t.serviceTime):""}</div>
+      <div style="${F(th.body)}font-size:11.5px;margin-top:3px">${esc(t.venue)}</div>
+      ${t.officiant?`<div style="${F(th.body)}font-size:11px;margin-top:3px;opacity:.85">${esc(t.officiant)}</div>`:""}
+    </div></div>`);
+  // OBITUARY (inside left)
+  panels.push(`<div class="panel" style="${base}padding:.5in .45in">
+    <div style="${F(th.script)}font-size:30px;color:${th.accent};text-align:center">The Life Story</div>${hr}
+    <div class="fitText" style="${F(th.body)}font-size:12.5px;line-height:1.55;text-align:justify;white-space:pre-wrap;height:6.6in;overflow:hidden">${esc(t.obituary||"Enter the obituary in step 5 — it will flow beautifully here.")}</div>
+    <div class="pnum" style="color:${th.ink}">${th.motif}&nbsp;&nbsp;2&nbsp;&nbsp;${th.motif}</div></div>`);
+  // ORDER OF SERVICE (inside right)
+  const rows=t.order.filter(r=>r[0]).map(r=>`
+    <div style="display:flex;align-items:baseline;gap:6px;margin:7px 0">
+      <span style="${F(th.display)}font-size:12px">${esc(r[0])}</span>
+      <span style="flex:1;border-bottom:1px dotted ${th.accent};opacity:.6"></span>
+      <span style="${F(th.body)}font-size:12px;font-style:italic">${esc(r[1])}</span></div>`).join("");
+  panels.push(`<div class="panel" style="${base}padding:.5in .45in">
+    <div style="${F(th.script)}font-size:30px;color:${th.accent};text-align:center">Order of Service</div>${hr}
+    <div class="fitText" style="height:5.6in;overflow:hidden">${rows}</div>
+    ${t.show.poem&&t.poem?`<div style="margin-top:8px;border-top:1px solid ${th.accent}40;padding-top:8px">
+      ${t.poemTitle?`<div style="${F(th.display)}font-size:11px;font-style:italic;text-align:center">${esc(t.poemTitle)}</div>`:""}
+      <div style="${F(th.body)}font-size:10.5px;line-height:1.45;text-align:center;white-space:pre-wrap;max-height:1.4in;overflow:hidden">${esc(t.poem)}</div></div>`:""}
+    <div class="pnum" style="color:${th.ink}">${th.motif}&nbsp;&nbsp;3&nbsp;&nbsp;${th.motif}</div></div>`);
+  // BACK COVER
+  const namesBlock=(label,v)=>v?`<div style="margin-top:10px"><div style="${F(th.script)}font-size:19px;color:${th.accent}">${label}</div><div style="${F(th.body)}font-size:11px;line-height:1.5">${esc(v)}</div></div>`:"";
+  panels.push(`<div class="panel" style="${base}padding:.5in .45in;text-align:center;display:flex;flex-direction:column">
+    <div style="flex:1">
+    ${t.show.ack&&t.ack?`<div style="${F(th.script)}font-size:24px;color:${th.accent}">Acknowledgements</div>
+      <div style="${F(th.body)}font-size:11px;line-height:1.55;margin-top:6px">${esc(t.ack)}</div>`:""}
+    ${namesBlock("Pallbearers",t.show.pall?t.pall:"")}
+    ${namesBlock("Honorary Pallbearers",t.show.honorary?t.honorary:"")}
+    ${namesBlock("Flower Bearers",t.show.flower?t.flower:"")}
+    ${namesBlock("Special Thanks",t.show.thanks?t.thanks:"")}
+    ${namesBlock("Interment",t.interment)}
+    ${t.show.repast?namesBlock("Repast",t.repast):""}
+    ${t.show.donations&&t.donations?`<div style="${F(th.body)}font-size:10.5px;font-style:italic;margin-top:10px">${esc(t.donations)}</div>`:""}
+    ${t.show.streaming&&t.streaming?`<div style="${F(th.body)}font-size:10.5px;margin-top:6px">Live stream: ${esc(t.streaming)}</div>`:""}
+    </div>
+    <div>
+      ${t.show.qr&&t.memorialUrl?`<div id="pgQr" style="display:inline-block;padding:6px;background:#fff;border-radius:8px"></div>
+      <div style="${F(th.body)}font-size:9.5px;margin-top:4px">Scan to visit the memorial — share a memory, see the photos</div>`:""}
+      ${motifLine}
+      <div style="${F(th.body)}font-size:10px;margin-top:6px">${esc(t.funeralHome||"")}</div>
+      <div style="${F(th.body)}font-size:9px;opacity:.6;margin-top:2px">Program by ${BRAND.name}</div>
+    </div></div>`);
+  // OPTIONAL PHOTO SHEET (panels 5-8)
+  if(t.show.photosPage&&t.photos.length){
+    const chunk=(a,n)=>a.length?[a.slice(0,n),...chunk(a.slice(n),n)]:[];
+    const groups=chunk(t.photos.slice(0,12),3);
+    for(let p=0;p<4;p++){
+      const g=groups[p]||[];
+      panels.push(`<div class="panel" style="${base}padding:.45in">
+        <div style="${F(th.script)}font-size:26px;color:${th.accent};text-align:center">${p===0?"Cherished Memories":"&nbsp;"}</div>
+        <div style="display:flex;flex-direction:column;gap:.18in;margin-top:.2in;height:6.9in">
+          ${g.map(ph=>`<div style="flex:1;border-radius:10px;overflow:hidden;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.18)"><img src="${ph.url}" style="width:100%;height:100%;object-fit:cover;${Math.min(ph.w,ph.h)<600?"max-height:1.8in":""}"></div>`).join("")}
+        </div>
+        <div class="pnum" style="color:${th.ink}">${th.motif}&nbsp;&nbsp;${5+p}&nbsp;&nbsp;${th.motif}</div></div>`);
+    }
+  }
+  return panels;
+}
+function pgSheets(order){
+  const p=pgPanels();
+  const pad=`<div class="panel" style="background:#fff"></div>`;
+  const P=i=>p[i]||pad;
+  let sheets;
+  if(order==="home"){
+    sheets=[[P(3),P(0)],[P(1),P(2)]];
+    if(p.length>4) sheets.push([P(7),P(4)],[P(5),P(6)]);
+  } else {
+    sheets=[[P(0),P(1)],[P(2),P(3)]];
+    if(p.length>4) sheets.push([P(4),P(5)],[P(6),P(7)]);
+  }
+  return sheets.map(s=>`<div class="sheet">${s.join("")}</div>`).join("");
+}
+function pgPreview(){
+  const root=$("pgPages"); if(!root) return;
+  root.innerHTML=pgSheets("shop");
+  pgQr(root); pgFit(root); pgChecklist();
+}
+function pgQr(root){
+  const holder=root.querySelector("#pgQr"); if(!holder||!PG.memorialUrl) return;
+  const draw=()=>{ holder.innerHTML=""; new QRCode(holder,{text:PG.memorialUrl,width:74,height:74,correctLevel:QRCode.CorrectLevel.M}); };
+  if(window.QRCode) draw();
+  else{ const sc=document.createElement("script"); sc.src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"; sc.onload=draw; document.head.appendChild(sc); }
+}
+function pgFit(root){
+  root.querySelectorAll(".fitText").forEach(el=>{
+    let size=parseFloat(getComputedStyle(el).fontSize);
+    let guard=0;
+    while(el.scrollHeight>el.clientHeight && size>8.5 && guard<40){ size-=0.5; el.style.fontSize=size+"px"; guard++; }
+    const fitMsg=$("obitFit");
+    if(fitMsg&&el.textContent.length>100){
+      fitMsg.innerHTML = el.scrollHeight>el.clientHeight
+        ? '<div class="pg-warn">The obituary is longer than the panel can hold even at the smallest elegant size — trim it slightly, or turn on the photo sheet and we will keep designing around it.</div>'
+        : '<div class="pg-ok">Fits beautifully ✓</div>';
+    }
+  });
+}
+function pgChecklist(){
+  const el=$("pgChecklist"); if(!el) return;
+  const miss=[];
+  if(!PG.cover) miss.push("a cover photo");
+  if(!PG.obituary) miss.push("the obituary");
+  if(!PG.sunrise) miss.push("the sunrise date");
+  if(!PG.serviceDate) miss.push("the service date");
+  if(!PG.officiant) miss.push("the officiant");
+  el.innerHTML = miss.length
+    ? `<div class="pg-warn">Still missing: ${miss.join(", ")}. It will print — but these complete it.</div>`
+    : `<div class="pg-ok">Everything essential is in place. This is ready for print ✓</div>`;
+}
+async function pgSave(){
+  const design={...PG}; // photos are data URLs — cap size for the row
+  const size=JSON.stringify(design).length;
+  if(size>4_500_000){ toast("The photos make this draft too large to save — the draft saves everything except photos; re-add them at print time."); design.photos=[]; design.cover=design.cover?{...design.cover,url:design.cover.url.slice(0,50)}:null; }
+  const {error}=await sb.from("funeral_programs").upsert({estate_id:S.estate.id,design,updated_by:S.session.user.id,updated_at:new Date().toISOString()},{onConflict:"estate_id"});
+  if(error) return toast(error.message);
+  toast("Draft saved — anyone in the family can continue it.");
+}
+function pgPrint(order){
+  let pr=$("printRoot"); if(pr) pr.remove();
+  pr=document.createElement("div"); pr.id="printRoot";
+  pr.innerHTML=pgSheets(order);
+  document.body.appendChild(pr);
+  pgQr(pr);
+  pr.querySelectorAll(".fitText").forEach(el=>{let s=12.5,g=0;el.style.fontSize=s+"px";while(el.scrollHeight>el.clientHeight&&s>8.5&&g<40){s-=.5;el.style.fontSize=s+"px";g++;}});
+  setTimeout(()=>{ window.print(); setTimeout(()=>pr.remove(),500); }, PG.memorialUrl?450:150);
+}
 </script>
 </body>
 </html>
