@@ -1,4 +1,4 @@
-// LegacyHQ — Stripe Checkout session creator
+// HomegoingHQ — Stripe Checkout session creator
 // Env vars: STRIPE_SECRET_KEY, STRIPE_PRICE_SETTLE (one-time), STRIPE_PRICE_PREMIUM (subscription), SITE_URL
 exports.handler = async (event) => {
   const headers = {
@@ -10,9 +10,12 @@ exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
 
   try {
-    const { tier, userId, email } = JSON.parse(event.body || "{}");
+    const { tier, userId, email, recipientEmail, giftMessage } = JSON.parse(event.body || "{}");
+    const isGift = tier === "gift_settle";
     const isSub = tier === "premium";
-    const price = isSub ? process.env.STRIPE_PRICE_PREMIUM : process.env.STRIPE_PRICE_SETTLE;
+    const price = isSub ? process.env.STRIPE_PRICE_PREMIUM
+                : tier === "companion" ? process.env.STRIPE_PRICE_COMPANION
+                : process.env.STRIPE_PRICE_SETTLE;
     if (!price) return { statusCode: 400, headers, body: JSON.stringify({ error: "Price not configured" }) };
 
     const params = new URLSearchParams();
@@ -24,7 +27,12 @@ exports.handler = async (event) => {
     params.append("customer_email", email || "");
     params.append("client_reference_id", userId || "");
     params.append("metadata[user_id]", userId || "");
-    params.append("metadata[tier]", tier || "settle");
+    params.append("metadata[tier]", isGift ? "gift_settle" : (tier || "settle"));
+    if (isGift) {
+      params.append("metadata[recipient_email]", recipientEmail || "");
+      params.append("metadata[gift_message]", (giftMessage || "").slice(0, 400));
+      params.append("metadata[purchaser_email]", email || "");
+    }
 
     const resp = await fetch("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST",
