@@ -2052,6 +2052,19 @@ async function chooseFuneralOption(id){
   loadFuneral();
 }
 async function deleteFuneralOption(id){ await sb.from("funeral_options").delete().eq("id",id); loadFuneral(); }
+async function pgDraftObit(btn){
+  btn.disabled=true; const was=btn.textContent; btn.textContent="Writing…";
+  try{
+    const tone=$("pgObTone").value;
+    const iv=S.estate?.intake||{};
+    const prompt=`Please write a complete obituary (350-450 words) for ${S.estate.decedent_name}, who passed on ${S.estate.date_of_death||"(date)"}. Tone: ${tone}. ${$("obSurvived")?"":""}Include survived-by and service details if provided: survived by ${iv.obSurvived||"(family)"}. Do not include an exact birth date or any street address. Return only the obituary text.`;
+    const r=await fetch(FN_BASE+"ai-guide",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:[{role:"user",content:prompt}],estateContext:guideContext()})});
+    const d=await r.json();
+    if(d.text){ PG.obituary=d.text.trim(); pgSave(); renderProgram(); toast("Draft ready — edit it freely below."); }
+    else toast("The writer couldn\u2019t draft just now — try again in a moment.");
+  }catch(e){ toast("The writer couldn\u2019t draft just now — try again in a moment."); }
+  btn.disabled=false; btn.textContent=was;
+}
 async function draftObituary(){
   if(lim().ai!==Infinity){
     const {data:n}=await sb.rpc("increment_ai_use");
@@ -2411,7 +2424,7 @@ async function admLoadUsers(){
     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap">
       <div><strong>${esc(u.full_name||u.email)}</strong><div class="muted" style="font-size:12.5px">${esc(u.email)} · joined ${fmtDate(u.created_at.slice(0,10))} · ${u.estates} estate(s), ${u.plans} plan(s)</div></div>
       <select onchange="admSetTier('${u.id}',this.value)" style="width:auto;padding:7px 10px;font-size:13px">
-        ${["free","settle","premium"].map(t=>`<option ${u.plan_tier===t?"selected":""}>${t}</option>`).join("")}</select>
+        ${["free","companion","settle","premium"].map(t=>`<option ${u.plan_tier===t?"selected":""}>${t}</option>`).join("")}</select>
     </div>`).join("")||'<div class="muted">No users found.</div>';
 }
 async function admSetTier(id,tier){
@@ -3454,6 +3467,14 @@ function pgFormHtml(){
   </div>
   <div class="pg-step">
     <div class="eyebrow">Obituary</div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:13px">
+      Need to write it? Draft it right here — no need to leave the designer.
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <select id="pgObTone"><option>Traditional</option><option>Celebratory</option><option>Faith-centered</option><option>Homegoing (Black church tradition)</option></select>
+        <button class="btn btn-brass btn-sm" onclick="pgDraftObit(this)">✨ Draft the obituary</button>
+      </div>
+      <div class="muted" style="font-size:11.5px;margin-top:6px">Uses the same writer as the Funeral tab — survived-by and service details from your answers there are included automatically. The draft lands in the box below; edit freely.</div>
+    </div>
     ${ta("obituary","The life story (it will flow and size itself to fit)",14,"Vivian \u201cMartin\u201d McDowell began an incredible journey of life on…")}
     <div class="muted" style="font-size:12px">Tip: the AI obituary builder on the Funeral tab can draft this — paste it here and refine.</div>
     <div id="obitFit"></div>
