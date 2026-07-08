@@ -440,7 +440,7 @@ const TASK_EFFORT={
  pronounce:[20,60],funeralhome:[30,60],prepaid:[15,40],organ:[10,30],notifyfam:[45,120],
  securehome:[30,90],pets:[20,60],dependents:[30,90],mail:[15,30],bureaus:[20,45],
  finddocs:[60,180],deathcerts:[20,45],biz72:[45,120],
- meetdirector:[120,240],obituary:[60,150],
+ meetdirector:[120,240],obituary:[60,150], hg_repast:[60,120], hg_wake:[30,60], hg_program_flow:[45,90], hg_seating:[30,60], hg_honoraria:[30,45], gn_design:[60,120], gn_officiant:[30,90], gn_readings:[45,90],
  employer:[20,45],pension:[30,75],va:[30,75],
  lifeins:[30,60],claimsdone:[30,90],
  attorney:[60,120],probatepath:[15,30],trustadmin:[60,180],inventory:[180,420],creditors:[60,120],
@@ -530,6 +530,14 @@ const RULES = [
 {id:"ca_monthsmind",phase:"month1",cat:"Tradition",due:25,cond:i=>i.tradition==="catholic",title:"Arrange a memorial (Month's Mind) Mass",why:"A Mass offered about a month after death is a long tradition of continued prayer for the departed.",how:"Call the parish office to request a Mass intention; a small stipend is customary. Invite family — it's often a gentler gathering than the funeral itself."},
 {id:"ca_anniv",phase:"longterm",cat:"Tradition",due:330,cond:i=>i.tradition==="catholic",title:"Plan the anniversary Mass and All Souls' remembrance",why:"Anniversary Masses and All Souls' Day (November 2) carry remembrance forward in the life of the parish.",how:"Request the anniversary Mass intention a couple of months ahead; add All Souls' Day to the family calendar. Many parishes inscribe names in a book of remembrance each November."},
 {id:"hg_church",phase:"week1",cat:"Tradition",due:5,cond:i=>i.tradition==="homegoing",title:"Coordinate the homegoing with the church",why:"The choir, the program, the officiant, and the repast are the heart of the celebration — and the church family will want to help carry it.",how:"Meet with the pastor about the order of service, speakers, and scripture. Confirm the choir or soloists and their selections. Arrange the repast (church kitchen or caterer) and who's coordinating the hospitality ministry."},
+{id:"hg_repast",phase:"week1",cat:"Tradition",due:5,cond:i=>i.tradition==="homegoing",title:"Plan the repast",why:"The meal after the interment is where the community holds the family — long tables, full plates, and the stories. It deserves planning like a primary event, because it is one.",how:"Decide kitchen ministry or caterer. Estimate generously — homegoing services draw well past any RSVP count. Confirm the fellowship hall, servers, setup and cleanup owners, and dietary needs. Put the headcount in the caterer's hands 48 hours out."},
+{id:"hg_wake",phase:"week1",cat:"Tradition",due:4,cond:i=>i.tradition==="homegoing",title:"Plan the wake / viewing night",why:"The evening before gives the wider community its time — and many families include a devotional service or remarks.",how:"Set the visitation hours with the funeral home. Decide whether there will be a devotional — who leads, a soloist, brief remarks. Let the church family and out-of-town arrivals know the evening's shape."},
+{id:"hg_program_flow",phase:"week1",cat:"Tradition",due:5,cond:i=>i.tradition==="homegoing",title:"Set the order of service — resolutions, acknowledgements, cards",why:"Resolutions from the church and organizations, the reading of cards and acknowledgements, and the obituary reading each need a named person and a gentle time limit.",how:"In the 🕊 Program Designer, name who reads the resolutions, who handles acknowledgements and condolences, and who reads the obituary (or notes it read silently). Kind time limits printed in the program are a mercy to everyone."},
+{id:"hg_seating",phase:"week1",cat:"Tradition",due:5,cond:i=>i.tradition==="homegoing",title:"Reserve seating & set the processional order",why:"The mother board, the ushers' ministry, visiting clergy, and the sorority or lodge each have their place — honoring it quietly is what a well-held homegoing feels like.",how:"With the church: reserve rows for the mother board and visiting clergy. Confirm the ushers' ministry is serving. List the family processional order (the funeral home will line the cars and the aisle). Note any sorority, fraternity, or lodge ritual and where it falls."},
+{id:"hg_honoraria",phase:"week1",cat:"Tradition",due:6,cond:i=>i.tradition==="homegoing",title:"Prepare the honoraria",why:"The pastor, musicians, and soloists serve from love — and are honored with dignity, in envelopes, handled quietly.",how:"Ask the church office what is customary. Prepare envelopes for the pastor/eulogist, minister of music, musicians, and soloists; add them to the funeral budget; name who carries and presents them on the day."},
+{id:"gn_design",phase:"week1",cat:"Funeral",due:4,cond:i=>i.tradition==="general",title:"Design the service itself",why:"With no church or institution supplying the form, the shape of the service is yours to choose — which is freedom, and also work. We'll walk it.",how:"Decide: venue (funeral home chapel, graveside, a hall, outdoors), length (30–60 minutes is typical), and structure — welcome, two or three speakers with gentle time limits, one or two musical moments, a reading, a closing. Simple and sincere beats elaborate and rushed."},
+{id:"gn_officiant",phase:"week1",cat:"Funeral",due:4,cond:i=>i.tradition==="general",title:"Choose who will lead the service",why:"A steady voice at the front lets the family sit in the front row instead of running the room.",how:"A celebrant or officiant, a family friend who holds a room well, or a chaplain all work. If you'd like us to source a professional officiant or celebrant, use the request button in Music & Special Tributes — we'll bring options."},
+{id:"gn_readings",phase:"week1",cat:"Funeral",due:5,cond:i=>i.tradition==="general",title:"Choose readings & music",why:"Two readings and two or three pieces of music are the skeleton of a beautiful secular or interfaith service.",how:"Poems that serve well: 'Do Not Stand at My Grave and Weep,' Mary Oliver, Maya Angelou's 'When Great Trees Fall.' Music: their favorites first — one reflective, one that sounds like them. Live music (a soloist, strings) through Music & Special Tributes lifts the room more than any speaker system."},
 {id:"records",phase:"longterm",cat:"Closing",due:360,title:"Archive the records (keep 7 years)",why:"Tax questions and beneficiary disputes can surface years later; the file is your protection.",how:"Keep the will, letters, inventory, accountings, tax returns, receipts/releases, and the estate account statements together — one physical folder plus scans in the vault here."}
 ];
 
@@ -1991,7 +1999,7 @@ function renderFuneral(){
     <label>Preceded in death by</label><input id="obPre" placeholder="parents …">
     <label>Service details (optional)</label><input id="obService" placeholder="Saturday July 18, 11 AM, …">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div><label>Tone</label><select id="obTone"><option>Traditional</option><option>Celebratory</option><option>Faith-centered</option><option>Homegoing (Black church tradition)</option><option>Brief (for paid placement)</option></select><!-- re-add later: Jewish tradition, Catholic --></div>
+      <div><label>Tone</label><select id="obTone" data-trad-default><option>Traditional</option><option>Celebratory</option><option>Faith-centered</option><option>Homegoing (Black church tradition)</option><option>Brief (for paid placement)</option></select><!-- re-add later: Jewish tradition, Catholic --></div>
       <div><label>&nbsp;</label><button class="btn btn-brass" style="width:100%" onclick="draftObituary()">Draft obituary</button></div>
     </div>
     <div id="obOut" class="hidden"><label>Draft — edit freely</label><textarea id="obText" rows="12"></textarea>
@@ -2002,7 +2010,7 @@ function renderFuneral(){
 const TRADITION_STARTERS={
  jewish:[["Tahara & shomer (chevra kadisha)","service"],["Plain wooden casket","disposition"],["Shiva meals & platters","catering"],["Kriah ribbons","service"],["Monument & unveiling","cemetery"]],
  catholic:[["Vigil / rosary service","service"],["Mass offering & musicians","service"],["Mass cards / prayer cards","printing"],["Committal at Catholic cemetery","cemetery"]],
- homegoing:[["Choir / musicians","service"],["Repast catering","catering"],["Printed homegoing programs","printing"],["Family cars / processional","transport"]],
+ homegoing:[["Choir / musicians","service"],["Honoraria — pastor, musicians, soloists","service"],["Repast catering","catering"],["Printed homegoing programs","printing"],["Family cars / processional","transport"]],
  general:[]
 };
 async function seedFuneralBudget(){
@@ -2052,6 +2060,8 @@ async function chooseFuneralOption(id){
   loadFuneral();
 }
 async function deleteFuneralOption(id){ await sb.from("funeral_options").delete().eq("id",id); loadFuneral(); }
+function tradToneDefault(){ try{ if((S.estate?.intake?.tradition)==="homegoing"){ const a=$("obTone"); if(a&&!a.dataset.set){a.value="Homegoing (Black church tradition)";a.dataset.set=1;} const b=$("pgObTone"); if(b&&!b.dataset.set){b.value="Homegoing (Black church tradition)";b.dataset.set=1;} } }catch(e){} }
+setInterval(tradToneDefault, 1200);
 async function pgDraftObit(btn){
   btn.disabled=true; const was=btn.textContent; btn.textContent="Writing…";
   try{
