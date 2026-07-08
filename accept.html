@@ -1,0 +1,18 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Acceptance Sender</title>
+<style>body{font-family:Arial;background:#F6F2EA;color:#26332E;max-width:460px;margin:40px auto;padding:0 16px}
+label{display:block;font-weight:700;font-size:13px;margin:12px 0 4px}input,select{width:100%;padding:10px;border:1px solid #E4DDCE;border-radius:8px;box-sizing:border-box}
+button{background:#8F6A24;color:#fff;border:0;border-radius:10px;padding:13px;width:100%;font-weight:700;font-size:15px;margin-top:16px}
+#msg{margin-top:12px;font-size:14px}</style></head><body>
+<h2>🕊 Acceptance Sender</h2>
+<label>Admin key</label><input id="k" type="password">
+<label>Applicant name</label><input id="n" placeholder="Pamela Washington">
+<label>Email</label><input id="e" type="email">
+<label>Path</label><select id="p"><option value="founding">Founding 100 seat ($99/mo)</option><option value="cert">Certification only ($995 / plan)</option></select>
+<button onclick="go()">Send acceptance letter</button><div id="msg"></div>
+<script>
+async function go(){const b=document.querySelector("button");b.disabled=true;msg.textContent="Sending…";
+ try{const r=await fetch("/.netlify/functions/send-acceptance",{method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({key:k.value,name:n.value.trim(),email:e.value.trim(),path:p.value})});
+ const d=await r.json();msg.textContent=d.ok?"✅ Sent — "+e.value:"❌ "+(d.error||"Failed");}
+ catch(x){msg.textContent="❌ Network error";}b.disabled=false;}
+</script></body></html>
