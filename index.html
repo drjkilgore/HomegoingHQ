@@ -368,6 +368,13 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:18px 0}
   </div>
   <div class="card" style="margin-top:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div class="eyebrow">White-label accounts — Concierge &amp; Funeral Home</div>
+      <input id="admAcctSearch" placeholder="Search business or owner email" onkeydown="if(event.key==='Enter')admLoadAccounts()" style="width:auto;flex:1;min-width:200px;max-width:320px">
+    </div>
+    <div id="admAccounts" style="margin-top:10px"></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
       <div class="eyebrow">State packs (probate content — live edits, no redeploy)</div>
       <button class="btn btn-primary btn-sm" onclick="admEditPack('')">+ New state</button></div>
     <div id="admPacks" style="margin-top:8px"></div>
@@ -2483,7 +2490,7 @@ async function openAdmin(){
   if(!stats||stats.error){ $("adminStats").innerHTML='<div class="muted">Not authorized.</div>'; return; }
   const cards=[["Users",stats.users],["New (7d)",stats.users_7d],["Paid",stats.paid_users],["Estates",stats.estates],["Plans",stats.plans],["Tasks done",stats.tasks_done],["Memorials live",stats.memorials_live]];
   $("adminStats").innerHTML=cards.map(([l,v])=>`<div class="card" style="padding:14px"><div class="eyebrow">${l}</div><div style="font-family:var(--font-display);font-size:28px;margin-top:2px">${v??0}</div></div>`).join("");
-  admLoadUsers(); admLoadPartners(); admLoadPacks(); admLoadCounties();
+  admLoadUsers(); admLoadPartners(); admLoadAccounts(); admLoadPacks(); admLoadCounties();
   const {data:act}=await sb.rpc("admin_recent_activity");
   $("admActivity").innerHTML=(Array.isArray(act)?act:[]).map(a=>{
     const when=new Date(a.created_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})+" "+new Date(a.created_at).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});
@@ -2503,6 +2510,148 @@ async function admLoadUsers(){
 async function admSetTier(id,tier){
   const {data}=await sb.rpc("admin_set_tier",{target:id,new_tier:tier});
   toast(data===true?"Tier updated.":"Couldn't update tier.");
+}
+
+/* ---------- ADMIN: WHITE-LABEL ACCOUNTS (migration v13) ---------- */
+function fmtBytes(n){ n=Number(n||0); if(n<1024)return n+" B"; if(n<1048576)return (n/1024).toFixed(0)+" KB"; if(n<1073741824)return (n/1048576).toFixed(1)+" MB"; return (n/1073741824).toFixed(2)+" GB"; }
+const TENANT_ASSET_BUCKET="tenant-assets"; // public bucket; run supabase-storage-tenant-assets.sql to enable uploads
+async function admLoadAccounts(){
+  const {data}=await sb.rpc("admin_list_accounts",{search:$("admAcctSearch").value.trim()});
+  const rows=Array.isArray(data)?data:[];
+  if(!rows.length){ $("admAccounts").innerHTML='<div class="muted">No white-label accounts yet. They\'re created automatically when a concierge subscribes to a tier.</div>'; return; }
+  $("admAccounts").innerHTML=rows.map(a=>{
+    const overLimit=a.estates_used>=a.estate_limit;
+    const statusPill=a.status==="active"?"":`<span class="pill urgent">${esc(a.status)}</span>`;
+    return `<div style="padding:12px 0;border-bottom:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap">
+        <div>
+          <strong>${esc(a.business_name)}</strong> ${statusPill}
+          <span class="pill" style="margin-left:4px">${a.tenant_type==="funeral_home"?"Funeral home":"Concierge"}</span>
+          <div class="muted" style="font-size:12.5px;margin-top:2px">${esc(a.owner_email)} · joined ${fmtDate(String(a.created_at).slice(0,10))}
+            ${a.subdomain?" · "+esc(a.subdomain)+".homegoinghq.com":""}${a.custom_domain?" · "+esc(a.custom_domain):""}</div>
+          <div class="muted" style="font-size:12.5px;margin-top:2px">
+            <span style="${overLimit?"color:var(--clay);font-weight:600":""}">${a.estates_used}/${a.estate_limit} estates</span>
+            · ${fmtBytes(a.storage_bytes_used)} storage · ${Number(a.ai_tokens_used||0).toLocaleString()} AI tokens</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <select onchange="admSetAccountTier('${a.id}',this.value)" title="Tier" style="width:auto;padding:6px 9px;font-size:13px">
+            ${["starter","professional","enterprise"].map(t=>`<option ${a.tier===t?"selected":""}>${t}</option>`).join("")}</select>
+          <select onchange="admSetAccountStatus('${a.id}',this.value)" title="Status" style="width:auto;padding:6px 9px;font-size:13px">
+            ${["active","past_due","suspended","canceled"].map(s=>`<option ${a.status===s?"selected":""}>${s}</option>`).join("")}</select>
+          <button class="btn btn-ghost btn-sm" onclick="admAccountModal('${a.id}')">Branding &amp; settings</button>
+        </div>
+      </div></div>`;
+  }).join("");
+}
+async function admSetAccountTier(id,tier){
+  const {data}=await sb.rpc("admin_set_account_tier",{target:id,new_tier:tier,reset_limit:true});
+  toast(data===true?"Tier updated (estate limit reset to tier default).":"Couldn't update tier."); admLoadAccounts();
+}
+async function admSetAccountStatus(id,status){
+  const {data}=await sb.rpc("admin_set_account_status",{target:id,new_status:status});
+  toast(data===true?"Status updated.":"Couldn't update status."); admLoadAccounts();
+}
+async function admAccountModal(id){
+  const [{data:acct},{data:brand}]=await Promise.all([
+    sb.from("concierge_accounts").select("*").eq("id",id).maybeSingle(),
+    sb.from("tenant_branding").select("*").eq("account_id",id).maybeSingle()
+  ]);
+  if(!acct){ toast("Couldn't load account."); return; }
+  const b=brand||{};
+  const ink=b.color_ink||"#26332E", accent=b.color_accent||"#8F6A24", accentD=b.color_accent_deep||"#75561D";
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:620px">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">White-label account</div><h3 style="margin-bottom:2px">${esc(acct.business_name)}</h3>
+    <div class="muted" style="font-size:12.5px">${acct.tenant_type==="funeral_home"?"Funeral home":"Concierge"} · account ${esc(acct.id.slice(0,8))}…</div>
+
+    <div class="eyebrow" style="margin-top:18px">Plan &amp; limits</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px">
+      <div><label>Estate limit</label>
+        <div style="display:flex;gap:6px"><input id="acLimit" type="number" min="0" value="${acct.estate_limit}" style="flex:1">
+        <button class="btn btn-primary btn-sm" onclick="admSaveLimit('${id}')">Save</button></div></div>
+      <div><label>Usage</label>
+        <div class="muted" style="font-size:13px;padding-top:8px">${fmtBytes(acct.storage_bytes_used)} · ${Number(acct.ai_tokens_used||0).toLocaleString()} tokens</div></div>
+    </div>
+
+    <div class="eyebrow" style="margin-top:18px">Domain</div>
+    <label>Subdomain <span class="muted" style="font-weight:400">(concierge sets this themselves)</span></label>
+    <input value="${acct.subdomain?esc(acct.subdomain)+".homegoinghq.com":"— none —"}" readonly style="background:#f2eee6">
+    <label>Custom domain <span class="muted" style="font-weight:400">(Professional+ — also add it as a Netlify domain alias)</span></label>
+    <div style="display:flex;gap:6px"><input id="acDomain" value="${esc(acct.custom_domain||"")}" placeholder="care.example.com" style="flex:1">
+      <button class="btn btn-primary btn-sm" onclick="admSaveDomain('${id}')">Save</button></div>
+
+    <div class="eyebrow" style="margin-top:18px">Branding</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px">
+      <div><label>Primary (ink)</label><input id="acInk" type="color" value="${ink}" oninput="admBrandPreview()" style="height:42px;padding:3px"></div>
+      <div><label>Accent</label><input id="acAccent" type="color" value="${accent}" oninput="admBrandPreview()" style="height:42px;padding:3px"></div>
+      <div><label>Accent deep</label><input id="acAccentD" type="color" value="${accentD}" oninput="admBrandPreview()" style="height:42px;padding:3px"></div>
+    </div>
+    ${["logo","favicon","hero"].map(k=>{
+      const cur=b[k+"_url"]||"";
+      return `<label style="text-transform:capitalize">${k} URL</label>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="ac_${k}" value="${esc(cur)}" placeholder="https://…" oninput="admBrandPreview()" style="flex:1">
+        <label class="btn btn-ghost btn-sm" style="margin:0;cursor:pointer">Upload<input type="file" accept="image/*" style="display:none" onchange="admUploadAsset('${id}','${k}',this)"></label>
+      </div>`;}).join("")}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><label>Contact name</label><input id="acCName" value="${esc(b.contact_name||"")}"></div>
+      <div><label>Contact phone</label><input id="acCPhone" value="${esc(b.contact_phone||"")}"></div>
+    </div>
+    <label>Contact email</label><input id="acCEmail" value="${esc(b.contact_email||"")}">
+    <label>Footer note</label><input id="acFooter" value="${esc(b.footer_note||"")}" placeholder="© 2026 Grace Concierge · Serving Metro Detroit">
+
+    <div class="eyebrow" style="margin-top:18px">Live preview</div>
+    <div id="acPreview" style="margin-top:6px"></div>
+
+    <div style="display:flex;gap:8px;margin-top:18px">
+      <button class="btn btn-brass" onclick="admSaveBranding('${id}')">Save branding</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    </div>
+  </div></div>`;
+  admBrandPreview();
+}
+function admBrandPreview(){
+  const g=id=>($(id)?$(id).value:"");
+  const ink=g("acInk")||"#26332E", accent=g("acAccent")||"#8F6A24";
+  const logo=g("ac_logo"), hero=g("ac_hero"), name=($("acCName")?$("acCName").value:"")||"Your practice";
+  const el=$("acPreview"); if(!el) return;
+  el.innerHTML=`<div style="border:1px solid var(--line);border-radius:12px;overflow:hidden">
+    <div style="background:${esc(ink)};color:#F6F2EA;padding:14px 16px;display:flex;align-items:center;gap:10px;${hero?`background-image:linear-gradient(rgba(38,51,46,.55),rgba(38,51,46,.55)),url('${esc(hero)}');background-size:cover;background-position:center`:""}">
+      ${logo?`<img src="${esc(logo)}" style="height:26px;width:auto" onerror="this.style.display='none'">`:`<span style="width:26px;height:26px;border-radius:7px;background:#F6F2EA;color:${esc(ink)};display:grid;place-items:center;font-weight:600">${esc(name.trim().charAt(0).toUpperCase()||"H")}</span>`}
+      <strong style="font-family:var(--font-display)">${esc(name)}</strong></div>
+    <div style="padding:14px 16px;background:var(--card)">
+      <button style="background:${esc(accent)};color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:600">Begin</button>
+      <div style="font-size:11px;letter-spacing:.04em;color:var(--ink-soft);opacity:.7;margin-top:10px">Powered by HomegoingHQ®</div>
+    </div></div>`;
+}
+async function admUploadAsset(id,kind,input){
+  const f=input.files[0]; if(!f) return;
+  if(f.size>4*1024*1024) return toast("Images up to 4 MB, please.");
+  const path=`${id}/${kind}-${Date.now()}-${f.name.replace(/[^a-zA-Z0-9_.-]/g,"_")}`;
+  const {error}=await sb.storage.from(TENANT_ASSET_BUCKET).upload(path,f,{upsert:true});
+  if(error){ toast("Upload needs the tenant-assets bucket — paste a URL instead, or run the storage snippet."); return; }
+  const {data}=sb.storage.from(TENANT_ASSET_BUCKET).getPublicUrl(path);
+  const field=$("ac_"+kind); if(field&&data){ field.value=data.publicUrl; admBrandPreview(); toast("Uploaded."); }
+}
+async function admSaveLimit(id){
+  const n=parseInt($("acLimit").value,10); if(isNaN(n)||n<0) return toast("Enter a valid limit.");
+  const {data}=await sb.rpc("admin_set_estate_limit",{target:id,new_limit:n});
+  toast(data===true?"Estate limit saved.":"Couldn't save limit."); admLoadAccounts();
+}
+async function admSaveDomain(id){
+  const {data}=await sb.rpc("admin_set_custom_domain",{target:id,domain:$("acDomain").value.trim()});
+  if(data&&data.error==="taken") return toast("That domain is already assigned to another account.");
+  toast(data&&data.ok?"Custom domain saved. Add it as a Netlify domain alias too.":"Couldn't save domain."); admLoadAccounts();
+}
+async function admSaveBranding(id){
+  const {data}=await sb.rpc("admin_upsert_branding",{
+    target:id, p_logo:$("ac_logo").value.trim()||null, p_favicon:$("ac_favicon").value.trim()||null,
+    p_hero:$("ac_hero").value.trim()||null, p_ink:$("acInk").value, p_accent:$("acAccent").value,
+    p_accent_deep:$("acAccentD").value, p_cname:$("acCName").value.trim()||null,
+    p_cemail:$("acCEmail").value.trim()||null, p_cphone:$("acCPhone").value.trim()||null,
+    p_footer:$("acFooter").value.trim()||null });
+  if(data&&data.ok){ toast("Branding saved."); closeModal(); admLoadAccounts(); }
+  else toast(data&&data.error==="forbidden"?"Not authorized.":"Couldn't save branding.");
 }
 </script>
 <script>
