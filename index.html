@@ -2174,6 +2174,7 @@ function renderFuneral(){
       <button class="btn btn-brass btn-sm" onclick="openProgram()">Design the program</button>
     </div>
   </div>
+  <div id="casketCard" style="margin-top:12px"></div>
   <h2 style="margin:26px 0 10px;font-size:20px">Music, Special Tributes & Officiants</h2>
   <div class="card" style="border-top:3px solid var(--brass)">
     <p style="margin-bottom:6px"><strong>A voice that carries the service.</strong> Do you need an officiant, a soloist, musicians, a DJ for the repast, a full choir — or a personal tribute video from a beloved gospel, jazz, or R&B artist? We can help.</p>
@@ -2183,6 +2184,7 @@ function renderFuneral(){
     </div>
     <div class="grid" id="talentList" style="margin-top:12px"></div>
   </div>
+  <div id="musicCard" style="margin-top:12px"></div>
   <h2 style="margin:26px 0 10px;font-size:20px">Obituary builder</h2>
   <div class="card">
     <p class="muted" style="margin-bottom:6px">Answer what you'd like — the Guide drafts it in your chosen tone, and you edit every word. For safety, we omit the exact birth date and home address.</p>
@@ -2197,8 +2199,7 @@ function renderFuneral(){
     <div id="obOut" class="hidden"><label>Draft — edit freely</label><textarea id="obText" rows="12"></textarea>
       <div class="scard-actions"><button class="btn btn-ghost btn-sm" onclick="copyObit(this)">Copy</button><button class="btn btn-ghost btn-sm" onclick="printObit()">Print</button></div></div>
   </div>`;
-  h+=`<div id="casketCard" style="margin-top:12px"></div>`;
-  h+=`<div id="musicCard" style="margin-top:12px"></div>`;
+  h+=`<div style="height:80px" aria-hidden="true"></div>`;
   $("tab-funeral").innerHTML=h;
   renderCasketCard(); renderMusicCard();
 }
@@ -4353,8 +4354,8 @@ function pgPrint(order){
 </script>
 <script>
 /* ===================== PROVIDER DISCOVERY & COMPARISON (Release 17) ===================== */
-const PV_CATS=[["funeral_home","Funeral Homes"],["cemetery","Cemeteries"],["crematory","Crematories"],["florist","Florists"],["caterer","Caterers"],["reception_venue","Reception Venues"],["church","Churches"],["limousine","Funeral Transportation / Limos"],["monument","Monument & Headstone"],["obituary_news","Obituary / Newspaper"],["printing","Printing Companies"],["musician","Musicians"],["vocalist","Vocalists"],["officiant","Ministers / Officiants"],["videographer","Videographers"],["photographer","Photographers"],["balloon_release","Balloon Releases"],["dove_release","Dove Releases"],["tent_rental","Tent & Chair Rentals"],["event_rental","Event Rentals"],["security","Security Services"],["grief_counseling","Grief Counseling"],["estate_attorney","Estate Attorneys"],["probate_attorney","Probate Attorneys"],["accountant","Accountants"],["insurance_help","Insurance Claim Assistance"],["cleaning","Cleaning Services"],["estate_sale","Estate Sale Companies"],["storage","Storage Facilities"],["moving","Moving Companies"],["other","Other"]];
-const PV_QUERY={funeral_home:"funeral home",cemetery:"cemetery",crematory:"crematory cremation services",florist:"funeral florist flower shop",caterer:"catering repast",reception_venue:"banquet hall reception venue",church:"church",limousine:"funeral limousine service",monument:"monument headstone company",obituary_news:"newspaper obituary office",printing:"print shop",musician:"musicians for hire",vocalist:"vocalist singer for events",officiant:"minister officiant",videographer:"videographer",photographer:"event photographer",balloon_release:"balloon release service",dove_release:"dove release service",tent_rental:"tent and chair rental",event_rental:"event rentals",security:"event security services",grief_counseling:"grief counseling",estate_attorney:"estate attorney",probate_attorney:"probate attorney",accountant:"accountant CPA",insurance_help:"public adjuster insurance claim help",cleaning:"house cleaning service",estate_sale:"estate sale company",storage:"self storage",moving:"moving company",other:"services"};
+const PV_CATS=[["funeral_home","Funeral Homes"],["cemetery","Cemeteries"],["crematory","Crematories"],["casket_urn","Caskets & Urns"],["florist","Florists"],["caterer","Caterers"],["reception_venue","Reception Venues"],["church","Churches"],["limousine","Funeral Transportation / Limos"],["monument","Monument & Headstone"],["obituary_news","Obituary / Newspaper"],["printing","Printing Companies"],["musician","Musicians"],["vocalist","Vocalists"],["officiant","Ministers / Officiants"],["videographer","Videographers"],["photographer","Photographers"],["balloon_release","Balloon Releases"],["dove_release","Dove Releases"],["tent_rental","Tent & Chair Rentals"],["event_rental","Event Rentals"],["security","Security Services"],["grief_counseling","Grief Counseling"],["estate_attorney","Estate Attorneys"],["probate_attorney","Probate Attorneys"],["accountant","Accountants"],["insurance_help","Insurance Claim Assistance"],["cleaning","Cleaning Services"],["estate_sale","Estate Sale Companies"],["storage","Storage Facilities"],["moving","Moving Companies"],["other","Other"]];
+const PV_QUERY={funeral_home:"funeral home",cemetery:"cemetery",crematory:"crematory cremation services",casket_urn:"casket and urn retailer store",florist:"funeral florist flower shop",caterer:"catering repast",reception_venue:"banquet hall reception venue",church:"church",limousine:"funeral limousine service",monument:"monument headstone company",obituary_news:"newspaper obituary office",printing:"print shop",musician:"musicians for hire",vocalist:"vocalist singer for events",officiant:"minister officiant",videographer:"videographer",photographer:"event photographer",balloon_release:"balloon release service",dove_release:"dove release service",tent_rental:"tent and chair rental",event_rental:"event rentals",security:"event security services",grief_counseling:"grief counseling",estate_attorney:"estate attorney",probate_attorney:"probate attorney",accountant:"accountant CPA",insurance_help:"public adjuster insurance claim help",cleaning:"house cleaning service",estate_sale:"estate sale company",storage:"self storage",moving:"moving company",other:"services"};
 let PV={results:[],center:null};
 
 function pvInit(){
