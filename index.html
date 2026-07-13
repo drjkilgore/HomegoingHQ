@@ -4712,14 +4712,36 @@ function hhqInitVoices(){
   try{ if(window.speechSynthesis && "onvoiceschanged" in window.speechSynthesis){
     window.speechSynthesis.onvoiceschanged=()=>{ hhqVoice=hhqPickVoice(); }; } }catch(e){}
 }
-function hhqSpeak(text){
+let hhqAudio=null, hhqCloud=null;   // hhqCloud: null=unknown, true=works, false=unavailable
+async function hhqSpeak(text){
+  if(!text) return;
+  if(hhqCloud!==false){
+    try{
+      const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),9000);
+      const r=await fetch("/.netlify/functions/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text}),signal:ctrl.signal});
+      clearTimeout(to);
+      if(r.ok){
+        const blob=await r.blob();
+        if(blob && blob.size>0){
+          hhqCloud=true;
+          if(hhqAudio){ try{hhqAudio.pause();}catch(e){} }
+          hhqAudio=new Audio(URL.createObjectURL(blob)); hhqAudio.volume=1.0;
+          hhqAudio.play().catch(()=>hhqSpeakBrowser(text));
+          return;
+        }
+      } else if(r.status===404||r.status===500){ hhqCloud=false; }   // not deployed / no key → stop retrying this session
+    }catch(e){ /* transient network/abort — fall back, keep cloud enabled */ }
+  }
+  hhqSpeakBrowser(text);
+}
+function hhqSpeakBrowser(text){
   try{
     if(!("speechSynthesis" in window) || !text) return;
     if(!hhqVoice) hhqVoice=hhqPickVoice();
     window.speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);
     if(hhqVoice) u.voice=hhqVoice;
-    u.rate=0.86; u.pitch=0.98; u.volume=1.0;   // a little slower and softer — gentler delivery
+    u.rate=0.86; u.pitch=0.98; u.volume=1.0;
     window.speechSynthesis.speak(u);
   }catch(e){}
 }
