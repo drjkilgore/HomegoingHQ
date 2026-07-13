@@ -4692,14 +4692,38 @@ const Comfort = {
   },
   speak(text){ if(this.on) hhqSpeak(text); }          // spoken affirmations follow the Comfort toggle
 };
+let hhqVoice=null;
+function hhqPickVoice(){
+  try{
+    const vs = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+    if(!vs || !vs.length) return null;
+    const en = vs.filter(v=>/^en(-|_|$)/i.test(v.lang||""));
+    const pool = en.length?en:vs;
+    // Prefer modern natural/neural voices, then known-warm named voices, avoiding robotic ones.
+    const prefer=[/Natural/i,/Neural/i,/Google US English/i,/Google UK English Female/i,
+      /(Ava|Samantha|Allison|Serena|Joelle|Nicky|Zoe).*(Premium|Enhanced)/i,
+      /Ava/i,/Samantha/i,/Allison/i,/Serena/i,/Karen/i,/Moira/i,/Tessa/i,/Fiona/i,/Siri/i,/Female/i];
+    for(const rx of prefer){ const m=pool.find(v=>rx.test(v.name||"")); if(m) return m; }
+    return pool.find(v=>!/espeak|compact|robot/i.test(v.name||"")) || pool[0];
+  }catch(e){ return null; }
+}
+function hhqInitVoices(){
+  hhqVoice=hhqPickVoice();
+  try{ if(window.speechSynthesis && "onvoiceschanged" in window.speechSynthesis){
+    window.speechSynthesis.onvoiceschanged=()=>{ hhqVoice=hhqPickVoice(); }; } }catch(e){}
+}
 function hhqSpeak(text){
   try{
     if(!("speechSynthesis" in window) || !text) return;
+    if(!hhqVoice) hhqVoice=hhqPickVoice();
     window.speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(text); u.rate=0.9; u.pitch=1.0; u.volume=1.0;
+    const u=new SpeechSynthesisUtterance(text);
+    if(hhqVoice) u.voice=hhqVoice;
+    u.rate=0.86; u.pitch=0.98; u.volume=1.0;   // a little slower and softer — gentler delivery
     window.speechSynthesis.speak(u);
   }catch(e){}
 }
+try{ hhqInitVoices(); }catch(e){}
 const Voice = { on:false, isOn(){ return this.on; }, speak(text){ if(this.on) hhqSpeak(text); } };
 function toggleVoice(){
   const btn=$("btnVoice"); Voice.on=!Voice.on;
