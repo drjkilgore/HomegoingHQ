@@ -812,12 +812,6 @@ async function handleSession(session){
         const {data:claim} = await sb.rpc("claim_my_provision");
         if(claim && claim.claimed){ toast("Your "+claim.tier+" concierge practice is now active."); }
       }catch(e){}
-      // attribute this account to a partner if they arrived via a partner link
-      const pc=localStorage.getItem("lhq_partner");
-      if(pc && p && !p.partner_code){
-        await sb.from("profiles").update({partner_code:pc}).eq("id",p.id);
-        S.profile.partner_code=pc;
-      }
       await loadEstates();
     }catch(err){ toast("Loading issue: "+err.message); }
     goHome();
@@ -984,7 +978,7 @@ async function createEstate(){
     state_code:(intake.state_code||"").toUpperCase().slice(0,2)||null,
     relationship:intake.relationship,
     intake, ruleset_version:RULESET_VERSION,
-    partner_code: S.profile?.partner_code || localStorage.getItem("lhq_partner") || null
+    partner_code: null
   }).select().single();
   if(error){ toast(error.message); return goHome(); }
   const {error:memErr} = await sb.from("estate_members").insert({estate_id:est.id,user_id:S.session.user.id,role:"owner"});
@@ -2664,24 +2658,10 @@ async function admSaveBranding(id){
 
 /* ---------- PARTNER WHITE-LABEL ---------- */
 S.partner=null;
-async function initPartner(){
-  if(!CONFIGURED) return;
-  const q=new URLSearchParams(location.search).get("p");
-  if(q) localStorage.setItem("lhq_partner",q.trim());
-  const code=localStorage.getItem("lhq_partner");
-  if(!code) return;
-  try{
-    const {data}=await sb.rpc("get_partner",{pcode:code});
-    if(!data){ localStorage.removeItem("lhq_partner"); return; }
-    S.partner=data;
-    const badge=(center)=>`<div class="card" style="padding:12px 16px;${center?"":"margin-bottom:14px;"}display:flex;gap:12px;align-items:center;${center?"justify-content:center;":""}${data.brand_color?"border-top:3px solid "+esc(data.brand_color):""}">
-      ${data.logo_url?`<img src="${esc(data.logo_url)}" style="height:34px;border-radius:6px">`:""}
-      <div style="text-align:left"><div class="eyebrow">In partnership with</div><strong>${esc(data.name)}</strong></div></div>`;
-    const a=$("partnerBannerAuth"); if(a){a.innerHTML=badge(true); a.classList.remove("hidden");}
-    const hm=$("partnerBannerHome"); if(hm) hm.innerHTML=badge(false);
-  }catch(e){}
-}
-initPartner();
+/* Legacy partner-code banner retired — the app now uses the concierge_accounts /
+   tenant_branding white-label system. Clear any stale saved code so browsers that
+   still have an old ?p= value stop showing the partner banner. */
+try{ localStorage.removeItem("lhq_partner"); }catch(e){}
 
 /* ---------- ADMIN: PARTNERS ---------- */
 async function admLoadPartners(){
