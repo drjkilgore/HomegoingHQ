@@ -1913,7 +1913,7 @@ async function loadStatePack(){
     const {data:packs}=await sb.from("state_packs").select("*").in("state_code",[sc||"GENERIC","GENERIC"]);
     if(packs&&packs.length){
       const hit=packs.find(p=>p.state_code===sc)||packs.find(p=>p.state_code==="GENERIC");
-      if(hit){ S.statePack={...hit.content, reviewed: hit.reviewed_by?`Reviewed by ${hit.reviewed_by}`:`content v${hit.version}`, reviewedDate: hit.reviewed_at }; }
+      if(hit){ S.statePack={...hit.content, reviewed: hit.reviewed_by?`Reviewed by ${hit.reviewed_by}`:`content v${String(hit.version).replace(/^v/i,"")}`, reviewedDate: hit.reviewed_at }; }
     }
     if(sc){ const {data:cty}=await sb.from("county_directory").select("*").eq("state_code",sc).order("county"); S.counties=cty||[]; }
   }catch(e){}
@@ -1943,7 +1943,7 @@ function renderProbate(){
   if((S.counties||[]).length){
     h+=`<div class="card" style="margin-top:14px"><div class="eyebrow">Find your probate court</div>
       <div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap">
-        <select id="ctySel" style="width:auto" onchange="showCounty()">${S.counties.map((c,i)=>`<option value="${i}">${esc(c.county)} County</option>`).join("")}</select>
+        <select id="ctySel" style="width:auto" onchange="showCounty()">${S.counties.map((c,i)=>`<option value="${i}">${esc(c.county)}</option>`).join("")}</select>
       </div><div id="ctyInfo" style="margin-top:10px" class="muted"></div></div>`;
   }
   h+=`<div class="card" style="margin-top:14px"><div class="eyebrow">${pack.name} — worth knowing</div>
@@ -4625,9 +4625,19 @@ async function admSaveMessages(keepOpen){
   const rows=[{kind:"encourage",phase:null,title:null,body:encBody,sort_order:0}];
   MS_PHASES.forEach(([k],i)=>{ rows.push({kind:"milestone",phase:k,title:($("ms_t_"+k).value||"").trim(),body:($("ms_m_"+k).value||"").trim(),sort_order:i}); });
   try{
-    await sb.from("app_messages").delete().neq("kind","__never__");   // clear all, then rewrite
-    const {error}=await sb.from("app_messages").insert(rows);
-    if(error) throw error;
+    // Update text in place (preserving clip_url); insert only if the row doesn't exist yet.
+    const {data:existing,error:selErr}=await sb.from("app_messages").select("id,kind,phase");
+    if(selErr) throw selErr;
+    for(const row of rows){
+      const hit=(existing||[]).find(r=>r.kind===row.kind && (r.phase||null)===(row.phase||null));
+      if(hit){
+        const {error}=await sb.from("app_messages").update({title:row.title,body:row.body,sort_order:row.sort_order,updated_at:new Date().toISOString()}).eq("id",hit.id);
+        if(error) throw error;
+      } else {
+        const {error}=await sb.from("app_messages").insert(row);
+        if(error) throw error;
+      }
+    }
   }catch(e){ toast("Couldn't save (admin only)."); return false; }
   await loadAppMessages();
   if(!keepOpen){ closeModal(); toast("Messages saved."); }
