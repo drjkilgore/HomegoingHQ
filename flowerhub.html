@@ -262,29 +262,30 @@ footer{border-top:1px solid var(--line);padding:26px 0;color:var(--ink-70);font-
   <div class="split">
     <div class="panel" id="cartItems"></div>
     <div class="panel summary">
-      <h2>Order summary</h2>
-      <div class="sub">Delivery & tax calculated at your ZIP</div>
-      <div class="field"><label>Delivery ZIP</label><input id="coZip" value="48170" maxlength="5" oninput="calcTotals()"></div>
+      <h2>Checkout</h2>
+      <div class="sub">Delivered by a local florist. Your card is tokenized securely and never touches our servers.</div>
+      <h3 style="margin:14px 0 6px;font-size:14px">Who's sending</h3>
+      <div class="field"><label>Your name</label><input id="snName"></div>
+      <div class="field"><label>Email</label><input id="snEmail" type="email"></div>
+      <div class="field"><label>Phone</label><input id="snPhone"></div>
+      <div class="field"><label>Billing address</label><input id="snA1" placeholder="Street address"></div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px"><input id="snCity" placeholder="City"><input id="snState" placeholder="State" maxlength="2"><input id="snZip" placeholder="ZIP" maxlength="5"></div>
+      <h3 style="margin:16px 0 6px;font-size:14px">Where the flowers go</h3>
+      <div class="field"><label>Recipient name</label><input id="rcName"></div>
+      <div class="field"><label>Funeral home / institution (optional)</label><input id="rcInst"></div>
+      <div class="field"><label>Delivery address</label><input id="rcA1" placeholder="Street address"></div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px"><input id="rcCity" placeholder="City"><input id="rcState" placeholder="State" maxlength="2"><input id="rcZip" placeholder="ZIP" maxlength="5" oninput="calcTotals()"></div>
+      <div class="field"><label>Recipient phone</label><input id="rcPhone"></div>
       <div class="field"><label>Delivery date</label><input id="coDate" type="date"></div>
-      <div class="field"><label>Delivery type</label>
-        <select id="coType" onchange="calcTotals()">
-          <option value="std">Standard delivery</option>
-          <option value="sameday">Same-day (+$15)</option>
-        </select>
-      </div>
-      <div class="field"><label>Enclosure card message</label>
-        <textarea id="coCard" placeholder="With deepest sympathy…"></textarea>
-        <button class="rm" style="background:none" onclick="aiCard()">✦ Help me word this</button>
-      </div>
-      <div class="field"><label>Coupon</label>
-        <div class="coupon-row">
-          <input id="coCoupon" placeholder="e.g. GRACE10">
-          <button onclick="applyCoupon()">Apply</button>
-        </div>
-      </div>
+      <h3 style="margin:16px 0 6px;font-size:14px">Service details (optional)</h3>
+      <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px"><input id="evType" placeholder="e.g. Celebration Of Life"><input id="evDate" placeholder="Service date"><input id="evTime" placeholder="Time"></div>
+      <div class="field" style="margin-top:10px"><label>Enclosure card message</label><textarea id="coCard" placeholder="With deepest sympathy…"></textarea></div>
+      <h3 style="margin:6px 0 6px;font-size:14px">Payment</h3>
+      <div class="field"><label>Card number</label><input id="ccNum" placeholder="4111 1111 1111 1111" inputmode="numeric" autocomplete="cc-number"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><input id="ccMonth" placeholder="MM" maxlength="2"><input id="ccYear" placeholder="YYYY" maxlength="4"><input id="ccCvv" placeholder="CVV" maxlength="4"></div>
       <div id="totals"></div>
       <button class="pay" onclick="placeOrder()">Place order</button>
-      <div class="trust">🔒 Secure checkout · HomegoingHQ</div>
+      <div class="trust">🔒 Card secured via Authorize.Net · never stored by us</div>
     </div>
   </div>
   <div class="empty" id="cartEmpty" style="display:none">
@@ -371,6 +372,7 @@ let CATALOG=[
   {id:11,name:"Whispering Willow Bouquet",cat:"Sympathy Bouquet",color:"Mixed",meaning:"Consolation and hope",wholesale:46,retail:79,sd:true,feat:4},
   {id:12,name:"Brass & Bloom Fruit Basket",cat:"Basket",color:"Mixed",meaning:"Nourishment and care",wholesale:54,retail:95,sd:true,feat:3},
 ];
+CATALOG.forEach(p=>p.id=String(p.id));
 
 let LIVE=false;
 const FLOWER_CATEGORY="sympathy";   // adjust to your Florist One category code if needed
@@ -438,13 +440,13 @@ function card(p){
     <div class="ph">${p.img?`<img src="${p.img}" alt="" style="width:100%;height:100%;object-fit:cover;display:block">`:bloom(p.id)}
       <span class="tag">${p.cat}</span>
       ${p.sd?`<span class="tag sd">${zipOK?'Same-day here':'Same-day'}</span>`:''}
-      <button class="fav ${FAVS.has(p.id)?'on':''}" onclick="toggleFav(${p.id})">${FAVS.has(p.id)?'♥':'♡'}</button>
+      <button class="fav ${FAVS.has(p.id)?'on':''}" onclick="toggleFav('${p.id}')">${FAVS.has(p.id)?'♥':'♡'}</button>
     </div>
     <div class="body">
       <h3>${p.name}</h3>
       <div class="meaning">${p.meaning}</div>
       <div class="price"><b>$${p.retail}</b></div>
-      <button class="addbtn" onclick="addToCart(${p.id})">Add to cart</button>
+      <button class="addbtn" onclick="addToCart('${p.id}')">Add to cart</button>
     </div></div>`;
 }
 function toggleFav(id){FAVS.has(id)?FAVS.delete(id):FAVS.add(id);render();toast(FAVS.has(id)?'Saved to favorites':'Removed');}
@@ -473,13 +475,13 @@ function renderCart(){
     CART.map(i=>`<div class="li">
       <div class="thumb">${bloom(i.id)}</div>
       <div class="info"><h4>${i.name}</h4><small>${i.meaning}</small>
-        <div class="qty"><button onclick="chQty(${i.id},-1)">−</button><span>${i.qty}</span><button onclick="chQty(${i.id},1)">+</button></div>
-        <div class="rm" onclick="rmItem(${i.id})">Remove</div>
+        <div class="qty"><button onclick="chQty('${i.id}',-1)">−</button><span>${i.qty}</span><button onclick="chQty('${i.id}',1)">+</button></div>
+        <div class="rm" onclick="rmItem('${i.id}')">Remove</div>
       </div>
       <div class="amt">$${(i.retail*i.qty).toFixed(2)}</div>
     </div>`).join('');
   const d=document.getElementById('coDate');if(!d.value){const t=new Date(Date.now()+864e5);d.value=t.toISOString().slice(0,10);}
-  calcTotals();
+  prefillCheckout(); calcTotals();
 }
 
 // ---------- pricing engine (mirror of edge computePrice) ----------
@@ -491,31 +493,14 @@ function applyCoupon(){
   calcTotals();
 }
 function calcTotals(){
-  const zip=document.getElementById('coZip').value;
-  const type=document.getElementById('coType').value;
-  const retailSubtotal=CART.reduce((s,i)=>s+i.retail*i.qty,0);
-  const wholesaleTotal=CART.reduce((s,i)=>s+i.wholesale*i.qty,0);
-  const deliveryFee=zip.length===5?14.99:0;
-  const serviceFee=9.99+(type==='sameday'?15:0);
-  const platformFee=+(retailSubtotal*0.03).toFixed(2);
-  let discount=0;
-  if(COUPON)discount=COUPON.kind==='percent'?+(retailSubtotal*COUPON.value/100).toFixed(2):COUPON.value;
-  const taxRate=0.06;
-  const tax=+(Math.max(0,retailSubtotal+serviceFee+deliveryFee-discount)*taxRate).toFixed(2);
-  const grand=+(retailSubtotal+serviceFee+platformFee+deliveryFee+tax-discount).toFixed(2);
-  const profit=+(retailSubtotal+serviceFee-wholesaleTotal-discount).toFixed(2);
-  const margin=retailSubtotal?((profit/retailSubtotal)*100).toFixed(1):0;
-  LAST_TOTALS={grand,profit,margin};
-  document.getElementById('totals').innerHTML=`
-    <div class="summary">
-      <div class="row"><span class="muted">Subtotal</span><span>$${retailSubtotal.toFixed(2)}</span></div>
-      <div class="row"><span class="muted">Delivery</span><span>${deliveryFee?'$'+deliveryFee.toFixed(2):'—'}</span></div>
-      <div class="row"><span class="muted">Service fee</span><span>$${serviceFee.toFixed(2)}</span></div>
-      <div class="row"><span class="muted">Platform fee</span><span>$${platformFee.toFixed(2)}</span></div>
-      ${discount?`<div class="row"><span class="muted">Discount</span><span style="color:var(--good)">−$${discount.toFixed(2)}</span></div>`:''}
-      <div class="row"><span class="muted">Tax</span><span>$${tax.toFixed(2)}</span></div>
-      <div class="row tot"><span>Total</span><span>$${grand.toFixed(2)}</span></div>
-    </div>`;
+  const subtotal=CART.reduce((s,i)=>s+(i.retail||0)*i.qty,0);
+  LAST_TOTALS={grand:subtotal};
+  const el=document.getElementById('totals'); if(!el)return;
+  el.innerHTML=`<div class="summary">
+    <div class="row"><span class="muted">Arrangements</span><span>$${subtotal.toFixed(2)}</span></div>
+    <div class="row"><span class="muted">Delivery & tax</span><span>calculated by the florist</span></div>
+    <div class="row tot"><span>Estimated</span><span>$${subtotal.toFixed(2)}+</span></div>
+  </div>`;
 }
 
 // ---------- AI (simulated locally; wired to fh-ai/Claude in prod) ----------
@@ -528,7 +513,7 @@ function runAI(){
   document.getElementById('aiOut').innerHTML=picks.map(p=>`
     <div class="ai-rec"><b>${p.name}</b> · $${p.retail}
       <p>${p.meaning}. A fitting tribute for ${relText}, within your budget.</p>
-      <button class="rm" style="color:var(--gold);margin-top:8px" onclick="addToCart(${p.id})">Add to cart →</button>
+      <button class="rm" style="color:var(--gold);margin-top:8px" onclick="addToCart('${p.id}')">Add to cart →</button>
     </div>`).join('');
   toast('Recommendations ready');
 }
@@ -542,16 +527,74 @@ function aiCard(){
 
 // ---------- place order -> track ----------
 let ORDER=null;
-function placeOrder(){
-  if(!CART.length){toast('Cart is empty');return;}
-  const num='FH-'+new Date().toISOString().slice(2,10).replace(/-/g,'')+'-'+Math.random().toString(36).slice(2,8).toUpperCase();
-  ORDER={num,items:[...CART],total:LAST_TOTALS?LAST_TOTALS.grand:0,provider:'Routed automatically',
-    zip:document.getElementById('coZip').value,date:document.getElementById('coDate').value,
-    card:document.getElementById('coCard').value,step:1};
-  CART=[];COUPON=null;updateBadge();
-  toast('Order placed — thank you');
-  go('track');
+function fhApi(action,params){
+  return fetch('/.netlify/functions/flower-api',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(Object.assign({action},params||{}))}).then(async r=>{
+    const j=await r.json(); if(!r.ok) throw new Error(j.error||('flower-api '+r.status)); return j;
+  });
 }
+function val(id){const e=document.getElementById(id);return e?e.value.trim():'';}
+function loadScript(src){return new Promise((res,rej)=>{
+  if(document.querySelector(`script[src="${src}"]`))return res();
+  const s=document.createElement('script'); s.src=src; s.onload=()=>res(); s.onerror=()=>rej(new Error('Could not load the payment library')); document.head.appendChild(s);
+});}
+async function tokenizeCard(k,card){
+  const url=k.AUTHORIZENET_URL||k.authorizenet_url, key=k.AUTHORIZENET_KEY||k.authorizenet_key, login=k.USERNAME||k.username;
+  await loadScript(url);
+  return new Promise((resolve,reject)=>{
+    if(typeof Accept==='undefined') return reject(new Error('Payment library unavailable'));
+    Accept.dispatchData({authData:{clientKey:key,apiLoginID:login},
+      cardData:{cardNumber:card.number,month:card.month,year:card.year,cardCode:card.cvv}},(resp)=>{
+      if(resp.messages&&resp.messages.resultCode==='Ok'){ resolve(resp.opaqueData.dataValue); }
+      else { reject(new Error((resp.messages&&resp.messages.message&&resp.messages.message.map(m=>m.text).join('; '))||'Card was declined')); }
+    });
+  });
+}
+function prefillCheckout(){
+  try{
+    const par=(window.parent&&window.parent!==window)?window.parent:null;
+    const S=par&&par.S?par.S:null, PG=par&&par.PG?par.PG:null;
+    const set=(id,v)=>{const e=document.getElementById(id); if(e&&!e.value&&v)e.value=v;};
+    if(S){ const prof=S.profile||{}, sess=S.session||{};
+      set('snName',prof.full_name||''); set('snEmail',(sess.user&&sess.user.email)||''); }
+    if(PG){ if(PG.funeralHome)set('rcInst',PG.funeralHome);
+      if(PG.serviceDate){ set('coDate',PG.serviceDate); set('evDate',PG.serviceDate); } }
+    set('evType','Celebration Of Life');
+  }catch(e){}
+}
+async function placeOrder(){
+  if(!CART.length){toast('Cart is empty');return;}
+  const sn={NAME:val('snName'),EMAIL:val('snEmail'),PHONE:val('snPhone'),ADDRESS1:val('snA1'),ADDRESS2:' ',CITY:val('snCity'),STATE:val('snState'),ZIPCODE:val('snZip'),COUNTRY:'US',IP:''};
+  const rc={NAME:val('rcName'),INSTITUTION:val('rcInst')||' ',ADDRESS1:val('rcA1'),ADDRESS2:' ',CITY:val('rcCity'),STATE:val('rcState'),ZIPCODE:val('rcZip'),PHONE:val('rcPhone'),COUNTRY:'US'};
+  const date=val('coDate'), msg=val('coCard')||' ';
+  const ev={TYPE:val('evType')||' ',DATE:val('evDate')||' ',TIME:val('evTime')||' '};
+  const card={number:val('ccNum').replace(/\s/g,''),month:val('ccMonth'),year:val('ccYear'),cvv:val('ccCvv')};
+  if(!sn.NAME||!sn.EMAIL||!sn.ZIPCODE){toast('Please complete your sender details');return;}
+  if(!rc.NAME||!rc.ADDRESS1||!rc.ZIPCODE){toast('Please complete the recipient delivery address');return;}
+  if(!date){toast('Please choose a delivery date');return;}
+  if(!card.number||!card.month||!card.year||!card.cvv){toast('Please enter the card details');return;}
+  const btn=document.querySelector('#v-cart .pay'); const busy=(t)=>{if(btn){btn.disabled=!!t;btn.textContent=t||'Place order';}};
+  try{
+    busy('Checking delivery\u2026');
+    try{ await fhApi('deliverydate',{zipcode:rc.ZIPCODE}); }catch(e){}
+    const products=[];
+    CART.forEach(i=>{ for(let n=0;n<i.qty;n++) products.push({CODE:i.code,PRICE:i.retail,CARDMESSAGE:msg,DELIVERYDATE:date,RECIPIENT:rc,EVENTINFORMATION:ev}); });
+    busy('Confirming price\u2026');
+    let ordertotal=0;
+    try{ const t=await fhApi('total',{products}); ordertotal=parseFloat(t.TOTAL||t.total||t.ORDERTOTAL||t.ordertotal)||0; }catch(e){}
+    if(!ordertotal) ordertotal=products.reduce((s,p)=>s+(parseFloat(p.PRICE)||0),0);
+    busy('Securing payment\u2026');
+    const k=await fhApi('authnetkey',{});
+    const token=await tokenizeCard(k,card);
+    busy('Placing order\u2026');
+    const res=await fhApi('placeorder',{customer:sn,products,payment:{AUTHORIZENET_TOKEN:token},ordertotal});
+    const orderno=res.ORDERNO||res.orderno||res.OrderNo||(res.PLACEORDER&&(res.PLACEORDER.ORDERNO||res.PLACEORDER.orderno))||('F1-'+Date.now());
+    ORDER={num:orderno,items:[...CART],total:ordertotal,provider:'Florist One',zip:rc.ZIPCODE,date,card:msg,step:1};
+    CART=[];COUPON=null;updateBadge();busy(null);
+    toast('Order placed \u2014 thank you'); go('track');
+  }catch(e){ busy(null); toast(e.message||'Order could not be completed'); }
+}
+
 function renderTrack(){
   if(!ORDER){document.getElementById('trackSteps').innerHTML='<div class="empty"><h3>No active order</h3><p>Place an order to see live tracking.</p></div>';
     document.getElementById('trackDetails').innerHTML='';document.getElementById('trackNum').textContent='';return;}
