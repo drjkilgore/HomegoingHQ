@@ -2442,6 +2442,19 @@ function renderCasketCard(){
     <div class="eyebrow">Caskets & urns</div>
     <button class="btn btn-brass btn-sm" onclick="casketAddModal()">+ Add a casket to compare</button></div>`;
 
+  // your right to shop elsewhere + links to real sources
+  h+=`<div style="margin-top:10px;background:#edf3ed;border:1px solid var(--sage);border-radius:10px;padding:11px 14px;font-size:13.5px;line-height:1.55">
+    <strong>You do not have to buy the casket from the funeral home.</strong> Federal law (the FTC Funeral Rule) requires them to accept a casket you buy elsewhere — and they <strong>cannot charge a handling fee</strong> for it. Comparison shopping on caskets often saves families the most of any single funeral choice.</div>`;
+  h+=`<div style="margin-top:10px"><div class="eyebrow" style="margin-bottom:6px">Shop &amp; compare other sellers</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn btn-ghost btn-sm" href="https://titancasket.com/" target="_blank" rel="noopener">Titan Casket ↗</a>
+      <a class="btn btn-ghost btn-sm" href="https://www.costco.com/funeral-caskets.html" target="_blank" rel="noopener">Costco ↗</a>
+      <a class="btn btn-ghost btn-sm" href="https://www.walmart.com/search?q=funeral%20caskets" target="_blank" rel="noopener">Walmart ↗</a>
+      <a class="btn btn-ghost btn-sm" href="https://www.amazon.com/s?k=caskets" target="_blank" rel="noopener">Amazon ↗</a>
+      <a class="btn btn-ghost btn-sm" href="#" onclick="casketLocal(event)">📍 Local casket stores</a>
+    </div>
+    <div class="muted" style="font-size:11.5px;margin-top:6px">Most online sellers ship straight to the funeral home, often next-day. Note the price, then use “+ Add a casket to compare” to line it up against the funeral home’s quote.</div></div>`;
+
   // education (collapsible)
   h+=`<details class="card" style="margin-top:10px;padding:0;overflow:hidden;background:var(--parchment)">
     <summary style="cursor:pointer;list-style:none;padding:12px 16px;font-weight:700;font-size:14px">Know before you buy — a fair-price primer ▾</summary>
@@ -2481,6 +2494,7 @@ function renderCasketCard(){
   h+=`</div>`;
   el.innerHTML=h;
 }
+function casketLocal(e){ if(e&&e.preventDefault)e.preventDefault(); const a=($("pvAddr")&&$("pvAddr").value.trim())||""; const q=encodeURIComponent("casket stores "+(a||"near me")); window.open("https://www.google.com/maps/search/"+q,"_blank"); return false; }
 function casketAddModal(){
   $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:480px">
     <button class="close" onclick="closeModal()">×</button>
