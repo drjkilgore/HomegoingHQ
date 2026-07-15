@@ -859,7 +859,7 @@ async function handleSession(session){
     $("btnHelp").classList.remove("hidden");
     sb.rpc("is_admin").then(({data})=>{ if(data===true){ $("btnAdmin").classList.remove("hidden"); if(location.hash==="#admin") setTimeout(openAdmin,60); } }).catch(()=>{});
     sb.rpc("my_account").then(({data})=>{ if(data && data.found){ S.myAccount=data; $("btnBrand").classList.remove("hidden"); } else { S.myAccount=null; } }).catch(()=>{});
-    loadAppMessages();
+    try{ loadAppMessages(); }catch(e){}
     try{
       const {data:p} = await sb.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
       S.profile = p;
@@ -4813,7 +4813,7 @@ function pvDashboard(){
 }
 async function pvAnalyze(){
   const quoted=(F.options||[]).filter(o=>o.quote!=null);
-  if(quoted.length<2) return toast("Enter at least two quotes first — comparison is where the savings live.");
+  if(quoted.length<2) return toast("Add a quote to at least two providers first — tap “Quote details” on each card to enter the amount. Comparison is where the savings live.");
   const el=$("pvAnalysis");
   el.innerHTML='<div class="card" style="margin:8px 0"><div class="muted">Analyzing your quotes…</div></div>';
   const lines=quoted.map(o=>{const q=o.quote_meta||{};return `${o.name} (${(o.option_type||"").replace(/_/g," ")}): $${o.quote}. Included: ${q.included||"not specified"}. Excluded: ${q.excluded||"not specified"}. Deposit: ${q.deposit||"?"}. Terms: ${q.terms||"?"}. Notes: ${q.notes||o.notes||""}`;});
