@@ -2451,7 +2451,10 @@ function renderCasketCard(){
       <a class="btn btn-ghost btn-sm" href="https://www.costco.com/funeral-caskets.html" target="_blank" rel="noopener">Costco ↗</a>
       <a class="btn btn-ghost btn-sm" href="https://www.walmart.com/search?q=funeral%20caskets" target="_blank" rel="noopener">Walmart ↗</a>
       <a class="btn btn-ghost btn-sm" href="https://www.amazon.com/s?k=caskets" target="_blank" rel="noopener">Amazon ↗</a>
-      <a class="btn btn-ghost btn-sm" href="#" onclick="casketLocal(event)">📍 Local casket stores</a>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
+      <input id="ckLoc" placeholder="City, state, or ZIP — search any area" style="flex:1;min-width:170px;max-width:300px">
+      <button class="btn btn-ghost btn-sm" onclick="casketLocal(event)">📍 Find casket stores</button>
     </div>
     <div class="muted" style="font-size:11.5px;margin-top:6px">Most online sellers ship straight to the funeral home, often next-day. Note the price, then use “+ Add a casket to compare” to line it up against the funeral home’s quote.</div></div>`;
 
@@ -2494,7 +2497,7 @@ function renderCasketCard(){
   h+=`</div>`;
   el.innerHTML=h;
 }
-function casketLocal(e){ if(e&&e.preventDefault)e.preventDefault(); const a=($("pvAddr")&&$("pvAddr").value.trim())||""; const q=encodeURIComponent("casket stores "+(a||"near me")); window.open("https://www.google.com/maps/search/"+q,"_blank"); return false; }
+function casketLocal(e){ if(e&&e.preventDefault)e.preventDefault(); const a=($("ckLoc")&&$("ckLoc").value.trim())||($("pvAddr")&&$("pvAddr").value.trim())||""; const q="casket stores "+(a||"near me"); window.open("https://www.google.com/maps/search/"+encodeURIComponent(q),"_blank"); return false; }
 function casketAddModal(){
   $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:480px">
     <button class="close" onclick="closeModal()">×</button>
