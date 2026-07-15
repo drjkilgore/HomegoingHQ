@@ -377,30 +377,48 @@ let CATALOG=[
 CATALOG.forEach(p=>p.id=String(p.id));
 
 let LIVE=false;
-const FLOWER_CATEGORY="fs";   // Florist One: Funeral & Sympathy   // adjust to your Florist One category code if needed
+// Funeral & Sympathy sub-types. Codes follow Florist One's initials pattern
+// (Funeral&Sympathy=fs, Love&Romance=lr). Invalid guesses return nothing and
+// are skipped. fs is last so it only fills in items not already in a sub-type.
+const FS_TYPES=[
+  {code:'ss',label:'Standing Sprays'},
+  {code:'cs',label:'Casket Sprays'},
+  {code:'ta',label:'Table Arrangements'},
+  {code:'ua',label:'Urn Arrangements'},
+  {code:'ic',label:'Inside Casket'},
+  {code:'pt',label:'Plant Trees'},
+  {code:'wr',label:'Wreaths'},
+  {code:'he',label:'Hearts'},
+  {code:'cr',label:'Crosses'},
+  {code:'pl',label:'Plants'},
+  {code:'ba',label:'Baskets'},
+  {code:'dc',label:"Designer's Choice"},
+  {code:'fs',label:'Sympathy'},
+];
 async function loadLive(){
-  try{
+  const g=(p,k)=>p[k]??p[k.toUpperCase()]??p[k.toLowerCase()]??'';
+  const fetchCat=async(code)=>{ try{
     const r=await fetch('/.netlify/functions/flower-api',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'products',category:FLOWER_CATEGORY,count:60})});
-    if(!r.ok) return;
-    const j=await r.json();
-    const list=j.PRODUCTS||j.products||j.Products||[];
-    if(!Array.isArray(list)||!list.length) return;
-    const g=(p,k)=>p[k]??p[k.toUpperCase()]??p[k.toLowerCase()]??'';
-    CATALOG=list.map((p,i)=>({
-      id:String(g(p,'code')||('P'+i)), code:String(g(p,'code')||''),
-      name:g(p,'name')||'Sympathy Arrangement',
-      cat:g(p,'category')||g(p,'type')||'Sympathy', color:'',
-      meaning:String(g(p,'description')||'').replace(/<[^>]+>/g,'').slice(0,90),
-      retail:parseFloat(g(p,'price'))||0, wholesale:0, sd:false, feat:100-i,
-      img:g(p,'SMALL')||g(p,'image')||g(p,'IMAGE')||g(p,'LARGE')||''
-    }));
-    LIVE=true;
-    try{ const cats=[...new Set(CATALOG.map(p=>p.cat))].filter(Boolean);
-      const sel=document.getElementById('fCat');
-      if(sel) sel.innerHTML='<option value="">All types</option>'+cats.map(c=>`<option>${c}</option>`).join(''); }catch(e){}
-    render(); toast('Showing live arrangements');
-  }catch(e){ /* keep demo catalog */ }
+      body:JSON.stringify({action:'products',category:code,count:60})});
+    if(!r.ok) return []; const j=await r.json(); const l=j.PRODUCTS||j.products||[]; return Array.isArray(l)?l:[];
+  }catch(e){ return []; } };
+  const lists=await Promise.all(FS_TYPES.map(t=>fetchCat(t.code)));
+  const seen={}, merged=[], typesFound=[];
+  FS_TYPES.forEach((t,idx)=>{ let added=0;
+    lists[idx].forEach(p=>{ const code=String(g(p,'code')||''); if(!code||seen[code])return; seen[code]=1; added++;
+      merged.push({ id:code, code, name:g(p,'name')||'Sympathy Arrangement', cat:t.label, color:'',
+        meaning:String(g(p,'description')||'').replace(/<[^>]+>/g,'').slice(0,90),
+        retail:parseFloat(g(p,'price'))||0, wholesale:0, sd:false, feat:0,
+        img:g(p,'SMALL')||g(p,'image')||g(p,'IMAGE')||g(p,'LARGE')||'' });
+    });
+    if(added) typesFound.push(t.label);
+  });
+  if(!merged.length) return;
+  CATALOG=merged; LIVE=true;
+  try{ const sel=document.getElementById('fCat'); if(sel){
+    const uniq=[...new Set(typesFound)];
+    sel.innerHTML='<option value="">All types</option>'+uniq.map(c=>`<option>${c}</option>`).join(''); } }catch(e){}
+  render(); toast('Showing '+merged.length+' arrangements');
 }
 
 let CART=[], FAVS=new Set(), COUPON=null, LAST_TOTALS=null;
