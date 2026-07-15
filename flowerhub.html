@@ -375,7 +375,7 @@ let CATALOG=[
 CATALOG.forEach(p=>p.id=String(p.id));
 
 let LIVE=false;
-const FLOWER_CATEGORY="sympathy";   // adjust to your Florist One category code if needed
+const FLOWER_CATEGORY="fs";   // Florist One: Funeral & Sympathy   // adjust to your Florist One category code if needed
 async function loadLive(){
   try{
     const r=await fetch('/.netlify/functions/flower-api',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -391,7 +391,7 @@ async function loadLive(){
       cat:g(p,'category')||g(p,'type')||'Sympathy', color:'',
       meaning:String(g(p,'description')||'').replace(/<[^>]+>/g,'').slice(0,90),
       retail:Math.round(parseFloat(g(p,'price'))||0), wholesale:0, sd:false, feat:100-i,
-      img:g(p,'image')||g(p,'small_image')||g(p,'large_image')||''
+      img:g(p,'SMALL')||g(p,'image')||g(p,'IMAGE')||g(p,'LARGE')||''
     }));
     LIVE=true;
     try{ const cats=[...new Set(CATALOG.map(p=>p.cat))].filter(Boolean);
