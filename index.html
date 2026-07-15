@@ -272,6 +272,8 @@ summary::-webkit-details-marker{display:none}
     <button data-tab="next" class="active" onclick="setTab('next')">Next</button>
     <button data-tab="roadmap" onclick="setTab('roadmap')">Roadmap</button>
     <button data-tab="funeral" onclick="setTab('funeral')">Funeral</button>
+    <button data-tab="print" onclick="setTab('print')">Programs &amp; Printing</button>
+    <button data-tab="flowers" onclick="setTab('flowers')">Flowers</button>
     <button data-tab="funding" onclick="setTab('funding')">Funding</button>
     <button data-tab="claims" onclick="setTab('claims')">Insurance</button>
     <button data-tab="notify" onclick="setTab('notify')">Notify</button>
@@ -331,6 +333,17 @@ summary::-webkit-details-marker{display:none}
 
   <div id="tab-funeral" class="hidden"></div>
   <div id="tab-funding" class="hidden"><iframe src="fundinghub.html" title="FundingHub" style="width:100%;height:82vh;min-height:640px;border:0;border-radius:12px;background:#F6F2EA"></iframe></div>
+  <div id="tab-print" class="hidden">
+    <div class="card" style="border-top:3px solid var(--brass)">
+      <div class="eyebrow">Programs &amp; Printing</div>
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-top:6px">
+        <div style="flex:1;min-width:230px"><strong style="font-size:16px">🕊 Program Designer</strong>
+        <div class="muted" style="font-size:13.5px;margin-top:3px">Create a beautiful printed homegoing program — guided questions, your photos, professional templates. Print at home, take a PDF to FedEx, or work with a HomegoingHQ designer.</div></div>
+        <button class="btn btn-brass btn-sm" onclick="openProgram()">Design the program →</button>
+      </div>
+    </div>
+  </div>
+  <div id="tab-flowers" class="hidden"><iframe src="flowerhub.html" title="FlowerHub" style="width:100%;height:82vh;min-height:640px;border:0;border-radius:12px;background:#F6F2EA"></iframe></div>
   <div id="tab-claims" class="hidden"></div>
   <div id="tab-ledger" class="hidden"></div>
   <div id="tab-probate" class="hidden"></div>
@@ -1186,7 +1199,7 @@ async function mbSave(){
   else toast(data&&data.error==="no_account"?"No practice found.":"Couldn't save brand.");
 }
 function setTab(t){
-  ["next","roadmap","funeral","funding","claims","notify","docs","ledger","probate","memories","family"].forEach(x=>{
+  ["next","roadmap","funeral","print","flowers","funding","claims","notify","docs","ledger","probate","memories","family"].forEach(x=>{
     $("tab-"+x).classList.toggle("hidden",x!==t);
     document.querySelector(`#eTabs [data-tab="${x}"]`).classList.toggle("active",x===t);
   });
@@ -2211,13 +2224,6 @@ function renderFuneral(){
       </div></div>`;
   });
   h+=`</div>
-  <div class="card" style="margin-top:16px;border-top:3px solid var(--brass)">
-    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
-      <div style="flex:1;min-width:230px"><strong>🕊 Program Designer</strong>
-      <div class="muted" style="font-size:13.5px;margin-top:3px">Create a beautiful printed homegoing program — guided questions, your photos, professional templates, print-ready in minutes.</div></div>
-      <button class="btn btn-brass btn-sm" onclick="openProgram()">Design the program</button>
-    </div>
-  </div>
   <div id="casketCard" style="margin-top:12px"></div>
   <h2 style="margin:26px 0 10px;font-size:20px">Music, Special Tributes & Officiants</h2>
   <div class="card" style="border-top:3px solid var(--brass)">
@@ -4031,7 +4037,7 @@ function openHelp(){
   h+=sec("Documents","A private vault for death certificates, the will, statements, and anything the estate needs. "+(t==="free"?"Free includes 3 documents.":t==="companion"?"Companion includes 10 documents.":"Unlimited on Settle."));
   h+=sec("The Ledger"+(t==="free"?" (paid plans)":""),"Assets, debts, expenses, beneficiaries, and distributions — the money side of the estate in one place. "+(t==="settle"||t==="premium"?"Your plan includes the <strong>court-ready Inventory and Accounting reports</strong> — print them for the probate court or the attorney — plus bank import.":t==="companion"?"Companion includes 10 entries; Settle makes it unlimited and adds the court-ready reports courts and attorneys ask for.":"Included with Companion (10 entries) and Settle (unlimited + court-ready reports)."));
   h+=sec("Funeral & memorial","Budget line items with honest cost coaching, provider comparison, the obituary builder, and <strong>Music & special tributes</strong> — soloists, musicians, or a personal artist tribute video through our booking partner. Create a beautiful memorial page and share it with one link.");
-  h+=sec("The Program Designer 🕊","From the Funeral tab: a guided, nine-step builder for the printed program — choose from eight professional designs, answer the questions, add photos (we check they're sharp enough for print), and print a fold-ready booklet or a print-shop PDF. Drafts save to the estate, so the family can build it together. Included on every plan.");
+  h+=sec("The Program Designer 🕊","From the Programs & Printing tab: a guided, nine-step builder for the printed program — choose from eight professional designs, answer the questions, add photos (we check they're sharp enough for print), and print a fold-ready booklet or a print-shop PDF. Drafts save to the estate, so the family can build it together. Included on every plan.");
   h+=sec("Probate, explained","Answer three questions and see which path your state usually uses — with plain-language steps and your county court's contact details. It's information, not legal advice; it also tells you honestly when you need an attorney.");
   h+=sec("Planning ahead","A life plan holds the thirteen things your family would need — documents, accounts, wishes, people — with a Readiness Score. "+(t==="settle"||t==="premium"?"Your plan includes sealed <strong>Last Wishes recordings</strong> (🎥) and the encrypted Sensitive lock (🔒).":"Settle adds sealed Last Wishes video recordings and encrypted number storage."));
   h+=sec("How your family''s information is protected","Your estate is visible only to the people you invite — that separation is enforced in the database itself, not just on the screen. Documents are stored privately and encrypted in transit and at rest. Account and policy numbers you place under the Sensitive lock are encrypted <em>on your device</em> before upload — no one else, including us, can read them (guard the passphrase; there is no back door). Last Wishes recordings are sealed with a digital fingerprint so they can never be altered. The bank import reads balances and then destroys the connection. Payments are handled by Stripe — we never see card numbers. And a plain promise: we don''t sell your information, and we don''t run ads. This is a space for your family, not a product about your family. Read the full <a href='privacy.html' target='_blank'>Privacy Policy</a> and <a href='terms.html' target='_blank'>Terms of Service</a>.");
@@ -4321,7 +4327,7 @@ function renderProgram(){
      <div><div class="eyebrow">Program Designer</div><h1 class="name" style="font-size:24px">A program worthy of the life</h1></div>
      <div style="display:flex;gap:8px;flex-wrap:wrap">
        <button class="btn btn-ghost btn-sm" onclick="pgSave()">Save draft</button>
-       <button class="btn btn-ghost btn-sm" onclick="openEstate(S.estate.id);setTab('funeral')">← Back</button>
+       <button class="btn btn-ghost btn-sm" onclick="openEstate(S.estate.id);setTab('print')">← Back</button>
      </div>
    </div>
    <div class="pg-dots">${PG_STEPS.map((s,i)=>`<button onclick="pgGo(${i})" class="${i===PG_STEP?'on':''}">${i+1}. ${s}</button>`).join("")}</div>
@@ -5417,25 +5423,5 @@ function toggleComfort(){
 </script>
 <!-- =================== END FULL-SERVICE DESIGNER =================== -->
 
-<!-- ===================== FLOWER HUB (funeral tab) ===================== -->
-<script>
-(function(){
-  function mountFlowerHub(){
-    var tab=document.getElementById("tab-funeral"); if(!tab) return;
-    if(tab.querySelector("#flowerHubCard")) return;
-    var card=document.createElement("div"); card.id="flowerHubCard"; card.className="card";
-    card.innerHTML='<div class="eyebrow">Sympathy Flowers</div>'+
-      '<p class="muted" style="margin:8px 0 12px">Order flowers for the service \u2014 arrangements delivered to the funeral home or the family.</p>'+
-      '<iframe src="flowerhub.html" title="FlowerHub" style="width:100%;height:720px;border:0;border-radius:12px;background:#F6F2EA"></iframe>';
-    var ebs=Array.prototype.slice.call(tab.querySelectorAll(".eyebrow"));
-    var eb=ebs.filter(function(e){return /program designer/i.test(e.textContent||"");})[0];
-    var pgCard=eb?eb.closest(".card"):null;
-    if(pgCard&&pgCard.parentNode){ pgCard.insertAdjacentElement("afterend",card); } else { tab.appendChild(card); }
-  }
-  var tab=document.getElementById("tab-funeral");
-  if(tab&&window.MutationObserver){ new MutationObserver(function(){ mountFlowerHub(); }).observe(tab,{childList:true}); }
-})();
-</script>
-<!-- =================== END FLOWER HUB =================== -->
 </body>
 </html>
