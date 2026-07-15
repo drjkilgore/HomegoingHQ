@@ -93,6 +93,7 @@ nav.top button.on,nav.top button:hover{background:var(--ink-06);color:var(--ink)
 /* cart / checkout */
 .split{display:grid;grid-template-columns:1fr 360px;gap:26px;align-items:start}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:22px;box-shadow:var(--sh)}
+.summary input,.summary select,.summary textarea{box-sizing:border-box;width:100%;min-width:0;max-width:100%}
 .panel h2{font-size:23px;margin-bottom:5px}
 .panel .sub{color:var(--ink-70);font-size:14px;margin-bottom:18px}
 .li{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
@@ -342,6 +343,7 @@ footer{border-top:1px solid var(--line);padding:26px 0;color:var(--ink-70);font-
 <script>
 // ---------- Ink & Cedar SVG flower art (no external images needed) ----------
 function bloom(seed){
+  seed=(typeof seed==='number')?seed:Math.abs(String(seed).split('').reduce((a,c)=>a+c.charCodeAt(0),0));
   const pals=[['#C9A24B','#8F6A24','#F6F2EA'],['#b23a48','#7a2531','#f6e6e8'],
     ['#d98cae','#a85c80','#f7ecf1'],['#e0b84c','#a6832a','#f7f0da'],
     ['#e8e2d4','#c7bda6','#fbf9f3']];
@@ -473,7 +475,7 @@ function renderCart(){
   summary.style.display='grid';empty.style.display='none';
   box.innerHTML=`<h2>${CART.reduce((s,i)=>s+i.qty,0)} item(s)</h2><div class="sub">Curated by HomegoingHQ · white-label fulfillment</div>`+
     CART.map(i=>`<div class="li">
-      <div class="thumb">${bloom(i.id)}</div>
+      <div class="thumb">${i.img?`<img src="${i.img}" style="width:100%;height:100%;object-fit:cover;display:block">`:bloom(i.id)}</div>
       <div class="info"><h4>${i.name}</h4><small>${i.meaning}</small>
         <div class="qty"><button onclick="chQty('${i.id}',-1)">−</button><span>${i.qty}</span><button onclick="chQty('${i.id}',1)">+</button></div>
         <div class="rm" onclick="rmItem('${i.id}')">Remove</div>
@@ -534,19 +536,28 @@ function fhApi(action,params){
   });
 }
 function val(id){const e=document.getElementById(id);return e?e.value.trim():'';}
-function loadScript(src){return new Promise((res,rej)=>{
-  if(document.querySelector(`script[src="${src}"]`))return res();
-  const s=document.createElement('script'); s.src=src; s.onload=()=>res(); s.onerror=()=>rej(new Error('Could not load the payment library')); document.head.appendChild(s);
-});}
+function loadAccept(url){
+  return new Promise((resolve,reject)=>{
+    if(window.Accept&&typeof window.Accept.dispatchData==='function')return resolve();
+    if(!document.querySelector(`script[src="${url}"]`)){
+      const s=document.createElement('script'); s.src=url; s.type='text/javascript';
+      s.onerror=()=>reject(new Error('Could not load the payment library (Accept.js)')); document.head.appendChild(s);
+    }
+    let n=0; const iv=setInterval(()=>{
+      if(window.Accept&&typeof window.Accept.dispatchData==='function'){ clearInterval(iv); resolve(); }
+      else if(++n>100){ clearInterval(iv); reject(new Error('Payment library did not finish loading (Accept.js)')); }
+    },100);
+  });
+}
 async function tokenizeCard(k,card){
   const url=k.AUTHORIZENET_URL||k.authorizenet_url, key=k.AUTHORIZENET_KEY||k.authorizenet_key, login=k.USERNAME||k.username;
-  await loadScript(url);
+  if(!url||!key||!login) throw new Error('Payment key missing from Florist One (authnetkey response)');
+  await loadAccept(url);
   return new Promise((resolve,reject)=>{
-    if(typeof Accept==='undefined') return reject(new Error('Payment library unavailable'));
-    Accept.dispatchData({authData:{clientKey:key,apiLoginID:login},
+    window.Accept.dispatchData({authData:{clientKey:key,apiLoginID:login},
       cardData:{cardNumber:card.number,month:card.month,year:card.year,cardCode:card.cvv}},(resp)=>{
-      if(resp.messages&&resp.messages.resultCode==='Ok'){ resolve(resp.opaqueData.dataValue); }
-      else { reject(new Error((resp.messages&&resp.messages.message&&resp.messages.message.map(m=>m.text).join('; '))||'Card was declined')); }
+      if(resp&&resp.messages&&resp.messages.resultCode==='Ok'){ resolve(resp.opaqueData.dataValue); }
+      else { reject(new Error((resp&&resp.messages&&resp.messages.message&&resp.messages.message.map(m=>m.text).join('; '))||'Card was declined')); }
     });
   });
 }
@@ -588,7 +599,8 @@ async function placeOrder(){
     const token=await tokenizeCard(k,card);
     busy('Placing order\u2026');
     const res=await fhApi('placeorder',{customer:sn,products,payment:{AUTHORIZENET_TOKEN:token},ordertotal});
-    const orderno=res.ORDERNO||res.orderno||res.OrderNo||(res.PLACEORDER&&(res.PLACEORDER.ORDERNO||res.PLACEORDER.orderno))||('F1-'+Date.now());
+    const orderno=res.ORDERNO||res.orderno||res.OrderNo||(res.PLACEORDER&&(res.PLACEORDER.ORDERNO||res.PLACEORDER.orderno));
+    if(!orderno) throw new Error('Order not confirmed by Florist One: '+JSON.stringify(res).slice(0,220));
     ORDER={num:orderno,items:[...CART],total:ordertotal,provider:'Florist One',zip:rc.ZIPCODE,date,card:msg,step:1};
     CART=[];COUPON=null;updateBadge();busy(null);
     toast('Order placed \u2014 thank you'); go('track');
