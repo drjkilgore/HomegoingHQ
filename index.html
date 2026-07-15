@@ -4391,10 +4391,32 @@ const PG_THEMES={
    - swatch / sw  : the picker card's swatch gradient + emoji
    ===================================================================== */
 const PG_CUSTOM_THEMES = {
-  // rose:{ name:"Rose Remembrance", ink:"#4a3540", accent:"#a15c74",
-  //   bg:"linear-gradient(160deg,#fdf3f6,#f7eef2)", script:"'Great Vibes',cursive",
-  //   display:"'Playfair Display',serif", body:"'Cormorant Garamond',serif",
-  //   motif:"\u2767", swatch:"linear-gradient(135deg,#fbe7ee,#f3d9e2)", sw:"\ud83c\udf39" },
+  /* ---- DROP-IN TEMPLATES ----------------------------------------------
+     Add or edit designs here. Each one appears automatically as a card in
+     step 1, "Choose the design". To add your own, copy one block below and
+     change the values. Use ONLY these already-loaded fonts:
+       'Great Vibes'  (flowing script)   'Playfair Display' (elegant serif)
+       'Cinzel' (engraved caps)   'Cormorant Garamond' (body)   'Montserrat' (clean sans)
+     Fields: name (label), ink (main text), accent (highlights),
+       bg (cover background, color or gradient), script/display/body (fonts),
+       motif (a small divider glyph), swatch + sw (the picker preview).
+     -------------------------------------------------------------------- */
+  rose:{ name:"Rose Remembrance", ink:"#4a3540", accent:"#a15c74",
+    bg:"linear-gradient(160deg,#fdf3f6 0%,#f7eef2 55%,#fdf4f7 100%)",
+    script:"'Great Vibes',cursive", display:"'Playfair Display',serif", body:"'Cormorant Garamond',serif",
+    motif:"❦", swatch:"linear-gradient(135deg,#fbe7ee,#f3d9e2)", sw:"🌹" },
+  royal:{ name:"Royal Homegoing", ink:"#2e2740", accent:"#7c5cbf",
+    bg:"linear-gradient(160deg,#f6f2fb 0%,#efe7f7 55%,#f7f3fc 100%)",
+    script:"'Great Vibes',cursive", display:"'Cinzel',serif", body:"'Cormorant Garamond',serif",
+    motif:"✦", swatch:"linear-gradient(135deg,#efe6fa,#e0d0f2)", sw:"👑" },
+  goldenrest:{ name:"Golden Rest", ink:"#4a3b28", accent:"#c1912e",
+    bg:"linear-gradient(160deg,#fdf8ee 0%,#f8edd6 55%,#fdf7ea 100%)",
+    script:"'Great Vibes',cursive", display:"'Playfair Display',serif", body:"'Cormorant Garamond',serif",
+    motif:"✷", swatch:"linear-gradient(135deg,#f9edd2,#f0dcae)", sw:"🌅" },
+  gardenpeace:{ name:"Garden Peace", ink:"#31403a", accent:"#5a7a5c",
+    bg:"linear-gradient(160deg,#f2f6f1 0%,#e6efe6 55%,#f3f7f2 100%)",
+    script:"'Great Vibes',cursive", display:"'Playfair Display',serif", body:"'Cormorant Garamond',serif",
+    motif:"❧", swatch:"linear-gradient(135deg,#e8f0e6,#d6e6d4)", sw:"🕊" },
 };
 Object.assign(PG_THEMES, PG_CUSTOM_THEMES);
 let PG=null, PG_STEP=0;
