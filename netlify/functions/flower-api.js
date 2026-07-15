@@ -61,6 +61,10 @@ exports.handler = async (event) => {
       case "orderinfo":
         url = BASE + "getorderinfo?orderno=" + encodeURIComponent(String(b.orderno || ""));
         break;
+      case "authnetkey":
+        // returns { USERNAME, AUTHORIZENET_KEY, AUTHORIZENET_URL } for Accept.js tokenization
+        url = BASE + "getauthorizenetkey";
+        break;
       case "placeorder":
         url = BASE + "placeorder";
         method = "POST";
