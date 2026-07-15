@@ -2189,10 +2189,10 @@ function renderFuneral(){
   <h2 style="margin:26px 0 10px;font-size:20px">Find & compare providers</h2>
   <div id="provDash"></div>
   <div class="card">
-    <p class="muted" style="margin-bottom:10px">Tell us what you need and where — we'll find nearby providers with ratings, phone numbers, and directions. Prices for identical services vary widely; comparing is how families save thousands.</p>
+    <p class="muted" style="margin-bottom:10px">Tell us what you need and where — we'll find nearby providers with ratings, phone numbers, and directions. Enter a <strong>city and state, ZIP code, or full address</strong> (a state on its own is too broad to locate). Prices for identical services vary widely; comparing is how families save thousands.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <select id="pvCat" style="flex:1;min-width:180px" onchange="if(typeof pvRenderPreferred==='function')pvRenderPreferred()"></select>
-      <input id="pvAddr" placeholder="City or address (e.g., Detroit, MI)" style="flex:2;min-width:200px">
+      <input id="pvAddr" placeholder="City, ZIP, or address (e.g., Detroit, MI or 48226)" style="flex:2;min-width:200px">
       <select id="pvRadius" style="width:auto"><option value="10">10 mi</option><option value="20">20 mi</option><option value="30">30 mi</option><option value="50">50 mi</option></select>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
