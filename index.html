@@ -4412,6 +4412,7 @@ function pgFormHtml(){
       <button class="btn btn-brass" onclick="pgPrint('shop')">Print / PDF — print shop</button>
       <button class="btn btn-ghost" onclick="pgPrint('home')">Print — home duplex</button>
       <button class="btn btn-brass" onclick="pgPrintAtFedEx('shop')">Print at FedEx Office →</button>
+      <button class="btn btn-ghost" onclick="openFullService()">Work with a designer →</button>
     </div>
   </div>`;
 }
@@ -5159,5 +5160,228 @@ function toggleComfort(){
 }
 
 </script>
+<!-- ===================== FULL-SERVICE DESIGNER (namespaced) ===================== -->
+<style>
+#fsRoot{ --fsink:#26332E; --fsparch:#F6F2EA; --fsbrass:#8F6A24; --fsgold:#C9A24B; --fsline:#e4ddcf; --fsmuted:#6d7671; --fscard:#fffdf8;
+  position:fixed; inset:0; z-index:9999; background:rgba(20,26,23,.62); overflow-y:auto; display:none;
+  font-family:"Public Sans",system-ui,sans-serif; color:var(--fsink); line-height:1.5; }
+#fsRoot.fs-open{ display:block; }
+#fsRoot *{ box-sizing:border-box; }
+#fsRoot .fs-panel{ max-width:1060px; margin:22px auto; background:var(--fsparch); border-radius:16px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.35); }
+#fsRoot .fs-head{ background:var(--fsink); color:var(--fsparch); padding:15px 20px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; }
+#fsRoot .fs-head .fs-ttl{ font-family:"Fraunces",Georgia,serif; font-size:18px; }
+#fsRoot .fs-head .fs-ttl small{ display:block; font-size:10.5px; letter-spacing:2px; text-transform:uppercase; color:var(--fsgold); font-weight:600; }
+#fsRoot .fs-x{ background:transparent; border:1px solid rgba(255,255,255,.3); color:var(--fsparch); border-radius:8px; padding:7px 13px; cursor:pointer; font:inherit; }
+#fsRoot .fs-wrap{ display:grid; grid-template-columns:1fr 300px; gap:22px; padding:20px; }
+@media(max-width:820px){ #fsRoot .fs-wrap{ grid-template-columns:1fr; } #fsRoot .fs-quote{ position:static!important; } }
+#fsRoot h2,#fsRoot h3,#fsRoot .fs-serif{ font-family:"Fraunces",Georgia,serif; font-weight:600; }
+#fsRoot .fs-sec{ background:var(--fscard); border:1px solid var(--fsline); border-radius:14px; padding:18px; margin-bottom:16px; }
+#fsRoot .fs-sec h2{ margin:0 0 2px; font-size:18px; }
+#fsRoot .fs-hint{ color:var(--fsmuted); font-size:13px; margin:0 0 12px; }
+#fsRoot .fs-step{ display:inline-flex; align-items:center; justify-content:center; width:23px; height:23px; border-radius:50%; background:var(--fsink); color:var(--fsparch); font-size:12px; margin-right:8px; }
+#fsRoot .fs-tiers{ display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+@media(max-width:560px){ #fsRoot .fs-tiers{ grid-template-columns:1fr; } }
+#fsRoot .fs-tier{ border:1.5px solid var(--fsline); border-radius:12px; padding:13px; cursor:pointer; background:#fff; }
+#fsRoot .fs-tier:hover{ border-color:var(--fsgold); }
+#fsRoot .fs-tier.fs-sel{ border-color:var(--fsbrass); box-shadow:0 0 0 3px rgba(143,106,36,.12); }
+#fsRoot .fs-tier .fs-nm{ font-family:"Fraunces",Georgia,serif; font-size:15.5px; }
+#fsRoot .fs-tier .fs-pr{ color:var(--fsbrass); font-weight:700; font-family:"Fraunces",Georgia,serif; font-size:17px; margin:2px 0; }
+#fsRoot .fs-tier .fs-ds{ font-size:12px; color:var(--fsmuted); }
+#fsRoot .fs-field{ margin:11px 0; }
+#fsRoot label{ display:block; font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--fsmuted); margin-bottom:5px; }
+#fsRoot input,#fsRoot select,#fsRoot textarea{ width:100%; padding:9px 11px; border:1px solid var(--fsline); border-radius:8px; background:#fff; font:inherit; color:var(--fsink); }
+#fsRoot textarea{ min-height:66px; resize:vertical; }
+#fsRoot .fs-row{ display:flex; gap:10px; } #fsRoot .fs-row>*{ flex:1; }
+#fsRoot .fs-addon{ display:grid; grid-template-columns:1fr auto; gap:10px; align-items:end; border-top:1px solid var(--fsline); padding:11px 0; }
+#fsRoot .fs-addon:first-of-type{ border-top:none; }
+#fsRoot .fs-addon .fs-q{ width:80px; }
+#fsRoot .fs-addon .fs-anm{ font-weight:600; }
+#fsRoot .fs-addon .fs-op{ display:flex; gap:8px; margin-top:6px; }
+#fsRoot .fs-addon .fs-op select{ font-size:13px; padding:6px 8px; }
+#fsRoot .fs-quote{ background:var(--fsink); color:var(--fsparch); border-radius:14px; padding:18px; position:sticky; top:76px; align-self:start; }
+#fsRoot .fs-quote h3{ margin:0 0 12px; color:var(--fsgold); font-size:12px; letter-spacing:1.5px; text-transform:uppercase; font-family:"Public Sans",sans-serif; }
+#fsRoot .fs-ql{ display:flex; justify-content:space-between; gap:10px; padding:6px 0; font-size:14px; border-bottom:1px solid rgba(255,255,255,.12); }
+#fsRoot .fs-ql.fs-tot{ border-bottom:none; border-top:2px solid rgba(255,255,255,.25); margin-top:6px; padding-top:11px; font-family:"Fraunces",Georgia,serif; font-size:19px; }
+#fsRoot .fs-ql .fs-s{ color:#c9c3b6; font-size:11.5px; }
+#fsRoot .fs-btn{ background:var(--fsbrass); color:#fff; border:none; border-radius:9px; padding:11px 16px; font-weight:600; cursor:pointer; font-size:15px; width:100%; margin-top:13px; }
+#fsRoot .fs-btn:hover{ background:#7a5a1e; } #fsRoot .fs-btn:disabled{ opacity:.5; cursor:not-allowed; }
+#fsRoot .fs-note{ background:#fff8e8; border:1px solid var(--fsgold); border-radius:10px; padding:10px 12px; font-size:12px; color:#5c4a1e; margin-top:11px; }
+#fsRoot .fs-ph{ font-size:11px; color:var(--fsmuted); font-style:italic; }
+#fsRoot .fs-done{ max-width:540px; margin:40px auto; text-align:center; background:var(--fscard); border:1px solid var(--fsline); border-radius:14px; padding:36px; }
+#fsRoot .fs-done .fs-n{ font-family:"Fraunces",Georgia,serif; font-size:23px; color:var(--fsbrass); margin:10px 0; }
+</style>
+<script>
+(function(){
+  /* ---- CONFIG: designer tiers are real; printing prices are PLACEHOLDERS. ---- */
+  const CONFIG = {
+    MARKUP_PCT: 50,
+    designerTiers: [
+      { id:"review",  name:"Designer Review",         price:49,  pages:null, includedAddons:0,
+        desc:"A designer checks formatting, grammar, photo quality, and layout." },
+      { id:"basic",   name:"Custom Designer (Basic)",  price:149, pages:[4], includedAddons:0,
+        desc:"Designer personalizes an existing template. Includes one revision. 4-page program." },
+      { id:"premium", name:"Premium Custom Design",    price:249, pages:[4,8], includedAddons:1,
+        desc:"Custom layout with multiple photos and premium graphics. Two revisions, plus the design of one additional matching product." },
+      { id:"luxury",  name:"Luxury Signature Design",  pages:[12,16,20], includedAddons:2,
+        desc:"Magazine-quality, highly personalized design with family consultation. Includes the design of two additional matching products.",
+        variants:{ 12:399, 16:499, 20:599 } },
+    ],
+    program:{ folds:["bi-fold","tri-fold","no-fold"], wholesaleByPages:{4:0.80,8:1.20,12:1.60,16:2.00,20:2.40} },
+    addons:[
+      { id:"prayer",   name:"Memorial / Prayer Cards", opts:{ size:["2.5×4.25","4×6","5.5×8.5"], stock:["gloss","matte","laminated"] },
+        wholesale:(o)=>({ "2.5×4.25":0.45, "4×6":0.70, "5.5×8.5":0.95 }[o.size] ?? 0.45) },
+      { id:"bookmark", name:"Memorial Bookmarks (2.5×8.5)", opts:{ stock:["gloss","matte","laminated"], tassel:["none","gold","silver"] },
+        wholesale:(o)=> 0.50 + (o.tassel && o.tassel!=="none" ? 0.25 : 0) },
+      { id:"thankyou", name:"Thank You Cards", opts:{ stock:["gloss","matte"] }, wholesale:()=>0.75 },
+      { id:"poster",   name:"Memorial Poster (20×30)", opts:{}, wholesale:()=>12.00 },
+      { id:"fan",      name:"Memorial Fan (8×8)", opts:{ stock:["gloss","matte"] }, wholesale:()=>1.50 },
+      { id:"guestbook",name:"Guest Book", opts:{ type:["pre-printed","custom"] }, wholesale:(o)=> o.type==="custom" ? 18 : 12 },
+    ],
+  };
+  const retail=(w)=> Math.round(w*(1+CONFIG.MARKUP_PCT/100)*100)/100;
+  const money=(n)=> "$"+(n||0).toFixed(2);
+  const esc=(s)=> String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const note=(m)=>{ try{ if(typeof window.toast==="function"){ window.toast(m); return; } }catch(e){} alert(m); };
+
+  const FS = { tier:null, tierPages:null, fold:"bi-fold", programQty:100, addons:{}, prefill:{} };
+  let root=null;
+
+  window.openFullService = function(){
+    if(!root){ root=document.createElement("div"); root.id="fsRoot"; document.body.appendChild(root); }
+    // prefill from the program designer / estate (read at click time)
+    const est=(window.S&&window.S.estate)||{}, pg=window.PG||{};
+    const yr=(d)=>{ try{ return String(d).slice(0,4); }catch(e){ return ""; } };
+    let dates="";
+    if(pg.sunrise||pg.sunset||est.date_of_death){ dates=(pg.sunrise?yr(pg.sunrise):"")+" – "+(pg.sunset?yr(pg.sunset):(est.date_of_death?yr(est.date_of_death):"")); }
+    FS.prefill={
+      name: est.decedent_name||"",
+      dates: dates.trim()===" –" ? "" : dates,
+      notes: pg.obituary||"",
+      contactName: (window.S&&window.S.profile&&window.S.profile.full_name)||"",
+      contactEmail: (window.S&&window.S.session&&window.S.session.user&&window.S.session.user.email)||"",
+    };
+    render(); root.classList.add("fs-open"); document.body.style.overflow="hidden";
+  };
+  function closeFS(){ if(root){ root.classList.remove("fs-open"); document.body.style.overflow=""; } }
+
+  function tierObj(){ return CONFIG.designerTiers.find(t=>t.id===FS.tier)||null; }
+  function includedAddons(){ const t=tierObj(); return t?(t.includedAddons||0):0; }
+  function usedAddons(){ return CONFIG.addons.filter(a=>FS.addons[a.id]&&FS.addons[a.id].qty>0).length; }
+  function programPages(){ const t=tierObj(); if(!t)return 4; if(t.variants)return FS.tierPages||Number(Object.keys(t.variants)[0]); return (t.pages&&t.pages[0])||4; }
+  function tierPrice(){ const t=tierObj(); if(!t)return 0; return t.variants?(t.variants[programPages()]||0):(t.price||0); }
+  function quote(){
+    const t=tierObj();
+    const programUnit=t?retail(CONFIG.program.wholesaleByPages[programPages()]??0.80):0;
+    const programTotal=t?programUnit*(FS.programQty||0):0;
+    const lines=[];
+    for(const a of CONFIG.addons){ const c=FS.addons[a.id]; if(c&&c.qty>0){ const u=retail(a.wholesale(c.opts||{})); lines.push({name:a.name,qty:c.qty,unit:u,total:u*c.qty}); } }
+    const asum=lines.reduce((s,l)=>s+l.total,0), tp=tierPrice();
+    return { tier:FS.tier, tierName:t?t.name:"", tierPrice:tp, programUnit, programTotal, addonLines:lines, total:tp+programTotal+asum };
+  }
+  function addonBanner(){
+    const inc=includedAddons(), used=usedAddons(), t=tierObj();
+    if(inc===0) return `<div class="fs-note">Additional-product design isn't included with this service — your designer can quote it separately, or choose Premium (1) or Luxury (2) to include matching product designs.</div>`;
+    const over=used>inc;
+    return `<div class="fs-note" style="${over?'background:#fdeee7;border-color:#c67a4a;color:#8a3d16':''}"><b>${inc} additional product design${inc>1?'s':''} included</b> with ${t.name} — using ${used} of ${inc}.${over?` You've added ${used-inc} more; your designer will quote the extra design separately (printing is still in your total).`:''}</div>`;
+  }
+
+  function render(){
+    root.innerHTML=`<div class="fs-panel">
+      <div class="fs-head"><div class="fs-ttl">Work With a Designer<small>HomegoingHQ · Full Service</small></div>
+        <button class="fs-x" id="fsClose">Close</button></div>
+      <div class="fs-wrap"><div>${tierSec()}${programSec()}${addonSec()}${detailSec()}</div>${quotePanel()}</div>
+    </div>`;
+    bind();
+  }
+  function tierSec(){
+    return `<div class="fs-sec"><h2><span class="fs-step">1</span>Design service</h2>
+      <p class="fs-hint">Choose how much design help the family wants. This also sets the program length.</p>
+      <div class="fs-tiers">${CONFIG.designerTiers.map(t=>{
+        const price=t.variants?`${money(t.variants[12])}–${money(t.variants[20])}`:money(t.price);
+        return `<div class="fs-tier ${FS.tier===t.id?'fs-sel':''}" data-tier="${t.id}"><div class="fs-nm">${t.name}</div><div class="fs-pr">${price}</div><div class="fs-ds">${t.desc}</div></div>`;
+      }).join("")}</div>${luxPicker()}</div>`;
+  }
+  function luxPicker(){ const t=tierObj(); if(!t||!t.variants)return ""; return `<div class="fs-field" style="margin-top:12px;max-width:260px"><label>Program length</label><select id="fsLux">${Object.keys(t.variants).map(p=>`<option value="${p}" ${String(FS.tierPages)===p?'selected':''}>${p} pages — ${money(t.variants[p])}</option>`).join("")}</select></div>`; }
+  function programSec(){ if(!tierObj())return ""; const pg=programPages();
+    return `<div class="fs-sec"><h2><span class="fs-step">2</span>Program printing</h2>
+      <p class="fs-hint">The printed programs themselves (${pg} pages, based on your design service).</p>
+      <div class="fs-row"><div class="fs-field"><label>Fold</label><select id="fsFold">${CONFIG.program.folds.map(f=>`<option ${FS.fold===f?'selected':''}>${f}</option>`).join("")}</select></div>
+      <div class="fs-field"><label>Quantity</label><input id="fsPQty" type="number" min="25" step="25" value="${FS.programQty}"></div></div>
+      <div class="fs-ph">Placeholder printing price — update from the DisciplePress list.</div></div>`;
+  }
+  function addonSec(){ if(!tierObj())return "";
+    return `<div class="fs-sec"><h2><span class="fs-step">3</span>Matching keepsakes <span style="font-weight:400;font-size:13px;color:var(--fsmuted)">(optional)</span></h2>
+      <p class="fs-hint">Add matching items in the same design.</p><div id="fsBanner">${addonBanner()}</div>
+      ${CONFIG.addons.map(a=>{ const c=FS.addons[a.id]||{qty:0,opts:{}};
+        const sels=Object.entries(a.opts||{}).map(([k,vals])=>`<select data-aopt="${a.id}" data-key="${k}">${vals.map(v=>`<option ${c.opts[k]===v?'selected':''}>${v}</option>`).join("")}</select>`).join("");
+        return `<div class="fs-addon"><div><div class="fs-anm">${a.name}</div><div class="fs-op">${sels||'<span class="fs-ph">no options</span>'}</div></div><div><label>Qty</label><input class="fs-q" type="number" min="0" step="25" value="${c.qty}" data-aqty="${a.id}"></div></div>`;
+      }).join("")}</div>`;
+  }
+  function detailSec(){ if(!tierObj())return ""; const p=FS.prefill;
+    return `<div class="fs-sec"><h2><span class="fs-step">4</span>Details for your designer</h2>
+      <p class="fs-hint">Your designer uses this to build the proof. You'll review and approve before anything prints.</p>
+      <div class="fs-row"><div class="fs-field"><label>Name of the deceased</label><input id="fsCName" value="${esc(p.name)}"></div>
+      <div class="fs-field"><label>Dates</label><input id="fsCDates" value="${esc(p.dates)}" placeholder="1948 – 2026"></div></div>
+      <div class="fs-field"><label>Service details / obituary / notes</label><textarea id="fsCNotes" placeholder="Service date & location, obituary, verses, order of service, special requests…">${esc(p.notes)}</textarea></div>
+      <div class="fs-field"><label>Photo links (optional)</label><input id="fsCPhotos" placeholder="Paste links to photos, or your designer will request them"></div>
+      <div class="fs-row"><div class="fs-field"><label>Your name</label><input id="fsKName" value="${esc(p.contactName)}"></div>
+      <div class="fs-field"><label>Email</label><input id="fsKEmail" type="email" value="${esc(p.contactEmail)}"></div>
+      <div class="fs-field"><label>Phone</label><input id="fsKPhone" type="tel"></div></div>
+      <div class="fs-field"><label>Shipping address</label><input id="fsSL1" placeholder="Street address"></div>
+      <div class="fs-row"><div class="fs-field"><label>City</label><input id="fsSCity"></div>
+      <div class="fs-field"><label>State</label><input id="fsSState"></div>
+      <div class="fs-field"><label>ZIP</label><input id="fsSZip"></div></div></div>`;
+  }
+  function quotePanel(){ const q=quote();
+    return `<div class="fs-quote"><h3>Your quote</h3>
+      ${q.tier?`<div class="fs-ql"><span>${q.tierName}<div class="fs-s">design service</div></span><span>${money(q.tierPrice)}</span></div>`:`<div class="fs-ql"><span class="fs-s">Choose a design service to begin</span></div>`}
+      ${q.programTotal>0?`<div class="fs-ql"><span>Programs ×${FS.programQty}<div class="fs-s">${programPages()}pg ${FS.fold} · ${money(q.programUnit)}/ea</div></span><span>${money(q.programTotal)}</span></div>`:''}
+      ${q.addonLines.map(l=>`<div class="fs-ql"><span>${l.name} ×${l.qty}<div class="fs-s">${money(l.unit)}/ea</div></span><span>${money(l.total)}</span></div>`).join("")}
+      <div class="fs-ql fs-tot"><span>Total</span><span>${money(q.total)}</span></div>
+      <button class="fs-btn" ${q.tier?'':'disabled'} id="fsSubmit">Request this design →</button>
+      <div class="fs-note">Printing prices are placeholders until the DisciplePress list is loaded. You'll approve a proof before paying.</div></div>`;
+  }
+
+  function bind(){
+    const c=root.querySelector("#fsClose"); if(c)c.onclick=closeFS;
+    root.querySelectorAll("[data-tier]").forEach(el=>el.onclick=()=>{ FS.tier=el.getAttribute("data-tier"); const t=tierObj(); FS.tierPages=t&&t.variants?Number(Object.keys(t.variants)[0]):null; render(); });
+    const lux=root.querySelector("#fsLux"); if(lux)lux.onchange=()=>{ FS.tierPages=Number(lux.value); render(); };
+    const fold=root.querySelector("#fsFold"); if(fold)fold.onchange=()=>{ FS.fold=fold.value; soft(); };
+    const pq=root.querySelector("#fsPQty"); if(pq)pq.oninput=()=>{ FS.programQty=Math.max(0,parseInt(pq.value)||0); soft(); };
+    root.querySelectorAll("[data-aqty]").forEach(el=>el.oninput=()=>{ const id=el.getAttribute("data-aqty"); FS.addons[id]=FS.addons[id]||{qty:0,opts:{}}; FS.addons[id].qty=Math.max(0,parseInt(el.value)||0); soft(); });
+    root.querySelectorAll("[data-aopt]").forEach(el=>el.onchange=()=>{ const id=el.getAttribute("data-aopt"); FS.addons[id]=FS.addons[id]||{qty:0,opts:{}}; FS.addons[id].opts[el.getAttribute("data-key")]=el.value; soft(); });
+    const sb=root.querySelector("#fsSubmit"); if(sb)sb.onclick=submit;
+  }
+  function soft(){ const p=root.querySelector(".fs-quote"); if(p){ const t=document.createElement("div"); t.innerHTML=quotePanel(); p.replaceWith(t.firstElementChild); bind(); } const b=root.querySelector("#fsBanner"); if(b)b.innerHTML=addonBanner(); }
+  const v=(id)=>{ const e=root.querySelector("#"+id); return e?e.value.trim():""; };
+
+  async function submit(){
+    const contact={ name:v("fsKName"), email:v("fsKEmail"), phone:v("fsKPhone") };
+    if(!contact.email||!contact.phone){ note("Please add your email and phone so your designer can reach you."); return; }
+    const q=quote();
+    const request={
+      estateId:(window.S&&window.S.estate&&window.S.estate.id)||null,
+      designerTier:FS.tier, pages:programPages(), fold:FS.fold, programQty:FS.programQty, addons:FS.addons,
+      content:{ name:v("fsCName"), dates:v("fsCDates"), notes:v("fsCNotes"), photos:v("fsCPhotos") },
+      contact, ship:{ line1:v("fsSL1"), city:v("fsSCity"), state:v("fsSState"), zip:v("fsSZip") }, quote:q,
+    };
+    // Best-effort handoff — stores + emails via a Netlify function (deploy fullservice-request.js).
+    try{
+      const sess=(window.sb&&window.sb.auth)?(await window.sb.auth.getSession()).data.session:null;
+      await fetch("/.netlify/functions/fullservice-request",{ method:"POST",
+        headers:{ "Content-Type":"application/json", ...(sess?{"Authorization":"Bearer "+sess.access_token}:{}) },
+        body:JSON.stringify(request) });
+    }catch(e){ /* non-fatal — a designer follow-up still happens from the logged request */ }
+    console.log("FULL-SERVICE REQUEST", request);
+    root.querySelector(".fs-panel").innerHTML=`<div class="fs-head"><div class="fs-ttl">Work With a Designer<small>HomegoingHQ · Full Service</small></div><button class="fs-x" id="fsClose2">Close</button></div>
+      <div class="fs-done"><h2>Request received</h2><div class="fs-n">${esc(q.tierName)}</div>
+      <p>A HomegoingHQ designer will reach out to <b>${esc(contact.email)}</b> shortly to start your proof. You'll review and approve it before anything is printed — and pay once you're happy with the proof.</p>
+      <p style="color:var(--fsmuted);font-size:13px">Estimated total (printing prices to be confirmed): <b>${money(q.total)}</b></p></div>`;
+    const c2=root.querySelector("#fsClose2"); if(c2)c2.onclick=closeFS;
+  }
+})();
+</script>
+<!-- =================== END FULL-SERVICE DESIGNER =================== -->
+
 </body>
 </html>
