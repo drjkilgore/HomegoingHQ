@@ -2247,7 +2247,7 @@ function renderFuneral(){
       <div><label>&nbsp;</label><button class="btn btn-brass" style="width:100%" onclick="draftObituary()">Draft obituary</button></div>
     </div>
     <div id="obOut" class="hidden"><label>Draft — edit freely</label><textarea id="obText" rows="12"></textarea>
-      <div class="scard-actions"><button class="btn btn-ghost btn-sm" onclick="copyObit(this)">Copy</button><button class="btn btn-ghost btn-sm" onclick="printObit()">Print</button></div></div>
+      <div class="scard-actions"><button class="btn btn-brass btn-sm" onclick="obToProgram(this)">Use in program →</button><button class="btn btn-ghost btn-sm" onclick="copyObit(this)">Copy</button><button class="btn btn-ghost btn-sm" onclick="printObit()">Print</button></div></div>
   </div>`;
   h+=`<div style="height:80px" aria-hidden="true"></div>`;
   $("tab-funeral").innerHTML=h;
@@ -2685,6 +2685,22 @@ Do not include an exact birth date or any street address. Return only the obitua
     else toast(d.error||"Couldn't draft just now — try again.");
   }catch(e){toast("Couldn't reach the Guide — try again.");}
   btn.disabled=false; btn.textContent="Draft obituary";
+}
+async function obToProgram(btn){
+  const text=($("obText").value||"").trim();
+  if(!text) return toast("Draft an obituary first.");
+  btn.disabled=true; const was=btn.textContent; btn.textContent="Adding…";
+  try{
+    // Merge into the existing program design so nothing else is overwritten.
+    let design={};
+    try{ const {data:row}=await sb.from("funeral_programs").select("design").eq("estate_id",S.estate.id).maybeSingle(); if(row&&row.design) design=row.design; }catch(e){}
+    design.obituary=text;
+    const {error}=await sb.from("funeral_programs").upsert({estate_id:S.estate.id,design,updated_by:S.session.user.id,updated_at:new Date().toISOString()},{onConflict:"estate_id"});
+    if(error) throw error;
+    if(typeof PG==="object"&&PG){ PG.obituary=text; }  // reflect live if the designer is open
+    toast("Added to your program — it's waiting for you in Programs & Printing (step 5, Obituary).");
+  }catch(e){ toast(e.message||"Couldn't add it to the program — try again."); }
+  btn.disabled=false; btn.textContent=was;
 }
 function copyObit(btn){ navigator.clipboard.writeText($("obText").value).then(()=>{btn.textContent="Copied";setTimeout(()=>btn.textContent="Copy",1500);}); }
 function printObit(){
