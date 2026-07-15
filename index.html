@@ -979,7 +979,7 @@ const WIZ = [
  {k:"date_of_death",q:"When did they pass?",sub:"An approximate date is fine — you can correct it later.",type:"date"},
  {k:"relationship",q:"What was your relationship to them?",type:"choice",opts:[["spouse","Spouse or partner"],["child","Son or daughter"],["parent","Parent"],["sibling","Sibling"],["family","Other family"],["friend","Friend or helper"]]},
  {k:"tradition",q:"Which HomegoingHQ experience fits your family?",sub:"This shapes the steps we suggest — timing, customs, and remembrance. Choose what fits; you can mix.",type:"choice",opts:[["homegoing","HomegoingHQ — African American Tradition"],["general","HomegoingHQ — Traditional Funeral / Non-Denominational"]]}, /* re-add later: ["catholic","Catholic"],["jewish","Jewish"] */
- {k:"state_code",q:"Which state did they live in?",sub:"Some steps vary by state — this helps us point you right.",type:"text",ph:"e.g., MI"},
+ {k:"state_code",q:"Which state did they live in?",sub:"Some steps vary by state — this helps us point you right.",type:"text",ph:"e.g., MI or Michigan"},
  {k:"funeralArranged",q:"Were funeral arrangements already made or prepaid?",type:"yn3"},
  {k:"minorChildren",q:"Are there minor children or dependents who relied on them?",type:"yn"},
  {k:"pets",q:"Did they have pets?",type:"yn"},
@@ -1030,6 +1030,9 @@ async function wizNext(){
   else await createEstate();
 }
 
+const US_STATE_ABBR={alabama:"AL",alaska:"AK",arizona:"AZ",arkansas:"AR",california:"CA",colorado:"CO",connecticut:"CT",delaware:"DE","district of columbia":"DC",florida:"FL",georgia:"GA",hawaii:"HI",idaho:"ID",illinois:"IL",indiana:"IN",iowa:"IA",kansas:"KS",kentucky:"KY",louisiana:"LA",maine:"ME",maryland:"MD",massachusetts:"MA",michigan:"MI",minnesota:"MN",mississippi:"MS",missouri:"MO",montana:"MT",nebraska:"NE",nevada:"NV","new hampshire":"NH","new jersey":"NJ","new mexico":"NM","new york":"NY","north carolina":"NC","north dakota":"ND",ohio:"OH",oklahoma:"OK",oregon:"OR",pennsylvania:"PA","rhode island":"RI","south carolina":"SC","south dakota":"SD",tennessee:"TN",texas:"TX",utah:"UT",vermont:"VT",virginia:"VA",washington:"WA","west virginia":"WV",wisconsin:"WI",wyoming:"WY","puerto rico":"PR","washington dc":"DC","washington, dc":"DC"};
+const US_ABBRS=new Set(Object.values(US_STATE_ABBR));
+function stateAbbr(s){ s=(s||"").trim(); if(!s) return null; const up=s.toUpperCase(); if(up.length===2&&US_ABBRS.has(up)) return up; const byName=US_STATE_ABBR[s.toLowerCase()]; if(byName) return byName; return up.slice(0,2)||null; }
 async function createEstate(){
   $("wizCard").innerHTML=`<div class="wiz-q">Building the roadmap…</div><div class="wiz-sub">Personalizing steps for your situation.</div>`;
   const intake={...wizAnswers};
@@ -1037,7 +1040,7 @@ async function createEstate(){
     created_by:S.session.user.id,
     decedent_name:intake.decedent_name,
     date_of_death:intake.date_of_death||null,
-    state_code:(intake.state_code||"").toUpperCase().slice(0,2)||null,
+    state_code:stateAbbr(intake.state_code)||null,
     relationship:intake.relationship,
     intake, ruleset_version:RULESET_VERSION,
     partner_code: null
@@ -2391,7 +2394,7 @@ function renderOOSCard(){
   </div>`;
 }
 async function oosSetDeathState(code){
-  code=(code||"").toUpperCase().slice(0,2); if(!code) return toast("Pick a state.");
+  code=stateAbbr(code)||""; if(!code) return toast("Pick a state.");
   const {data}=await sb.rpc("set_death_state",{p_estate:S.estate.id,p_state:code});
   if(data&&data.ok){
     S.estate.death_state=code; const e=S.estates.find(x=>x.id===S.estate.id); if(e)e.death_state=code;
@@ -2771,10 +2774,10 @@ async function obToProgram(btn){
   if(!text) return toast("Draft an obituary first.");
   btn.disabled=true; const was=btn.textContent; btn.textContent="Adding…";
   try{
-    // Merge into the existing program design so nothing else is overwritten.
-    let design={};
-    try{ const {data:row}=await sb.from("funeral_programs").select("design").eq("estate_id",S.estate.id).maybeSingle(); if(row&&row.design) design=row.design; }catch(e){}
-    design.obituary=text;
+    // Start from a complete default design (so the program loads it) and keep anything already saved.
+    let existing={};
+    try{ const {data:row}=await sb.from("funeral_programs").select("design").eq("estate_id",S.estate.id).maybeSingle(); if(row&&row.design) existing=row.design; }catch(e){}
+    const design={...pgDefault(), ...existing, obituary:text};
     const {error}=await sb.from("funeral_programs").upsert({estate_id:S.estate.id,design,updated_by:S.session.user.id,updated_at:new Date().toISOString()},{onConflict:"estate_id"});
     if(error) throw error;
     if(typeof PG==="object"&&PG){ PG.obituary=text; }  // reflect live if the designer is open
