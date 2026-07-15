@@ -2285,6 +2285,7 @@ function renderMusicCard(){
       h+=`</div>`;
     });
   }
+  h+=`<div id="casketAnalysis" style="margin-top:10px">${CK.analysis||""}</div>`;
   h+=`</div>`;
   el.innerHTML=h;
 }
@@ -2440,7 +2441,10 @@ function renderCasketCard(){
   const low=prices.length?Math.min.apply(null,prices):null;
   let h=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
     <div class="eyebrow">Caskets & urns</div>
-    <button class="btn btn-brass btn-sm" onclick="casketAddModal()">+ Add a casket to compare</button></div>`;
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="casketAnalyze()">✨ AI cost analysis</button>
+      <button class="btn btn-brass btn-sm" onclick="casketAddModal()">+ Add a casket to compare</button>
+    </div></div>`;
 
   // your right to shop elsewhere + links to real sources
   h+=`<div style="margin-top:10px;background:#edf3ed;border:1px solid var(--sage);border-radius:10px;padding:11px 14px;font-size:13.5px;line-height:1.55">
@@ -2454,9 +2458,11 @@ function renderCasketCard(){
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
       <input id="ckLoc" placeholder="City, state, or ZIP — search any area" style="flex:1;min-width:170px;max-width:300px">
-      <button class="btn btn-ghost btn-sm" onclick="casketLocal(event)">📍 Find casket stores</button>
+      <select id="ckRadius" style="width:auto"><option value="15">15 mi</option><option value="30" selected>30 mi</option><option value="50">50 mi</option><option value="75">75 mi</option></select>
+      <button class="btn btn-brass btn-sm" onclick="casketSearch()">📍 Find casket stores</button>
     </div>
-    <div class="muted" style="font-size:11.5px;margin-top:6px">Most online sellers ship straight to the funeral home, often next-day. Note the price, then use “+ Add a casket to compare” to line it up against the funeral home’s quote.</div></div>`;
+    <div class="muted" style="font-size:11.5px;margin-top:6px">Local casket & urn stores appear below; online sellers above ship straight to the funeral home, often next-day. Save any to line them up against the funeral home’s quote.</div>
+    <div id="casketResults" style="margin-top:10px">${casketResultsHTML()}</div></div>`;
 
   // education (collapsible)
   h+=`<details class="card" style="margin-top:10px;padding:0;overflow:hidden;background:var(--parchment)">
@@ -2481,10 +2487,18 @@ function renderCasketCard(){
     h+=`<div style="margin-top:12px;display:grid;gap:10px">`;
     rows.forEach(o=>{
       const isLow = low!=null && o.quote!=null && Number(o.quote)===Number(low) && prices.length>1;
-      h+=`<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:12px;${isLow?"border-left:4px solid var(--sage)":""}">
+      const isStore = !!(o.address||o.phone);
+      h+=`<div class="card" style="padding:12px 14px;display:flex;align-items:flex-start;gap:12px;${isLow?"border-left:4px solid var(--sage)":""}">
         <div style="flex:1">
           <strong style="font-size:15px">${esc(o.name)}</strong>${isLow?` <span class="pill" style="background:var(--sage);color:#fff">Lowest</span>`:""}
+          ${o.address?`<div class="muted" style="font-size:12px;margin-top:2px">${o.rating?`★ ${o.rating} · `:""}${o.distance_mi!=null?o.distance_mi+" mi · ":""}${esc(o.address)}</div>`:""}
           ${o.notes?`<div class="muted" style="font-size:12.5px">${esc(o.notes)}</div>`:""}
+          ${isStore?`<div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap">
+            ${o.phone?`<a class="btn btn-ghost btn-sm" href="tel:${esc(o.phone)}">Call</a>`:""}
+            ${o.website?`<a class="btn btn-ghost btn-sm" href="${esc(o.website)}" target="_blank" rel="noopener">Website</a>`:""}
+            ${o.maps_url?`<a class="btn btn-ghost btn-sm" href="${esc(o.maps_url)}" target="_blank" rel="noopener">Directions</a>`:""}
+            <button class="btn btn-ghost btn-sm" onclick="casketAddPrice('${o.id}')">${o.quote!=null&&o.quote!==""?"Edit price":"Add price"}</button>
+          </div>`:""}
         </div>
         <div style="text-align:right"><div style="font-family:var(--font-display);font-size:20px">${o.quote!=null&&o.quote!==""?money(o.quote):"—"}</div>
           <button class="btn btn-ghost btn-sm" onclick="casketRemove('${o.id}')" style="margin-top:2px">Remove</button></div>
@@ -2496,6 +2510,72 @@ function renderCasketCard(){
   }
   h+=`</div>`;
   el.innerHTML=h;
+}
+let CK={results:[],analysis:""};
+function casketResultsHTML(){
+  if(!CK.results||!CK.results.length) return "";
+  return `<div class="muted" style="font-size:12.5px;margin:2px 0 6px">${CK.results.length} casket & urn stores found — tap Save to add one to your comparison.</div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">`+CK.results.map((p,i)=>`
+    <div class="card" style="padding:12px 14px">
+      <strong>${esc(p.name)}</strong>
+      <div class="muted" style="font-size:12px;margin:2px 0">${p.rating?`\u2605 ${p.rating} (${p.ratingCount})`:"no ratings"}${p.distanceMi!=null?" \u00b7 "+p.distanceMi+" mi":""}${p.openNow===true?' \u00b7 <span style="color:var(--sage)">open now</span>':""}</div>
+      <div class="muted" style="font-size:12px">${esc(p.address||"")}</div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        ${p.phone?`<a class="btn btn-ghost btn-sm" href="tel:${esc(p.phone)}">Call</a>`:""}
+        ${p.website?`<a class="btn btn-ghost btn-sm" href="${esc(p.website)}" target="_blank" rel="noopener">Website</a>`:""}
+        ${p.mapsUrl?`<a class="btn btn-ghost btn-sm" href="${esc(p.mapsUrl)}" target="_blank" rel="noopener">Directions</a>`:""}
+        <button class="btn btn-primary btn-sm" onclick="casketStoreSave(${i})">Save</button>
+      </div></div>`).join("")+`</div>`;
+}
+async function casketSearch(){
+  const addr=($("ckLoc")&&$("ckLoc").value.trim())||"";
+  if(!addr) return toast("Enter a city, state, or ZIP to search casket stores.");
+  const box=$("casketResults"); if(box) box.innerHTML='<div class="muted">Searching casket & urn stores\u2026</div>';
+  try{
+    const r=await fetch("/.netlify/functions/providers",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({category:"casket and urn retailer store",address:addr,radiusMiles:Number(($("ckRadius")&&$("ckRadius").value)||30)})});
+    const d=await r.json();
+    if(d.error){ if(box) box.innerHTML=`<div class="banner">${esc(d.error)}</div>`; return; }
+    CK.results=d.providers||[];
+    if(box) box.innerHTML = CK.results.length?casketResultsHTML():'<div class="muted">No casket stores found nearby — the online sellers above ship anywhere.</div>';
+  }catch(e){ if(box) box.innerHTML=`<div class="banner">Search failed: ${esc(e.message)}</div>`; }
+}
+async function casketStoreSave(i){
+  const p=CK.results[i]; if(!p) return;
+  const {data,error}=await sb.from("funeral_options").insert({estate_id:S.estate.id,option_type:"casket",
+    name:p.name,phone:p.phone||null,address:p.address||null,website:p.website||null,maps_url:p.mapsUrl||null,
+    rating:p.rating,rating_count:p.ratingCount,distance_mi:p.distanceMi}).select().single();
+  if(error) return toast(error.message);
+  if(data) F.options.push(data);
+  toast("Saved to your casket comparison — call for a price, then add their quote.");
+  renderCasketCard();
+}
+async function casketAddPrice(id){
+  const cur=(F.options||[]).find(o=>String(o.id)===String(id)); if(!cur) return;
+  const v=prompt("Price they quoted for the casket ($):", cur.quote!=null?cur.quote:"");
+  if(v===null) return;
+  const price=v.trim()===""?null:Number(v);
+  if(v.trim()!==""&&isNaN(price)) return toast("Enter a number, e.g. 1299.");
+  const {error}=await sb.from("funeral_options").update({quote:price}).eq("id",id);
+  if(error) return toast(error.message);
+  cur.quote=price; renderCasketCard();
+}
+async function casketAnalyze(){
+  const rows=casketSaved(); const quoted=rows.filter(o=>o.quote!=null&&o.quote!=="");
+  if(quoted.length<2) return toast("Add a price to at least two caskets first \u2014 tap \u201CAdd price\u201D on a saved store, or use \u201C+ Add a casket to compare.\u201D");
+  const el=$("casketAnalysis"); if(el) el.innerHTML='<div class="card" style="margin:8px 0"><div class="muted">Analyzing your casket options\u2026</div></div>';
+  const lines=quoted.map(o=>`${o.name}${o.notes?" ("+o.notes+")":""}${o.address?" \u2014 from "+o.address:""}: $${o.quote}`);
+  const prompt=`You are helping a grieving family compare CASKET prices. Analyze these casket quotes and reply in short, warm, plain language with these sections: BEST VALUE (which and why \u2014 quality and value, not just lowest price), PRICE SPREAD (the difference and estimated savings between highest and lowest), WATCH FOR (over-priced "protective"/"sealed" upsells that do not preserve the body, whether a funeral-home price looks marked up versus online sellers like Titan or Costco, and any missing details), and ASK THEM (3-4 specific questions to ask each seller \u2014 material, gauge/thickness, delivery to the funeral home, return policy). Note: by the FTC Funeral Rule the funeral home must accept an outside casket with no handling fee. Under 240 words. Quotes:\n${lines.join("\n")}`;
+  try{
+    const r=await fetch("/.netlify/functions/ai-guide",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({messages:[{role:"user",content:prompt}],estateContext:"casket price comparison"})});
+    const d=await r.json();
+    const text=d.text||d.error||"Analysis unavailable right now.";
+    CK.analysis=`<div class="card" style="margin:8px 0;border-top:3px solid var(--brass)"><div class="eyebrow">\u2728 Casket cost analysis</div>
+      <div style="white-space:pre-wrap;font-size:13.5px;line-height:1.6;margin-top:6px">${esc(text)}</div>
+      <div class="muted" style="font-size:11px;margin-top:8px">General guidance to help you ask better questions \u2014 always confirm details with each seller in writing.</div></div>`;
+    if(el) el.innerHTML=CK.analysis;
+  }catch(e){ if(el) el.innerHTML=`<div class="banner">Couldn't analyze right now: ${esc(e.message)}</div>`; }
 }
 function casketLocal(e){ if(e&&e.preventDefault)e.preventDefault(); const a=($("ckLoc")&&$("ckLoc").value.trim())||($("pvAddr")&&$("pvAddr").value.trim())||""; const q="casket stores "+(a||"near me"); window.open("https://www.google.com/maps/search/"+encodeURIComponent(q),"_blank"); return false; }
 function casketAddModal(){
