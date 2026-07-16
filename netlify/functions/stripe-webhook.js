@@ -148,6 +148,27 @@ exports.handler = async (event) => {
     const userId = session.metadata?.user_id || session.client_reference_id;
     if (!userId) return { statusCode: 200, body: "no user" };
 
+    const estateId = session.metadata?.estate_id;
+    const SB = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const sbHeaders = { "apikey": KEY, "Authorization": "Bearer " + KEY, "Content-Type": "application/json", "Prefer": "return=minimal" };
+
+    // Companion / Settle are PER-ESTATE: stamp the estate's tier.
+    // Premium (subscription) stays a per-user grant on the profile.
+    if (estateId && (tier === "companion" || tier === "settle")) {
+      const resp = await fetch(SB + "/rest/v1/estates?id=eq." + encodeURIComponent(estateId), {
+        method: "PATCH", headers: sbHeaders,
+        body: JSON.stringify({ tier, updated_at: new Date().toISOString() })
+      });
+      // record the customer on the profile too (for receipts), without changing plan_tier
+      if (session.customer) {
+        await fetch(SB + "/rest/v1/profiles?id=eq." + userId, {
+          method: "PATCH", headers: sbHeaders,
+          body: JSON.stringify({ stripe_customer_id: session.customer })
+        });
+      }
+      return { statusCode: resp.ok ? 200 : 500, body: resp.ok ? "estate " + tier : "supabase error" };
+    }
+
     const resp = await fetch(process.env.SUPABASE_URL + "/rest/v1/profiles?id=eq." + userId, {
       method: "PATCH",
       headers: {

@@ -10,7 +10,7 @@ exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
 
   try {
-    const { tier, userId, email, recipientEmail, giftMessage } = JSON.parse(event.body || "{}");
+    const { tier, userId, email, estateId, recipientEmail, giftMessage } = JSON.parse(event.body || "{}");
     const isGift = tier === "gift_settle";
     const isSub = tier === "premium";
     const price = isSub ? process.env.STRIPE_PRICE_PREMIUM
@@ -28,6 +28,7 @@ exports.handler = async (event) => {
     params.append("client_reference_id", userId || "");
     params.append("metadata[user_id]", userId || "");
     params.append("metadata[tier]", isGift ? "gift_settle" : (tier || "settle"));
+    if (estateId) params.append("metadata[estate_id]", estateId);
     if (isGift) {
       params.append("metadata[recipient_email]", recipientEmail || "");
       params.append("metadata[gift_message]", (giftMessage || "").slice(0, 400));
