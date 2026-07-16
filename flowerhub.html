@@ -617,26 +617,67 @@ async function placeOrder(){
     const res=await fhApi('placeorder',{customer:sn,products,payment:{AUTHORIZENET_TOKEN:token},ordertotal});
     const orderno=res.ORDERNO||res.orderno||res.OrderNo||(res.PLACEORDER&&(res.PLACEORDER.ORDERNO||res.PLACEORDER.orderno));
     if(!orderno) throw new Error('Order not confirmed by Florist One: '+JSON.stringify(res).slice(0,220));
-    ORDER={num:orderno,items:[...CART],total:ordertotal,provider:'Florist One',zip:rc.ZIPCODE,date,card:msg,step:1};
+    ORDER={num:orderno,items:[...CART],total:ordertotal,provider:'Florist One',zip:rc.ZIPCODE,date,card:msg,step:1,cancelled:false,_polledOnce:false,_fails:0};
     CART=[];COUPON=null;updateBadge();busy(null);
     toast('Order placed \u2014 thank you'); go('track');
   }catch(e){ busy(null); toast(e.message||'Order could not be completed'); }
 }
 
+// Live tracking: reads REAL order status from Florist One (getorderinfo) and
+// maps it to the four display steps. No fake auto-advance — the tracker holds
+// at the last confirmed real state instead of marching itself to "Delivered".
+let TRACK_TIMER=null;
+const TRACK_STEP_META=[
+  ['Order confirmed','We received your order and routed it to the best florist.'],
+  ['In the studio','Your arrangement is being designed by hand.'],
+  ['Out for delivery','On the way to your delivery address.'],
+  ['Delivered','A photo confirmation will appear here when available.']];
+
+// Map a Florist One status string to a 0-based step index (-1 = cancelled).
+// NOTE: the exact status vocabulary from getorderinfo isn't documented in-repo,
+// so we match on keywords and DELIBERATELY default to "confirmed" (0) — never
+// guessing forward — so an unknown status can't fabricate a "Delivered".
+function trackStepFromStatus(raw){
+  const s=String(raw||'').toLowerCase();
+  if(!s) return 0;
+  if(/cancel|refund|void|declin/.test(s)) return -1;
+  if(/deliver(ed)?\b|complete|fulfilled/.test(s)) return 3;
+  if(/out for delivery|in ?transit|shipped|en route|on the way/.test(s)) return 2;
+  if(/studio|design|process|prepar|arrang|assembl|in ?production/.test(s)) return 1;
+  return 0; // received / confirmed / pending / unknown -> hold at step 1
+}
+
+async function refreshOrderStatus(){
+  if(!ORDER) return;
+  try{
+    const info=await fhApi('orderinfo',{orderno:ORDER.num});
+    const raw=info.STATUS||info.status||info.ORDERSTATUS||info.orderstatus||
+              (info.ORDER&&(info.ORDER.STATUS||info.ORDER.status))||
+              (info.ORDERINFO&&(info.ORDERINFO.STATUS||info.ORDERINFO.status))||'';
+    const idx=trackStepFromStatus(raw);
+    ORDER.cancelled=(idx===-1);
+    ORDER.step=(idx===-1)?0:idx+1;   // step = number of completed stages
+    ORDER.rawStatus=raw; ORDER._fails=0;
+  }catch(e){ ORDER._fails=(ORDER._fails||0)+1; /* keep last known state, never fabricate */ }
+}
+
 function renderTrack(){
-  if(!ORDER){document.getElementById('trackSteps').innerHTML='<div class="empty"><h3>No active order</h3><p>Place an order to see live tracking.</p></div>';
-    document.getElementById('trackDetails').innerHTML='';document.getElementById('trackNum').textContent='';return;}
-  document.getElementById('trackNum').textContent='Order '+ORDER.num;
-  const steps=[['Order confirmed','We received your order and routed it to the best florist.'],
-    ['In the studio','Your arrangement is being designed by hand.'],
-    ['Out for delivery','On the way to your delivery address.'],
-    ['Delivered','A photo confirmation will appear here when available.']];
-  document.getElementById('trackSteps').innerHTML=steps.map((s,i)=>{
+  const stepsEl=document.getElementById('trackSteps');
+  const detEl=document.getElementById('trackDetails');
+  const numEl=document.getElementById('trackNum');
+  if(TRACK_TIMER){clearTimeout(TRACK_TIMER);TRACK_TIMER=null;}   // single timer, always cleared -> kills the race
+  if(!ORDER){
+    stepsEl.innerHTML='<div class="empty"><h3>No active order</h3><p>Place an order to see live tracking.</p></div>';
+    detEl.innerHTML='';numEl.textContent='';return;
+  }
+  if(typeof ORDER.step!=='number')ORDER.step=1;
+  numEl.textContent='Order '+ORDER.num;
+  stepsEl.innerHTML=TRACK_STEP_META.map((s,i)=>{
     const st=i<ORDER.step?'done':i===ORDER.step?'active':'';
     return `<div class="tstep ${st}"><div class="tdot">${i<ORDER.step?'✓':i+1}</div>
       <div class="tc"><h4>${s[0]}</h4><small>${s[1]}</small></div></div>`;
   }).join('');
-  document.getElementById('trackDetails').innerHTML=`
+  detEl.innerHTML=`
     <div class="summary">
       <div class="row"><span class="muted">Order</span><span>${ORDER.num}</span></div>
       <div class="row"><span class="muted">Delivery ZIP</span><span>${ORDER.zip}</span></div>
@@ -644,8 +685,19 @@ function renderTrack(){
       <div class="row"><span class="muted">Fulfillment</span><span>HomegoingHQ</span></div>
       <div class="row tot"><span>Total</span><span>$${(ORDER.total||0).toFixed(2)}</span></div>
     </div>
+    ${ORDER.cancelled?'<p style="font-size:12.5px;color:#b23;margin-top:14px">This order was cancelled or refunded. Contact HomegoingHQ concierge for assistance.</p>':''}
     <p style="font-size:12.5px;color:var(--ink-70);margin-top:14px">Provider branding hidden per white-label policy. All updates and receipts are issued by HomegoingHQ.</p>`;
-  if(ORDER.step<4){setTimeout(()=>{if(ORDER){ORDER.step++;if(document.getElementById('v-track').classList.contains('on'))renderTrack();}},4000);}
+  // Poll REAL status while the Track view is open. First check ~1.5s after paint,
+  // then every 60s. Stops when delivered/cancelled or after repeated failures.
+  if(!ORDER.cancelled && ORDER.step<4 && (ORDER._fails||0)<5){
+    const delay=ORDER._polledOnce?60000:1500; ORDER._polledOnce=true;
+    TRACK_TIMER=setTimeout(async()=>{
+      TRACK_TIMER=null;
+      if(!ORDER||!document.getElementById('v-track').classList.contains('on'))return;
+      await refreshOrderStatus();
+      renderTrack();
+    },delay);
+  }
 }
 
 // ---------- admin ----------
