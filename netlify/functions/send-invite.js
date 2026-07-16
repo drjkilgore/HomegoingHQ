@@ -96,6 +96,12 @@ exports.handler = async (event) => {
       subject = `Emergency access requested on your HomegoingHQ plan`;
       intro = `${inviterName} has requested emergency access to your plan for ${contextName}, attesting that access is needed now. If this is expected, no action is needed — access unlocks automatically ${unlockAt ? "on " + new Date(unlockAt).toLocaleString() : "after your waiting period"}. <strong>If this is NOT expected, sign in immediately and decline the request.</strong>`;
       cta = "Review the request";
+    } else if (kind === "concierge_progress") {
+      subject = `${inviterName} invited you to support the estate of ${contextName}`;
+      intro = `${inviterName} would like you, as their concierge, to see the <strong>progress checklist</strong> for the estate of ${contextName} — what's done and what's coming up, so you can guide them.<br><br>` +
+        `This is a <strong>progress-only</strong> connection: you'll see the checklist and next steps, but <strong>not</strong> their documents, financial ledger, or private details. The family controls this and can turn it off anytime.<br><br>` +
+        `To accept, sign in with <strong>this email address</strong> — the family will appear under "Families you support."`;
+      cta = "Open your clients";
     } else if (kind === "estate") {
       subject = `${inviterName} invited you to help settle the estate of ${contextName}`;
       intro = `${inviterName} is using HomegoingHQ to coordinate everything after the passing of ${contextName}, and has invited you to help — tasks, documents, and next steps, all in one calm place.`;
