@@ -362,9 +362,21 @@ summary::-webkit-details-marker{display:none}
       <p class="muted" style="margin:8px 0 14px">Invite the people helping settle this estate. They'll see the roadmap, claim tasks, and everything is logged.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <input id="invEmail" type="email" placeholder="their-email@example.com" style="flex:1;min-width:200px">
-        <select id="invRole" style="width:auto"><option value="member">Member</option><option value="executor">Executor</option><option value="viewer">Viewer</option><option value="attorney">Attorney</option><option value="cpa">CPA</option><option value="advisor">Financial advisor</option></select>
+        <select id="invRole" style="width:auto">
+          <optgroup label="Family & helpers — full access">
+            <option value="member">Family member</option>
+            <option value="executor">Executor</option>
+            <option value="viewer">Viewer (read-only)</option>
+          </optgroup>
+          <optgroup label="Licensed professional — FULL access">
+            <option value="attorney">Attorney</option>
+            <option value="cpa">CPA</option>
+            <option value="advisor">Financial advisor</option>
+          </optgroup>
+        </select>
         <button class="btn btn-primary btn-sm" onclick="sendInvite()">Invite</button>
       </div>
+      <p class="muted" style="margin:10px 0 0;font-size:12.5px">Everyone invited here sees the <strong>whole</strong> estate — documents, ledger, and probate included. For a concierge who should only see your progress, use <strong>“Concierge — progress only”</strong> below instead.</p>
     </div>
     <div class="grid" id="memberList" style="margin-top:14px"></div>
     <h2 style="margin:26px 0 12px;font-size:20px">Activity log</h2>
@@ -1739,9 +1751,13 @@ function renderMembers(){
 }
 async function sendInvite(){
   const email=$("invEmail").value.trim().toLowerCase(); if(!email||!email.includes("@")) return toast("Enter their email address.");
+  const role=$("invRole").value;
+  if(["attorney","cpa","advisor"].includes(role) &&
+     !confirm("Heads up: this gives "+email+" FULL access to this estate — including Documents, Ledger, and Probate.\n\nIf this is a concierge who should only see your checklist progress, cancel and use \u201CConcierge \u2014 progress only\u201D instead.\n\nContinue with full access?"))
+    return;
   if(TIER_RANK[tier()]<TIER_RANK.settle && (S.members.length+(S.invites||[]).length)>=2)
     return upgradeModal("Settle includes the whole family");
-  const {error} = await sb.from("estate_invites").insert({estate_id:S.estate.id,email,role:$("invRole").value,invited_by:S.session.user.id});
+  const {error} = await sb.from("estate_invites").insert({estate_id:S.estate.id,email,role,invited_by:S.session.user.id});
   if(error) return toast(error.message);
   $("invEmail").value=""; await loadMembers(); renderMembers();
   logActivity("invited",email);
@@ -6423,6 +6439,120 @@ function chooseDesigner(id,name){ FS.chosenDesigner = id?{id:id,name:name}:null;
       if(window.toast) toast("Removed. They can no longer see your progress.");
       renderFamilyConciergeCard();
     }catch(e){ if(window.toast) toast("Couldn't remove access."); }
+  };
+})();
+
+</script>
+
+<script>
+/* ============ CONCIERGE NOTES / NUDGES (migration v17) ============
+   Concierge (active progress-only link) leaves short notes / next-step nudges;
+   the family sees them on the estate's Next tab and can mark a nudge done.
+   Self-contained: wraps openConciergeChecklist (author side) and renderNext
+   (family side). No document/ledger access is involved — notes are plain text. */
+(function(){
+  function E(s){ return window.esc? window.esc(s) : String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
+  function fmtD(d){ try{ return d? (window.fmtDate? window.fmtDate(d) : new Date(d).toLocaleDateString()) : ""; }catch(e){ return ""; } }
+
+  async function fetchNotes(estateId){
+    try{
+      var q = await sb.from("concierge_notes").select("*").eq("estate_id", estateId).order("created_at",{ascending:false});
+      if(!q.error) return q.data||[];
+    }catch(e){}
+    return [];
+  }
+
+  /* ---------- CONCIERGE SIDE: inject a notes panel into the checklist modal ---------- */
+  async function renderModalNotes(estateId){
+    var box = document.getElementById("ccNotesBox"); if(!box) return;
+    var notes = await fetchNotes(estateId);
+    var uid = S.session && S.session.user && S.session.user.id;
+    var mine = notes.filter(function(n){ return n.author_id===uid; });
+    var list = mine.length ? mine.map(function(n){
+      return '<div class="card" style="padding:10px 12px;margin-top:8px">'+
+        '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">'+
+        '<div style="font-size:14px'+(n.done?';text-decoration:line-through;opacity:.6':'')+'">'+E(n.body)+'</div>'+
+        '<button class="btn btn-ghost btn-sm" style="padding:2px 8px" onclick="deleteConciergeNote(\''+n.id+'\',\''+estateId+'\')">×</button></div>'+
+        '<div class="muted" style="font-size:11.5px;margin-top:4px">'+fmtD(n.created_at)+(n.done?' · family marked done':'')+'</div></div>';
+    }).join("") : '<p class="muted" style="font-size:12.5px;margin-top:8px">No notes yet. Leave the family a next step below.</p>';
+    box.innerHTML =
+      '<div class="eyebrow" style="margin-top:18px">Notes &amp; next steps for the family</div>'+
+      '<p class="muted" style="font-size:12px;margin:4px 0 0">The family sees these on their Next tab and can mark them done.</p>'+
+      list +
+      '<textarea id="ccNoteBody" rows="2" placeholder="e.g. Order 6 certified death certificates this week \u2014 you\u2019ll need them for the bank and insurance." style="width:100%;margin-top:10px"></textarea>'+
+      '<div style="text-align:right;margin-top:6px"><button class="btn btn-primary btn-sm" onclick="addConciergeNote(\''+estateId+'\')">Add note</button></div>';
+  }
+
+  if(window.openConciergeChecklist && !window.__ccNotesWrapped){
+    window.__ccNotesWrapped = true;
+    var _openChecklist = window.openConciergeChecklist;
+    window.openConciergeChecklist = function(estateId){
+      _openChecklist.apply(this, arguments);
+      // insert a notes container just before the closing privacy banner
+      var modal = document.querySelector("#modalRoot .modal");
+      if(modal){
+        var box = document.createElement("div"); box.id = "ccNotesBox";
+        var banner = modal.querySelector(".banner");
+        if(banner && banner.parentNode) banner.parentNode.insertBefore(box, banner);
+        else modal.appendChild(box);
+        renderModalNotes(estateId);
+      }
+    };
+  }
+
+  window.addConciergeNote = async function(estateId){
+    var el = document.getElementById("ccNoteBody"); var body = (el && el.value || "").trim();
+    if(!body){ if(window.toast) toast("Write a short note first."); return; }
+    try{
+      var r = await sb.from("concierge_notes").insert({estate_id:estateId, author_id:S.session.user.id, body:body});
+      if(r.error){ if(window.toast) toast(r.error.message); return; }
+      renderModalNotes(estateId);
+      if(window.toast) toast("Note added — the family will see it.");
+    }catch(e){ if(window.toast) toast("Couldn't add the note."); }
+  };
+
+  window.deleteConciergeNote = async function(noteId, estateId){
+    try{
+      var r = await sb.from("concierge_notes").delete().eq("id", noteId);
+      if(r.error){ if(window.toast) toast(r.error.message); return; }
+      renderModalNotes(estateId);
+    }catch(e){ if(window.toast) toast("Couldn't remove the note."); }
+  };
+
+  /* ---------- FAMILY SIDE: show concierge notes on the Next tab ---------- */
+  async function renderFamilyNotes(){
+    var host = document.getElementById("tab-next"); if(!host || !S.estate) return;
+    var card = document.getElementById("conciergeNotesFamily");
+    if(!card){
+      card = document.createElement("div"); card.id = "conciergeNotesFamily";
+      card.style.marginBottom = "12px";
+      host.insertBefore(card, host.firstChild);
+    }
+    var notes = await fetchNotes(S.estate.id);
+    if(!notes.length){ card.innerHTML=""; card.style.display="none"; return; }
+    card.style.display="";
+    var rows = notes.map(function(n){
+      return '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid #EDE6D8">'+
+        '<input type="checkbox" '+(n.done?"checked":"")+' onchange="setConciergeNoteDone(\''+n.id+'\',this.checked)" style="margin-top:3px;width:auto">'+
+        '<div style="flex:1"><div style="font-size:14px'+(n.done?';text-decoration:line-through;opacity:.6':'')+'">'+E(n.body)+'</div>'+
+        '<div class="muted" style="font-size:11.5px;margin-top:2px">from your concierge · '+fmtD(n.created_at)+'</div></div></div>';
+    }).join("");
+    card.className = "card";
+    card.style.borderTop = "3px solid var(--brass)";
+    card.innerHTML = '<div class="eyebrow">From your concierge</div>'+rows;
+  }
+
+  if(window.renderNext && !window.__ccFamilyNotesWrapped){
+    window.__ccFamilyNotesWrapped = true;
+    var _renderNext = window.renderNext;
+    window.renderNext = function(){ _renderNext.apply(this, arguments); try{ renderFamilyNotes(); }catch(e){} };
+  }
+
+  window.setConciergeNoteDone = async function(noteId, done){
+    try{
+      var r = await sb.rpc("concierge_note_set_done", {p_note:noteId, p_done:!!done});
+      if(r.error){ if(window.toast) toast(r.error.message); }
+    }catch(e){ if(window.toast) toast("Couldn't update."); }
   };
 })();
 
