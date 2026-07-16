@@ -32,7 +32,7 @@ exports.handler = async (event) => {
     params.append("success_url", (process.env.SITE_URL || "") + "/?fs=paid");
     params.append("cancel_url", (process.env.SITE_URL || "") + "/?fs=cancelled");
     if (email) params.append("customer_email", email);
-    params.append("client_reference_id", estateId || "");
+    if (estateId) params.append("client_reference_id", estateId);
     params.append("metadata[kind]", "fullservice_design_fee");
     params.append("metadata[estate_id]", estateId || "");
     params.append("metadata[tier]", tierName || "");

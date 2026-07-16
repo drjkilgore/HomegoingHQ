@@ -21,7 +21,7 @@ exports.handler = async (event) => {
     params.append("success_url", (process.env.SITE_URL || "") + "/?fsbal=paid");
     params.append("cancel_url", (process.env.SITE_URL || "") + "/?fsbal=cancelled");
     if (email) params.append("customer_email", email);
-    params.append("client_reference_id", orderId || "");
+    if (orderId) params.append("client_reference_id", orderId);
     params.append("metadata[kind]", "fullservice_balance");
     params.append("metadata[order_id]", orderId || "");
     params.append("metadata[summary]", String(summary || "").slice(0, 450));
