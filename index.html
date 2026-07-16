@@ -214,6 +214,7 @@ summary::-webkit-details-marker{display:none}
     <p class="muted" id="authMsg" style="margin-top:12px"></p>
   </div>
   <p class="muted" style="text-align:center;font-size:12px;margin-top:18px">Are you a professional who walks with families? <a href="https://concierge.homegoinghq.com" style="color:var(--brass-deep)">Become a HomegoingHQ Concierge™</a> &nbsp;·&nbsp; <a href="https://providers.homegoinghq.com" style="color:var(--brass-deep)">Become a Preferred Provider</a> &nbsp;·&nbsp; <a href="/?designer=apply" style="color:var(--brass-deep)">Become a Designer</a></p>
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:6px"><a href="#" onclick="howItWorksMenu();return false" style="color:var(--brass-deep)">How HomegoingHQ works →</a></p>
   <p class="muted" style="text-align:center;font-size:11.5px;margin-top:10px"><a href="privacy.html" style="color:var(--muted)">Privacy Policy</a> · <a href="terms.html" style="color:var(--muted)">Terms of Service</a></p>
   <p style="text-align:center;margin-top:18px"><a href="#" onclick="openGiftModal();return false" style="font-size:14px">🎁 Give HomegoingHQ as a gift — a helping hand for a grieving family</a></p>
   <p class="footer-note">HomegoingHQ provides organizational tools and general legal information, not legal, tax, or financial advice. For advice about your specific situation, consult a licensed attorney, CPA, or financial professional.</p>
@@ -223,7 +224,7 @@ summary::-webkit-details-marker{display:none}
 <section id="view-home" class="hidden"><div class="wrap">
   <div id="partnerBannerHome"></div>
   <div id="clientsSection"></div>
-  <div class="estate-head"><div class="eyebrow">Your workspace</div><h1 class="name" style="font-size:26px">Welcome<span id="homeName"></span></h1></div>
+  <div class="estate-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="eyebrow">Your workspace</div><h1 class="name" style="font-size:26px">Welcome<span id="homeName"></span></h1></div><button class="btn btn-ghost btn-sm" onclick="howItWorks('family')">How this works</button></div>
   <div class="grid" id="estateList"></div>
   <div class="card" style="margin-top:14px">
     <div class="eyebrow">Start</div>
@@ -1127,6 +1128,58 @@ async function loadEstates(){
     S.myEstateRoles=Object.fromEntries((er||[]).map(m=>[m.estate_id,m.role]));
     S.myPlanRoles=Object.fromEntries((pr||[]).map(m=>[m.plan_id,m.role]));
   }
+}
+/* ---------- Interactive "How it works" walkthroughs ---------- */
+const HOWITWORKS = {
+  family: { title:"How HomegoingHQ works for families", steps:[
+    { title:"Start your roadmap", body:"Answer a few gentle questions and we build a <b>step-by-step settlement plan</b> tailored to your situation — in about two minutes. \u201CI'm not sure\u201D is always a fine answer." },
+    { title:"Work the plan, one step at a time", body:"Each step tells you exactly what to do, with deadlines and plain-language guidance. Check them off as you go, and pause anytime — nothing is lost." },
+    { title:"Programs, flowers & keepsakes", body:"Design a printed homegoing program yourself, or hand it to a <b>HomegoingHQ designer</b> full-service. Order flowers, compare caskets, and add matching keepsakes — all in one place." },
+    { title:"Everything organized & private", body:"Documents, the estate ledger, probate steps, memories, and notifying people all live here — visible only to the people <b>you</b> invite. Your family's information stays your family's." }
+  ]},
+  designer: { title:"How the Designer Marketplace works", steps:[
+    { title:"Apply in one step", body:"Tell us your specialties and the states you serve, agree to the terms, and submit. Every application is <b>reviewed</b> before you receive any work." },
+    { title:"Get matched to families", body:"When a family in a state you serve orders a full-service design, the job is routed to you (fairly, round-robin). You <b>accept</b> it, or <b>pass</b> it to the next designer." },
+    { title:"Design, proof & message", body:"Upload a proof right in your portal. The family reviews and approves it here — and you can <b>message</b> them anytime through the order thread." },
+    { title:"Get paid & build your rating", body:"When the family approves, they pay the printing balance and <b>rate your work</b>. Great ratings raise your profile with the next families choosing a designer." }
+  ]},
+  concierge: { title:"How the Concierge program works", steps:[
+    { title:"Your own branded workspace", body:"Certified HomegoingHQ Concierges guide families under <b>their own brand</b> — your name and mark appear in the workspace families see." },
+    { title:"Guide families through it all", body:"Use the same roadmap, documents, and estate tools to walk your client families through settlement — with your expertise alongside the platform." },
+    { title:"Grow your practice", body:"Bring on client families and manage your concierge account. Learn more and get certified at <b>concierge.homegoinghq.com</b>." }
+  ]},
+  provider: { title:"How the Preferred Provider Network works", steps:[
+    { title:"Get listed", body:"Trusted funeral-industry businesses apply to the <b>Preferred Provider Network</b>. Approved providers appear in the tools families and concierges use to find help." },
+    { title:"Reach families near you", body:"Families search by location and see your listing with the <b>Preferred mark</b> — a signal of trust when they need it most." },
+    { title:"Lock in your spot", body:"Founding providers hold their category and founding rate. Apply and learn more at <b>providers.homegoinghq.com</b>." }
+  ]}
+};
+function howItWorks(role, step){
+  const w=HOWITWORKS[role]; if(!w) return;
+  step=step||0; const total=w.steps.length; const s=w.steps[step];
+  const dots=w.steps.map(function(_,i){ return '<span style="width:8px;height:8px;border-radius:50%;display:inline-block;background:'+(i===step?'var(--brass,#8F6A24)':'#d8d2c4')+'"></span>'; }).join(" ");
+  $("modalRoot").innerHTML='<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:480px">'
+    +'<button class="close" onclick="closeModal()">\u00d7</button>'
+    +'<div class="eyebrow">'+esc(w.title)+'</div>'
+    +'<div style="font-size:12px;color:var(--muted);margin:6px 0">Step '+(step+1)+' of '+total+'</div>'
+    +'<h3 style="margin:2px 0 8px">'+esc(s.title)+'</h3>'
+    +'<p style="font-size:14px;line-height:1.55">'+s.body+'</p>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px"><div>'+dots+'</div>'
+    +'<div style="display:flex;gap:8px">'
+    +(step>0?'<button class="btn btn-ghost btn-sm" onclick="howItWorks(\''+role+'\','+(step-1)+')">Back</button>':'')
+    +(step<total-1?'<button class="btn btn-brass btn-sm" onclick="howItWorks(\''+role+'\','+(step+1)+')">Next</button>':'<button class="btn btn-brass btn-sm" onclick="closeModal()">Got it</button>')
+    +'</div></div></div></div>';
+}
+function howItWorksMenu(){
+  $("modalRoot").innerHTML='<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:440px">'
+    +'<button class="close" onclick="closeModal()">\u00d7</button>'
+    +'<div class="eyebrow">How it works</div><h3 style="margin:4px 0 10px">Tell us who you are</h3>'
+    +'<div style="display:flex;flex-direction:column;gap:8px">'
+    +'<button class="btn btn-ghost" style="justify-content:flex-start" onclick="howItWorks(\'family\')">A family using HomegoingHQ</button>'
+    +'<button class="btn btn-ghost" style="justify-content:flex-start" onclick="howItWorks(\'designer\')">A designer</button>'
+    +'<button class="btn btn-ghost" style="justify-content:flex-start" onclick="howItWorks(\'concierge\')">A HomegoingHQ Concierge</button>'
+    +'<button class="btn btn-ghost" style="justify-content:flex-start" onclick="howItWorks(\'provider\')">A Preferred Provider</button>'
+    +'</div></div></div>';
 }
 function goHome(){
   if(!S.session) return show("view-auth");
@@ -5732,7 +5785,7 @@ function goDesigner(){
     <div class="estate-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <div><div class="eyebrow">Designer Portal</div><h1 class="name" style="font-size:24px">${esc(d.full_name||"Welcome")}</h1>
         <div class="muted" style="font-size:13px">${(d.specialties||[]).join(" · ")||""}${d.states&&d.states.length?" · "+d.states.join(", "):""}</div></div>
-      <button class="btn btn-ghost btn-sm" onclick="goHome()">Family workspace →</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="howItWorks('designer')">How this works</button><button class="btn btn-ghost btn-sm" onclick="goHome()">Family workspace →</button></div>
     </div>
     ${statusMsg}
     ${d.status==="approved"?`
