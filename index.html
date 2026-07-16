@@ -1084,7 +1084,7 @@ const WIZ = [
  {k:"date_of_death",q:"When did they pass?",sub:"An approximate date is fine — you can correct it later.",type:"date"},
  {k:"relationship",q:"What was your relationship to them?",type:"choice",opts:[["spouse","Spouse or partner"],["child","Son or daughter"],["parent","Parent"],["sibling","Sibling"],["family","Other family"],["friend","Friend or helper"]]},
  {k:"tradition",q:"Which HomegoingHQ experience fits your family?",sub:"This shapes the steps we suggest — timing, customs, and remembrance. Choose what fits; you can mix.",type:"choice",opts:[["homegoing","HomegoingHQ — African American Tradition"],["general","HomegoingHQ — Traditional Funeral / Non-Denominational"]]}, /* re-add later: ["catholic","Catholic"],["jewish","Jewish"] */
- {k:"state_code",q:"Which state did they live in?",sub:"Some steps vary by state — this helps us point you right.",type:"text",ph:"e.g., MI or Michigan"},
+ {k:"state_code",q:"Which state did they live in?",sub:"Some steps vary by state — this helps us point you right.",type:"state"},
  {k:"funeralArranged",q:"Were funeral arrangements already made or prepaid?",type:"yn3"},
  {k:"minorChildren",q:"Are there minor children or dependents who relied on them?",type:"yn"},
  {k:"pets",q:"Did they have pets?",type:"yn"},
@@ -1114,6 +1114,7 @@ function renderWiz(){
   const q=WIZ[wizStep], c=$("wizCard");
   let inner=`<div class="wiz-dots">Question ${wizStep+1} of ${WIZ.length}</div><div class="wiz-q">${q.q}</div>${q.sub?`<div class="wiz-sub">${q.sub}</div>`:""}`;
   if(q.type==="text") inner+=`<input id="wizInput" placeholder="${q.ph||""}" value="${esc(wizAnswers[q.k]||"")}">`;
+  else if(q.type==="state") inner+=`<select id="wizInput">${stateOpts(wizAnswers[q.k])}</select>`;
   else if(q.type==="date") inner+=`<input id="wizInput" type="date" value="${esc(wizAnswers[q.k]||"")}">`;
   else{
     const opts = q.type==="yn"?[["yes","Yes"],["no","No"]] : q.type==="yn3"?[["yes","Yes"],["no","No"],["unsure","I'm not sure"]] : q.opts;
@@ -1682,7 +1683,7 @@ function startPlanIntake(){
     <div class="eyebrow">New life plan</div><h3>Whose affairs are we organizing?</h3>
     <label>Their name</label><input id="npName" placeholder="Full name" value="${esc(S.profile?.full_name||"")}">
     <label>This plan is for</label><select id="npRel"><option value="self">Myself</option><option value="spouse">My spouse / partner</option><option value="parent">A parent</option><option value="other">Someone else I'm helping</option></select>
-    <label>State they live in</label><input id="npState" placeholder="e.g., MI" maxlength="2">
+    <label>State they live in</label><select id="npState">${stateOpts()}</select>
     <div class="scard-actions" style="margin-top:18px"><button class="btn btn-primary" onclick="createPlan()">Create plan</button></div>
   </div></div>`;
 }
@@ -2464,6 +2465,7 @@ function mxPrint(){
 /* ---------- OUT-OF-STATE DEATH — guided sub-flow (migration v16) ---------- */
 const US_STATES=[{c:"AL",n:"Alabama"},{c:"AK",n:"Alaska"},{c:"AZ",n:"Arizona"},{c:"AR",n:"Arkansas"},{c:"CA",n:"California"},{c:"CO",n:"Colorado"},{c:"CT",n:"Connecticut"},{c:"DE",n:"Delaware"},{c:"DC",n:"District of Columbia"},{c:"FL",n:"Florida"},{c:"GA",n:"Georgia"},{c:"HI",n:"Hawaii"},{c:"ID",n:"Idaho"},{c:"IL",n:"Illinois"},{c:"IN",n:"Indiana"},{c:"IA",n:"Iowa"},{c:"KS",n:"Kansas"},{c:"KY",n:"Kentucky"},{c:"LA",n:"Louisiana"},{c:"ME",n:"Maine"},{c:"MD",n:"Maryland"},{c:"MA",n:"Massachusetts"},{c:"MI",n:"Michigan"},{c:"MN",n:"Minnesota"},{c:"MS",n:"Mississippi"},{c:"MO",n:"Missouri"},{c:"MT",n:"Montana"},{c:"NE",n:"Nebraska"},{c:"NV",n:"Nevada"},{c:"NH",n:"New Hampshire"},{c:"NJ",n:"New Jersey"},{c:"NM",n:"New Mexico"},{c:"NY",n:"New York"},{c:"NC",n:"North Carolina"},{c:"ND",n:"North Dakota"},{c:"OH",n:"Ohio"},{c:"OK",n:"Oklahoma"},{c:"OR",n:"Oregon"},{c:"PA",n:"Pennsylvania"},{c:"RI",n:"Rhode Island"},{c:"SC",n:"South Carolina"},{c:"SD",n:"South Dakota"},{c:"TN",n:"Tennessee"},{c:"TX",n:"Texas"},{c:"UT",n:"Utah"},{c:"VT",n:"Vermont"},{c:"VA",n:"Virginia"},{c:"WA",n:"Washington"},{c:"WV",n:"West Virginia"},{c:"WI",n:"Wisconsin"},{c:"WY",n:"Wyoming"}];
 function oosStateName(c){ const s=US_STATES.find(x=>x.c===(c||"").toUpperCase()); return s?s.n:(c||""); }
+function stateOpts(sel){ sel=(sel||"").toString().trim(); return '<option value="">Select a state\u2026</option>'+US_STATES.map(function(s){var on=(sel&&(sel.toUpperCase()===s.c||sel.toLowerCase()===s.n.toLowerCase()))?" selected":""; return '<option value="'+s.c+'"'+on+'>'+esc(s.n)+'</option>';}).join(""); }
 function renderOOSCard(){
   const el=$("oosCard"); if(!el||!S.estate) return;
   const home=(S.estate.state_code||"").toUpperCase(), death=(S.estate.death_state||"").toUpperCase();
@@ -3739,7 +3741,7 @@ function admCountyModal(c){
     <button class="close" onclick="closeModal()">×</button>
     <div class="eyebrow">County court</div><h3>${c.id?"Edit":"Add"} county</h3>
     <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px">
-      <div><label>State</label><input id="ccState" value="${esc(c.state_code||$("admCtyState").value||"MI")}" maxlength="2"></div>
+      <div><label>State</label><select id="ccState">${stateOpts(c.state_code||"MI")}</select></div>
       <div><label>County</label><input id="ccCounty" value="${esc(c.county||"")}" placeholder="Wayne"></div>
     </div>
     <label>Court name</label><input id="ccCourt" value="${esc(c.court_name||"")}">
@@ -5772,7 +5774,7 @@ function toggleComfort(){
   const esc=(s)=> String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const note=(m)=>{ const el=root&&root.querySelector("#fsMsg"); if(el){ el.textContent=m; el.style.display="block"; try{el.scrollIntoView({behavior:"smooth",block:"nearest"});}catch(e){} return; } try{ if(typeof window.toast==="function"){ window.toast(m); return; } }catch(e){} alert(m); };
 
-  const FS = { tier:null, tierPages:null, fold:"bi-fold", programSize:"s85", programQty:100, addons:{}, addonOrder:[], photoUrls:[], reviewMode:null, chosenDesigner:null, prefill:{} };
+  const FS = { tier:null, tierPages:null, fold:"bi-fold", programSize:"s85", programQty:100, addons:{}, addonOrder:[], photoUrls:[], reviewMode:null, chosenDesigner:null, shipState:"", prefill:{} };
   let root=null;
 
   window.openFullService = function(mode){
@@ -5878,7 +5880,7 @@ function toggleComfort(){
       <div class="fs-field"><label>Phone</label><input id="fsKPhone" type="tel"></div></div>
       ${reviewOnly?`<div class="fs-hint" style="margin-top:4px">No shipping needed — with a program review, you print it yourself.</div>`:`<div class="fs-field"><label>Shipping address</label><input id="fsSL1" placeholder="Street address"></div>
       <div class="fs-row"><div class="fs-field"><label>City</label><input id="fsSCity"></div>
-      <div class="fs-field"><label>State</label><input id="fsSState"></div>
+      <div class="fs-field"><label>State</label><select id="fsSState" onchange="FS.shipState=this.value">${stateOpts(FS.shipState)}</select></div>
       <div class="fs-field"><label>ZIP</label><input id="fsSZip"></div></div>`}</div>`;
   }
   function quotePanel(){ const q=quote();
