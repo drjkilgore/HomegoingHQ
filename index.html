@@ -5690,7 +5690,7 @@ function toggleComfort(){
       <p class="fs-hint">Add matching items in the same design — each additional product design is $${fee} (${inc} included with your service).</p>
       <div id="fsBanner">${addonBanner()}</div>${dd}${rows}</div>`;
   }
-  function detailSec(){ if(!tierObj())return ""; const p=FS.prefill;
+  function detailSec(){ if(!tierObj())return ""; const p=FS.prefill; const reviewOnly=(FS.tier==="review"&&FS.reviewMode!=="keepsake");
     return `<div class="fs-sec"><h2><span class="fs-step">4</span>Details for your designer</h2>
       <p class="fs-hint">Your designer uses this to build the proof. You'll review and approve before anything prints.</p>
       <div class="fs-row"><div class="fs-field"><label>Name of the deceased</label><input id="fsCName" value="${esc(p.name)}"></div>
@@ -5703,10 +5703,10 @@ function toggleComfort(){
       <div class="fs-row"><div class="fs-field"><label>Your name</label><input id="fsKName" value="${esc(p.contactName)}"></div>
       <div class="fs-field"><label>Email</label><input id="fsKEmail" type="email" value="${esc(p.contactEmail)}"></div>
       <div class="fs-field"><label>Phone</label><input id="fsKPhone" type="tel"></div></div>
-      <div class="fs-field"><label>Shipping address</label><input id="fsSL1" placeholder="Street address"></div>
+      ${reviewOnly?`<div class="fs-hint" style="margin-top:4px">No shipping needed — with a program review, you print it yourself.</div>`:`<div class="fs-field"><label>Shipping address</label><input id="fsSL1" placeholder="Street address"></div>
       <div class="fs-row"><div class="fs-field"><label>City</label><input id="fsSCity"></div>
       <div class="fs-field"><label>State</label><input id="fsSState"></div>
-      <div class="fs-field"><label>ZIP</label><input id="fsSZip"></div></div></div>`;
+      <div class="fs-field"><label>ZIP</label><input id="fsSZip"></div></div>`}</div>`;
   }
   function quotePanel(){ const q=quote();
     return `<div class="fs-quote"><h3>Your quote</h3>
@@ -5792,7 +5792,7 @@ function toggleComfort(){
     try{
       const summary=`${q.tierName}. Design fee now; printing balance ${money(balance)} at proof approval. For ${v("fsCName")||"the family"}.`;
       const r=await fetch("/.netlify/functions/fullservice-checkout",{ method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ amountCents:Math.round(designFee*100), estateId:request.estateId, email:contact.email, tierName:q.tierName, summary }) });
+        body:JSON.stringify({ amountCents:Math.round(designFee*100), estateId:request.estateId, orderId, email:contact.email, tierName:q.tierName, summary }) });
       const d=await r.json();
       if(d.url){ window.location=d.url; return; }
       note(d.error||"Couldn't open checkout — please try again."); if(btn){ btn.disabled=false; btn.textContent="Pay design fee & request →"; }
