@@ -38,16 +38,42 @@ exports.handler = async (event) => {
       const orderId = session.metadata?.order_id;
       const newStatus = fsKind === "fullservice_balance" ? "balance_paid" : "design_fee_paid";
       if (orderId && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        await fetch(process.env.SUPABASE_URL + "/rest/v1/fullservice_requests?id=eq." + encodeURIComponent(orderId), {
+        const SB = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const sbHeaders = { "apikey": KEY, "Authorization": "Bearer " + KEY, "Content-Type": "application/json" };
+        await fetch(SB + "/rest/v1/fullservice_requests?id=eq." + encodeURIComponent(orderId), {
           method: "PATCH",
-          headers: {
-            "apikey": process.env.SUPABASE_SERVICE_ROLE_KEY,
-            "Authorization": "Bearer " + process.env.SUPABASE_SERVICE_ROLE_KEY,
-            "Content-Type": "application/json",
-            "Prefer": "return=minimal"
-          },
+          headers: { ...sbHeaders, "Prefer": "return=minimal" },
           body: JSON.stringify({ status: newStatus, updated_at: new Date().toISOString() })
         });
+
+        // On BALANCE paid, the job is done → credit the assigned designer's share
+        // of the design fee (printing is not shared). Unique(order_id) prevents
+        // double-crediting if the webhook is retried.
+        if (fsKind === "fullservice_balance") {
+          try {
+            const oResp = await fetch(SB + "/rest/v1/fullservice_requests?id=eq." + encodeURIComponent(orderId) +
+              "&select=assigned_designer_id,design_fee", { headers: sbHeaders });
+            const oRows = await oResp.json();
+            const order = Array.isArray(oRows) ? oRows[0] : null;
+            if (order && order.assigned_designer_id && Number(order.design_fee) > 0) {
+              let rate = 0.70;
+              const dResp = await fetch(SB + "/rest/v1/designers?id=eq." +
+                encodeURIComponent(order.assigned_designer_id) + "&select=payout_rate", { headers: sbHeaders });
+              const dRows = await dResp.json();
+              if (Array.isArray(dRows) && dRows[0] && dRows[0].payout_rate != null) rate = Number(dRows[0].payout_rate);
+              const fee = Number(order.design_fee);
+              const amount = Math.round(fee * rate * 100) / 100;
+              await fetch(SB + "/rest/v1/designer_payouts", {
+                method: "POST",
+                headers: { ...sbHeaders, "Prefer": "resolution=ignore-duplicates,return=minimal" },
+                body: JSON.stringify({
+                  order_id: orderId, designer_id: order.assigned_designer_id,
+                  design_fee: fee, rate, amount, status: "owed"
+                })
+              });
+            }
+          } catch (e) { /* payout credit is best-effort; status already updated */ }
+        }
       }
       return { statusCode: 200, body: "fullservice " + newStatus };
     }
