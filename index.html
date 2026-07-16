@@ -5496,6 +5496,7 @@ function toggleVoice(){
 /* ---------- Designer Marketplace — Phase 1 ---------- */
 const DS_SPECIALTIES=["Funeral programs","Prayer cards","Memorial books","Banners","Photo restoration","Invitations","Keepsakes","Obituaries"];
 function dsToggle(field,val,on){ window.DS=window.DS||{photo:"",portfolio:[],idDoc:"",w9Doc:"",specialties:[],states:[]}; const a=window.DS[field]||[]; if(on){ if(!a.includes(val))a.push(val); } else { const i=a.indexOf(val); if(i>=0)a.splice(i,1); } window.DS[field]=a; }
+function dsAllStates(on){ window.DS=window.DS||{states:[]}; const box=document.getElementById("dsStatesBox"); if(!box) return; const arr=[]; box.querySelectorAll('input[type="checkbox"]').forEach(function(cb){ cb.checked=on; if(on) arr.push(cb.value); }); window.DS.states=on?arr:[]; }
 function designerApplyModal(){
   const loggedOut = !S.session;
   const _d=S.designer||{};
@@ -5518,8 +5519,8 @@ function designerApplyModal(){
     <label style="margin-top:8px">Specialties</label>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${DS_SPECIALTIES.map(s=>`<label class="pill" style="cursor:pointer;border:1px solid var(--line);background:#fff;font-weight:400"><input type="checkbox" value="${s}" ${window.DS.specialties.includes(s)?"checked":""} onchange="dsToggle('specialties',this.value,this.checked)" style="margin-right:5px">${s}</label>`).join("")}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px"><div><label>Typical turnaround (days)</label><input id="dsTurn" type="number" min="1" placeholder="e.g. 3" value="${_d.turnaround_days||''}"></div><div><label>Languages</label><input id="dsLangs" placeholder="English, Spanish…" value="${esc((_d.languages||[]).join(', '))}"></div></div>
-    <label style="margin-top:8px">States you'll serve</label>
-    <div style="max-height:120px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:3px">${STATES.map(st=>`<label style="font-size:12px"><input type="checkbox" value="${st}" ${window.DS.states.includes(st)?"checked":""} onchange="dsToggle('states',this.value,this.checked)"> ${st}</label>`).join("")}</div>
+    <label style="margin-top:8px">States you'll serve <span style="font-weight:400;font-size:12px">(<a href="#" onclick="event.preventDefault();dsAllStates(true)">select all 50</a> · <a href="#" onclick="event.preventDefault();dsAllStates(false)">clear</a>)</span></label>
+    <div id="dsStatesBox" style="max-height:120px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:3px">${STATES.map(st=>`<label style="font-size:12px"><input type="checkbox" value="${st}" ${window.DS.states.includes(st)?"checked":""} onchange="dsToggle('states',this.value,this.checked)"> ${st}</label>`).join("")}</div>
     ${fileBlock}
     <label style="margin-top:12px;display:flex;gap:8px;align-items:flex-start;font-size:13px;font-weight:400"><input type="checkbox" id="dsAgree" style="margin-top:3px">I agree to HomegoingHQ's confidentiality and copyright terms, and confirm the portfolio is my own original work.</label>
     <div class="scard-actions" style="margin-top:14px"><button class="btn btn-brass" id="dsSubmitBtn" onclick="submitDesignerApplication()">${loggedOut?"Create account & apply":"Submit application"}</button></div>
