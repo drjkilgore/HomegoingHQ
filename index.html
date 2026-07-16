@@ -1378,7 +1378,7 @@ async function openMyBrand(){
       <input id="mbSub" value="${esc(a.subdomain||"")}" placeholder="grace" style="flex:1" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')">
       <span class="muted" style="font-size:13px;white-space:nowrap">.homegoinghq.com</span>
       <button class="btn btn-primary btn-sm" onclick="mbSaveSub()">Save</button></div>
-    ${a.custom_domain?`<div class="muted" style="font-size:12.5px;margin-top:6px">Custom domain: <strong>${esc(a.custom_domain)}</strong></div>`:`<div class="muted" style="font-size:12.5px;margin-top:6px">Want your own domain (yourname.com)? <a href="mailto:concierge@homegoinghq.com?subject=Custom%20domain">Ask us to set it up</a>.</div>`}
+    ${a.custom_domain?`<div class="muted" style="font-size:12.5px;margin-top:6px">Custom domain: <strong>${esc(a.custom_domain)}</strong></div>${domainHelpHTML(a.custom_domain,false)}<div id="mbDomainStatus" class="muted" style="font-size:12px;margin-top:6px"></div><div style="margin-top:4px"><button class="btn btn-ghost btn-sm" onclick="checkDomainReach('${esc(a.custom_domain)}','mbDomainStatus')">Check my domain</button></div>`:`<div class="muted" style="font-size:12.5px;margin-top:6px">Want your own domain (yourname.com)? <a href="mailto:concierge@homegoinghq.com?subject=Custom%20domain">Ask us to set it up</a> \u2014 then we'll show you exactly how to connect it here.</div>`}
 
     <div class="eyebrow" style="margin-top:18px">Brand colors</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px">
@@ -3683,6 +3683,8 @@ async function admAccountModal(id){
     <div style="display:flex;gap:6px"><input id="acDomain" value="${esc(acct.custom_domain||"")}" placeholder="care.example.com" style="flex:1">
       <button class="btn btn-primary btn-sm" onclick="admSaveDomain('${id}')">Save</button></div>
     <div id="acDomainStatus" class="muted" style="font-size:12px;margin-top:7px">Checking…</div>
+    <div style="margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="admCheckDomain()">Check again</button></div>
+    ${acct.custom_domain?domainHelpHTML(acct.custom_domain,true):""}
 
     <div class="eyebrow" style="margin-top:18px">Branding</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px">
@@ -3714,6 +3716,25 @@ async function admAccountModal(id){
     </div>
   </div></div>`;
   admBrandPreview(); admCheckDomain();
+}
+function domainHelpHTML(host, forAdmin){
+  host = host || "yourdomain.com";
+  return '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12.5px;color:var(--brass-deep,#75561D);font-weight:600">How to connect '+esc(host)+' \u2192</summary>'
+  +'<div class="muted" style="font-size:12px;line-height:1.6;margin-top:8px;background:var(--parch,#f6f2ea);border-radius:10px;padding:12px">'
+  +'<div style="margin-bottom:8px"><b>1.</b> Make sure you\'ve registered <b>'+esc(host)+'</b> at a domain registrar (GoDaddy, Namecheap, etc.).</div>'
+  +'<div style="margin-bottom:6px"><b>2.</b> At that registrar, point the domain to us. Easiest for a root domain: set its <b>nameservers</b> to Netlify\'s. Or add this DNS record:</div>'
+  +'<div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-family:monospace;font-size:12px;margin:0 0 8px"><b>A</b> record &nbsp;&nbsp; @ (root) &nbsp;\u2192&nbsp; 75.2.60.5</div>'
+  +(forAdmin?'<div style="margin-bottom:8px"><b>3.</b> In Netlify (the app site) \u2192 Domain management \u2192 <b>Add domain alias</b> \u2192 '+esc(host)+'.</div>':'<div style="margin-bottom:8px"><b>3.</b> That\'s your part \u2014 we finish connecting it on our end.</div>')
+  +'<div>SSL is issued automatically once it resolves. DNS changes can take a few minutes to a day.</div></div></details>';
+}
+async function checkDomainReach(host, elId){
+  const el=document.getElementById(elId); if(!el||!host) return;
+  const u="https://"+String(host).replace(/^https?:\/\//,"");
+  el.innerHTML="Checking if "+esc(host)+" is reachable\u2026";
+  const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),5000);
+  try{ await fetch(u,{mode:"no-cors",cache:"no-store",signal:ctrl.signal}); clearTimeout(t);
+    el.innerHTML='<span style="color:#2E7D32">\u2713 '+esc(host)+' is resolving.</span> If it still shows default branding, give it a few more minutes.';
+  }catch(e){ clearTimeout(t); el.innerHTML='<span style="color:#8B0000">\u26a0 '+esc(host)+' is not resolving yet.</span> Give DNS a little time, then check again.'; }
 }
 async function admCheckDomain(){
   const el=$("acDomainStatus"); if(!el) return;
