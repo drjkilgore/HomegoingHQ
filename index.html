@@ -846,15 +846,28 @@ async function authSubmit(){
     if(error) return $("authMsg").textContent=error.message;
     $("authMsg").textContent="Account created. If email confirmation is on, check your inbox — then sign in.";
     authMode="signup"; toggleAuthMode();
+    setTimeout(maybeOpenDesignerApply,600);
   } else {
     const {error} = await sb.auth.signInWithPassword({email,password});
     if(error) return $("authMsg").textContent=error.message;
+    setTimeout(maybeOpenDesignerApply,600);
   }
 }
 async function signOut(){ await sb.auth.signOut(); location.reload(); }
 
 const MEMORIAL_MODE = !!new URLSearchParams(location.search).get("memorial");
 let lastSessionUser = null;
+function maybeOpenDesignerApply(tries){
+  tries=tries||0;
+  try{
+    var want = sessionStorage.getItem("hqDesignerApply") || (new URLSearchParams(location.search).get("designer")==="apply");
+    if(!want) return;
+    if(!S.session){ if(tries<25) setTimeout(function(){maybeOpenDesignerApply(tries+1);},300); return; }
+    sessionStorage.removeItem("hqDesignerApply");
+    try{ history.replaceState({},"",location.pathname); }catch(e){}
+    if(S.designer) goDesigner(); else designerApplyModal();
+  }catch(e){}
+}
 async function handleSession(session){
   if(MEMORIAL_MODE) return;
   S.session = session;
@@ -891,7 +904,7 @@ async function handleSession(session){
     if(S.designer && !S.isAdmin){ goDesigner(); } else { goHome(); }
     try{ checkBalanceLink(); }catch(e){}
     // ?designer=apply link: existing designers go to their portal, brand-new applicants get the form. Clear the param so it never re-fires on refresh.
-    try{ const _wantApply=(new URLSearchParams(location.search).get("designer")==="apply")||sessionStorage.getItem("hqDesignerApply"); if(_wantApply){ sessionStorage.removeItem("hqDesignerApply"); history.replaceState({},"",location.pathname); setTimeout(()=>{ S.designer?goDesigner():designerApplyModal(); },400); } }catch(e){}
+    try{ setTimeout(maybeOpenDesignerApply,300); }catch(e){}
   } else {
     lastSessionUser = null;
     $("btnSignOut").classList.add("hidden"); $("whoami").textContent="";
