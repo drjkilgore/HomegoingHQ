@@ -270,6 +270,7 @@ summary::-webkit-details-marker{display:none}
     <div style="text-align:right">
       <span id="eStatusPill" class="pill" style="display:none"></span>
       <div><button id="eStatusBtn" class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="toggleEstateStatus()"></button></div>
+      <div><button id="eUpgradeBtn" class="btn btn-brass btn-sm" style="margin-top:6px;display:none" onclick="upgradeModal('Unlock the full roadmap for this estate')">Unlock full roadmap</button></div>
     </div>
   </div>
   <div class="tabs" id="eTabs">
@@ -1348,8 +1349,15 @@ async function openEstate(id){
   $("eName").textContent = est.decedent_name;
   $("eSub").textContent = (est.date_of_death?("Passed "+fmtDate(est.date_of_death)):"") + (est.state_code?" · "+est.state_code:"") + (est.relationship?" · You: "+est.relationship:"");
   await Promise.all([loadTasks(),loadMembers(),loadNotifs(),loadDocs(),loadStatePack()]);
-  renderEstateStatus(); renderOOSCard();
+  renderEstateStatus(); renderOOSCard(); renderEstateUpgrade();
   setTab("next"); show("view-estate");
+}
+function renderEstateUpgrade(){
+  const b=$("eUpgradeBtn"); if(!b) return;
+  const t=tier();
+  if((TIER_RANK[t]||0) >= TIER_RANK.settle){ b.style.display="none"; return; }
+  b.style.display="inline-block";
+  b.textContent = t==="companion" ? "Upgrade to Settle" : "Unlock full roadmap";
 }
 function renderEstateStatus(){
   const st = (S.estate && S.estate.status) || "active";
