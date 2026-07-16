@@ -857,12 +857,10 @@ async function signOut(){ await sb.auth.signOut(); location.reload(); }
 
 const MEMORIAL_MODE = !!new URLSearchParams(location.search).get("memorial");
 let lastSessionUser = null;
-function maybeOpenDesignerApply(tries){
-  tries=tries||0;
+function maybeOpenDesignerApply(){
   try{
     var want = sessionStorage.getItem("hqDesignerApply") || (new URLSearchParams(location.search).get("designer")==="apply");
     if(!want) return;
-    if(!S.session){ if(tries<25) setTimeout(function(){maybeOpenDesignerApply(tries+1);},300); return; }
     sessionStorage.removeItem("hqDesignerApply");
     try{ history.replaceState({},"",location.pathname); }catch(e){}
     if(S.designer) goDesigner(); else designerApplyModal();
@@ -895,6 +893,7 @@ async function handleSession(session){
       }catch(e){}
       await loadEstates();
       try{ const {data:dz}=await sb.from("designers").select("*").eq("user_id",session.user.id).maybeSingle(); S.designer=dz||null; }catch(e){ S.designer=null; }
+      try{ await completePendingDesignerApp(); }catch(e){}
     }catch(err){ toast("Loading issue: "+err.message); }
     if(S.designer){ const _b=$("btnDesigner"); if(_b){ _b.textContent="Designer portal"; _b.classList.remove("hidden"); } }
     try{ const {data:_ia}=await sb.rpc("is_admin"); if(_ia===true){ S.isAdmin=true; const _ba=$("btnAdmin"); if(_ba) _ba.classList.remove("hidden"); } }catch(e){}
@@ -912,7 +911,7 @@ async function handleSession(session){
     $("btnVoice").classList.add("hidden"); if(typeof Voice!=="undefined"&&Voice.isOn())toggleVoice();
     $("btnMenu").classList.add("hidden");
     $("guideFab").classList.add("hidden"); $("btnHelp").classList.add("hidden"); show("view-auth");
-    try{ if(sessionStorage.getItem("hqDesignerApply")) setTimeout(()=>toast("Sign in or create an account to start your designer application."),500); }catch(e){}
+    try{ setTimeout(maybeOpenDesignerApply,300); }catch(e){}
   }
 }
 // IMPORTANT: never do Supabase work inside this callback (deadlocks the auth
@@ -5498,28 +5497,32 @@ function toggleVoice(){
 const DS_SPECIALTIES=["Funeral programs","Prayer cards","Memorial books","Banners","Photo restoration","Invitations","Keepsakes","Obituaries"];
 function dsToggle(field,val,on){ window.DS=window.DS||{photo:"",portfolio:[],idDoc:"",w9Doc:"",specialties:[],states:[]}; const a=window.DS[field]||[]; if(on){ if(!a.includes(val))a.push(val); } else { const i=a.indexOf(val); if(i>=0)a.splice(i,1); } window.DS[field]=a; }
 function designerApplyModal(){
-  if(!S.session){ toast("Please sign in first, then apply to design."); return; }
+  const loggedOut = !S.session;
   const _d=S.designer||{};
   window.DS={photo:_d.profile_photo||"",portfolio:_d.portfolio_urls||[],idDoc:_d.id_doc||"",w9Doc:_d.w9_doc||"",specialties:_d.specialties||[],states:_d.states||[]};
   const STATES=[...new Set(Object.values(US_STATE_ABBR))].sort();
+  const fileBlock = loggedOut
+    ? `<div class="muted" style="font-size:12.5px;margin-top:12px;padding:10px 12px;background:var(--parch,#f6f2ea);border-radius:8px">After you apply, you'll add your <b>profile photo, portfolio, ID, and W-9</b> from your designer portal — and we'll review before you receive any assignments.</div>`
+    : `<label style="margin-top:10px">Profile photo</label><input type="file" accept="image/*" onchange="dsUpload(this,'photo')"><div id="dsPhotoS" class="muted" style="font-size:12px"></div>
+    <label style="margin-top:8px">Portfolio (images / PDFs)</label><input type="file" accept="image/*,application/pdf" multiple onchange="dsUpload(this,'portfolio')"><div id="dsPortS" class="muted" style="font-size:12px"></div>
+    <label style="margin-top:8px">Photo ID <span class="muted" style="font-weight:400">(private — verification only)</span></label><input type="file" accept="image/*,application/pdf" onchange="dsUpload(this,'id')"><div id="dsIdS" class="muted" style="font-size:12px"></div>
+    <label style="margin-top:8px">W-9 / tax form <span class="muted" style="font-weight:400">(private)</span></label><input type="file" accept="image/*,application/pdf" onchange="dsUpload(this,'w9')"><div id="dsW9S" class="muted" style="font-size:12px"></div>`;
   $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:620px;max-height:88vh;overflow:auto">
     <button class="close" onclick="closeModal()">×</button>
     <div class="eyebrow">Designer Marketplace</div><h3 style="margin:4px 0 4px">Apply to design for HomegoingHQ</h3>
-    <p class="muted" style="font-size:13px;margin-bottom:14px">Tell us about your work. Every application is reviewed before you receive assignments.</p>
+    <p class="muted" style="font-size:13px;margin-bottom:14px">Tell us about your work. ${loggedOut?"We'll create your designer account when you submit.":"Every application is reviewed before you receive assignments."}</p>
     <label>Full name</label><input id="dsName" value="${esc((S.profile&&S.profile.full_name)||'')}">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label>Email</label><input id="dsEmail" value="${esc((S.session.user&&S.session.user.email)||'')}"></div><div><label>Phone</label><input id="dsPhone" value="${esc(_d.phone||'')}"></div></div>
-    <label>Short bio</label><textarea id="dsBio" placeholder="Your background, experience, and design style…">${esc(_d.bio||'')}</textarea>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label>Email</label><input id="dsEmail" type="email" value="${esc(loggedOut?'':((S.session&&S.session.user&&S.session.user.email)||''))}"></div><div><label>Phone</label><input id="dsPhone" value="${esc(_d.phone||'')}"></div></div>
+    ${loggedOut?`<label style="margin-top:8px">Choose a password</label><input id="dsPass" type="password" placeholder="At least 6 characters — for your designer account">`:''}
+    <label style="margin-top:8px">Short bio</label><textarea id="dsBio" placeholder="Your background, experience, and design style…">${esc(_d.bio||'')}</textarea>
     <label style="margin-top:8px">Specialties</label>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${DS_SPECIALTIES.map(s=>`<label class="pill" style="cursor:pointer;border:1px solid var(--line);background:#fff;font-weight:400"><input type="checkbox" value="${s}" ${window.DS.specialties.includes(s)?"checked":""} onchange="dsToggle('specialties',this.value,this.checked)" style="margin-right:5px">${s}</label>`).join("")}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px"><div><label>Typical turnaround (days)</label><input id="dsTurn" type="number" min="1" placeholder="e.g. 3" value="${_d.turnaround_days||''}"></div><div><label>Languages</label><input id="dsLangs" placeholder="English, Spanish…" value="${esc((_d.languages||[]).join(', '))}"></div></div>
     <label style="margin-top:8px">States you'll serve</label>
     <div style="max-height:120px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:3px">${STATES.map(st=>`<label style="font-size:12px"><input type="checkbox" value="${st}" ${window.DS.states.includes(st)?"checked":""} onchange="dsToggle('states',this.value,this.checked)"> ${st}</label>`).join("")}</div>
-    <label style="margin-top:10px">Profile photo</label><input type="file" accept="image/*" onchange="dsUpload(this,'photo')"><div id="dsPhotoS" class="muted" style="font-size:12px"></div>
-    <label style="margin-top:8px">Portfolio (images / PDFs)</label><input type="file" accept="image/*,application/pdf" multiple onchange="dsUpload(this,'portfolio')"><div id="dsPortS" class="muted" style="font-size:12px"></div>
-    <label style="margin-top:8px">Photo ID <span class="muted" style="font-weight:400">(private — verification only)</span></label><input type="file" accept="image/*,application/pdf" onchange="dsUpload(this,'id')"><div id="dsIdS" class="muted" style="font-size:12px"></div>
-    <label style="margin-top:8px">W-9 / tax form <span class="muted" style="font-weight:400">(private)</span></label><input type="file" accept="image/*,application/pdf" onchange="dsUpload(this,'w9')"><div id="dsW9S" class="muted" style="font-size:12px"></div>
-    <label style="margin-top:10px;display:flex;gap:8px;align-items:flex-start;font-size:13px;font-weight:400"><input type="checkbox" id="dsAgree" style="margin-top:3px">I agree to HomegoingHQ's confidentiality and copyright terms, and confirm the portfolio is my own original work.</label>
-    <div class="scard-actions" style="margin-top:14px"><button class="btn btn-brass" onclick="submitDesignerApplication()">Submit application</button></div>
+    ${fileBlock}
+    <label style="margin-top:12px;display:flex;gap:8px;align-items:flex-start;font-size:13px;font-weight:400"><input type="checkbox" id="dsAgree" style="margin-top:3px">I agree to HomegoingHQ's confidentiality and copyright terms, and confirm the portfolio is my own original work.</label>
+    <div class="scard-actions" style="margin-top:14px"><button class="btn btn-brass" id="dsSubmitBtn" onclick="submitDesignerApplication()">${loggedOut?"Create account & apply":"Submit application"}</button></div>
     <div id="dsMsg" class="muted" style="font-size:12.5px;margin-top:8px"></div>
   </div></div>`;
 }
@@ -5547,18 +5550,39 @@ async function submitDesignerApplication(){
   const DS=window.DS||{}, msg=$("dsMsg"); const fail=(m)=>{ if(msg){msg.style.color="#c0392b";msg.textContent=m;} };
   const name=$("dsName").value.trim(), email=$("dsEmail").value.trim();
   if(!name||!email) return fail("Please add your name and email.");
+  const loggedOut=!S.session;
+  if(loggedOut){ const pw=($("dsPass")&&$("dsPass").value)||""; if(pw.length<6) return fail("Choose a password (at least 6 characters) to create your designer account."); }
   if(!$("dsAgree").checked) return fail("Please agree to the confidentiality and copyright terms.");
   if(!(DS.specialties&&DS.specialties.length)||!(DS.states&&DS.states.length)) return fail("Please pick at least one specialty and one state you serve.");
   const langs=$("dsLangs").value.trim();
-  const row={ user_id:S.session.user.id, full_name:name, email, phone:$("dsPhone").value.trim()||null, bio:$("dsBio").value.trim()||null,
+  const row={ full_name:name, email, phone:$("dsPhone").value.trim()||null, bio:$("dsBio").value.trim()||null,
     specialties:DS.specialties, states:DS.states, languages:langs?langs.split(",").map(x=>x.trim()).filter(Boolean):null,
     turnaround_days:parseInt($("dsTurn").value)||null, profile_photo:DS.photo||null, portfolio_urls:(DS.portfolio&&DS.portfolio.length)?DS.portfolio:null,
     id_doc:DS.idDoc||null, w9_doc:DS.w9Doc||null, agreed_terms:true, status:"pending", updated_at:new Date().toISOString() };
+  const btn=$("dsSubmitBtn"), orig=btn?btn.textContent:""; if(btn){ btn.disabled=true; btn.textContent="Submitting…"; }
+  const stop=(m)=>{ if(btn){ btn.disabled=false; btn.textContent=orig; } fail(m); };
   try{
+    if(loggedOut){
+      const {error:suErr}=await sb.auth.signUp({email,password:$("dsPass").value,options:{data:{full_name:name}}});
+      if(suErr) return stop(suErr.message);
+      let sess=null; for(let i=0;i<12;i++){ const {data}=await sb.auth.getSession(); if(data&&data.session){ sess=data.session; break; } await new Promise(r=>setTimeout(r,300)); }
+      if(!sess){ try{ localStorage.setItem("pendingDesignerApp", JSON.stringify(row)); }catch(e){} closeModal(); toast("Account created — check your email to confirm, then sign in and your application finishes automatically."); return; }
+      S.session=sess; row.user_id=sess.user.id;
+    } else { row.user_id=S.session.user.id; }
     const {error}=await sb.from("designers").upsert(row,{onConflict:"user_id"}); if(error) throw error;
     window.DS={photo:"",portfolio:[],idDoc:"",w9Doc:"",specialties:[],states:[]};
+    try{ const {data:dz}=await sb.from("designers").select("*").eq("user_id",row.user_id).maybeSingle(); S.designer=dz||null; }catch(e){}
     closeModal(); toast("Application submitted — we'll review it and be in touch. Thank you.");
-  }catch(e){ fail(e.message||"Couldn't submit — please try again."); }
+    if(S.designer){ try{ goDesigner(); }catch(e){} }
+  }catch(e){ stop(e.message||"Couldn't submit — please try again."); }
+}
+async function completePendingDesignerApp(){
+  try{
+    if(!S.session) return; const raw=localStorage.getItem("pendingDesignerApp"); if(!raw) return;
+    const row=JSON.parse(raw); row.user_id=S.session.user.id;
+    const {error}=await sb.from("designers").upsert(row,{onConflict:"user_id"});
+    if(!error){ localStorage.removeItem("pendingDesignerApp"); try{ const {data:dz}=await sb.from("designers").select("*").eq("user_id",S.session.user.id).maybeSingle(); S.designer=dz||null; }catch(e){} toast("Your designer application is complete — welcome. We'll be in touch."); }
+  }catch(e){}
 }
 async function admLoadDesigners(){
   const el=$("admDesigners"); if(!el) return;
