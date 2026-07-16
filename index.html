@@ -342,6 +342,9 @@ summary::-webkit-details-marker{display:none}
         <button class="btn btn-brass btn-sm" onclick="openProgram()">Design the program →</button>
       </div>
     </div>
+    <div class="card" style="margin-top:14px"><div class="eyebrow">Your design orders</div>
+      <p class="muted" style="font-size:13px;margin:4px 0 10px">Track your full-service requests — proof review, approval, and the printing balance.</p>
+      <div id="fsOrders"></div></div>
   </div>
   <div id="tab-flowers" class="hidden"><iframe src="flowerhub.html" title="FlowerHub" style="width:100%;height:82vh;min-height:640px;border:0;border-radius:12px;background:#F6F2EA"></iframe></div>
   <div id="tab-claims" class="hidden"></div>
@@ -891,6 +894,56 @@ if(CONFIGURED) sb.auth.onAuthStateChange((_e, session)=>{
 });
 // Deep-link: opening app.homegoinghq.com/#admin (e.g. the "Back to Admin Hub"
 // link on the other sites) jumps straight to this console — for admins only.
+function fsOrderCard(o){
+  const steps=[["requested","Requested"],["design_fee_paid","Design fee paid"],["proof_ready","Proof ready"],["balance_paid","Paid / complete"],["shipped","Shipped"]];
+  const st=o.status||"requested"; const nm=(o.details&&o.details.content&&o.details.content.name)||"Design order";
+  const tier=(o.quote&&o.quote.tierName)||nm; const bal=Number(o.balance||0); const admin=S.isAdmin;
+  const created=o.created_at?new Date(o.created_at).toLocaleDateString():""; const fmt=(n)=>"$"+Number(n||0).toFixed(2);
+  const badge=(steps.find(s=>s[0]===st)||[st,st])[1];
+  let action="";
+  if(admin){
+    action=`<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0">Upload proof<input type="file" accept="image/*,application/pdf" style="display:none" onchange="fsUploadProof('${o.id}',this)"></label>
+      ${o.proof_url?`<a class="btn btn-ghost btn-sm" href="${esc(o.proof_url)}" target="_blank" rel="noopener">View proof</a>`:""}
+      <select onchange="fsSetStatus('${o.id}',this.value)" style="width:auto;padding:6px 8px;font-size:12px">${steps.map(s=>`<option value="${s[0]}" ${st===s[0]?"selected":""}>${s[1]}</option>`).join("")}</select></div>
+      <div class="muted" style="font-size:11.5px;margin-top:5px">${esc((o.contact&&o.contact.email)||"")}${o.contact&&o.contact.phone?" · "+esc(o.contact.phone):""}</div>`;
+  } else if(st==="proof_ready"){
+    action=`<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${o.proof_url?`<a class="btn btn-ghost btn-sm" href="${esc(o.proof_url)}" target="_blank" rel="noopener">View your proof</a>`:""}
+      ${bal>0?`<button class="btn btn-brass btn-sm" onclick="payBalance('${o.id}',${bal})">Approve &amp; pay balance ${fmt(bal)} →</button>`:`<button class="btn btn-brass btn-sm" onclick="fsSetStatus('${o.id}','balance_paid')">Approve proof →</button>`}</div>`;
+  } else if(st==="balance_paid"||st==="shipped"){
+    action=`<div class="muted" style="font-size:12px;margin-top:6px">${st==="shipped"?"Shipped — on its way to you.":"Approved &amp; paid — printing now."}</div>`;
+  } else {
+    action=`<div class="muted" style="font-size:12px;margin-top:6px">Your designer is preparing your proof. You'll review and approve it right here.</div>`;
+  }
+  return `<div class="card" style="padding:14px 16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><strong>${esc(tier)}</strong><span class="pill" style="background:var(--sage);color:#fff;font-size:11px">${esc(badge)}</span></div>
+    <div class="muted" style="font-size:12.5px;margin-top:2px">${esc(nm)}${created?" · "+created:""}${bal>0?" · balance "+fmt(bal):""}</div>${action}</div>`;
+}
+async function loadFsOrders(){
+  const el=$("fsOrders"); if(!el) return;
+  el.innerHTML='<div class="muted" style="font-size:13px">Loading…</div>';
+  try{ const {data}=await sb.from("fullservice_requests").select("*").order("created_at",{ascending:false});
+    const orders=data||[];
+    if(!orders.length){ el.innerHTML='<div class="muted" style="font-size:13px">No design orders yet. When you request a full-service design, it appears here with its status and proof.</div>'; return; }
+    el.innerHTML=(S.isAdmin?'<div class="muted" style="font-size:12px;margin-bottom:8px">Admin view — all orders. Upload a proof and set the status; each family sees updates in their own list.</div>':"")+orders.map(fsOrderCard).join("");
+  }catch(e){ el.innerHTML='<div class="muted" style="font-size:13px">Couldn\'t load orders right now.</div>'; }
+}
+async function fsUploadProof(id,input){
+  if(!input.files||!input.files[0]) return; const f=input.files[0];
+  toast("Uploading proof…");
+  try{ const path="proofs/"+id+"-"+Date.now()+"-"+f.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const {error}=await sb.storage.from("designer-photos").upload(path,f,{upsert:true}); if(error) throw error;
+    const {data}=sb.storage.from("designer-photos").getPublicUrl(path);
+    await sb.from("fullservice_requests").update({proof_url:data.publicUrl,status:"proof_ready",updated_at:new Date().toISOString()}).eq("id",id);
+    toast("Proof uploaded — the family can now review and approve it."); loadFsOrders();
+  }catch(e){ toast(e.message||"Upload failed."); }
+}
+async function fsSetStatus(id,status){
+  try{ await sb.from("fullservice_requests").update({status,updated_at:new Date().toISOString()}).eq("id",id);
+    if(status==="balance_paid"&&!S.isAdmin) toast("Proof approved — thank you.");
+    loadFsOrders();
+  }catch(e){ toast(e.message||"Couldn't update."); }
+}
 async function checkBalanceLink(){
   try{
     const id=new URLSearchParams(location.search).get("fsbalance"); if(!id) return;
@@ -1244,6 +1297,7 @@ function setTab(t){
   });
   if(t==="next") renderNext();
   if(t==="roadmap") renderRoadmap();
+  if(t==="print" && typeof loadFsOrders==="function") loadFsOrders();
   if(t==="notify"){ renderNotifs(); renderGov(); renderTemplates(); }
   if(t==="docs") renderDocs();
   if(t==="funeral") loadFuneral();
@@ -5545,7 +5599,7 @@ function toggleComfort(){
   const esc=(s)=> String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const note=(m)=>{ try{ if(typeof window.toast==="function"){ window.toast(m); return; } }catch(e){} alert(m); };
 
-  const FS = { tier:null, tierPages:null, fold:"bi-fold", programSize:"s85", programQty:100, addons:{}, addonOrder:[], photoUrls:[], prefill:{} };
+  const FS = { tier:null, tierPages:null, fold:"bi-fold", programSize:"s85", programQty:100, addons:{}, addonOrder:[], photoUrls:[], reviewMode:null, prefill:{} };
   let root=null;
 
   window.openFullService = function(mode){
@@ -5562,7 +5616,7 @@ function toggleComfort(){
       contactName: (window.S&&window.S.profile&&window.S.profile.full_name)||"",
       contactEmail: (window.S&&window.S.session&&window.S.session.user&&window.S.session.user.email)||"",
     };
-    if(mode==="keepsakes"){ FS.tier="review"; FS.tierPages=null; }
+    if(mode==="keepsakes"){ FS.tier="review"; FS.tierPages=null; FS.reviewMode="keepsake"; }
     render(); root.classList.add("fs-open"); document.body.style.overflow="hidden";
   };
   function closeFS(){ if(root){ root.classList.remove("fs-open"); document.body.style.overflow=""; } }
@@ -5605,7 +5659,9 @@ function toggleComfort(){
       <div class="fs-tiers">${CONFIG.designerTiers.map(t=>{
         const price=t.variants?`${money(t.variants[12])}–${money(t.variants[20])}`:money(t.price);
         return `<div class="fs-tier ${FS.tier===t.id?'fs-sel':''}" data-tier="${t.id}"><div class="fs-nm">${t.name}</div><div class="fs-pr">${price}</div><div class="fs-ds">${t.desc}</div></div>`;
-      }).join("")}</div>${luxPicker()}</div>`;
+      }).join("")}</div>
+      ${FS.tier==="review"?`<div class="fs-row" style="margin-top:12px"><div class="fs-field"><label>What would you like with this $99 service?</label><select id="fsReviewMode"><option value="review" ${FS.reviewMode!=="keepsake"?"selected":""}>A review of my own program (I print it myself)</option><option value="keepsake" ${FS.reviewMode==="keepsake"?"selected":""}>Design one keepsake for me</option></select></div></div>`:""}
+      ${luxPicker()}</div>`;
   }
   function luxPicker(){ const t=tierObj(); if(!t||!t.variants)return ""; return `<div class="fs-field" style="margin-top:12px;max-width:260px"><label>Program length</label><select id="fsLux">${Object.keys(t.variants).map(p=>`<option value="${p}" ${String(FS.tierPages)===p?'selected':''}>${p} pages — ${money(t.variants[p])}</option>`).join("")}</select></div>`; }
   function programSec(){ if(!tierObj()||FS.tier==="review")return ""; const pg=programPages();
@@ -5618,7 +5674,7 @@ function toggleComfort(){
       </div>
       ${!DP.program[String(pg)]?`<div class="fs-ph">${pg}-page is a larger booklet — the price is an estimate your designer confirms with a DisciplePress custom quote.</div>`:''}</div>`;
   }
-  function addonSec(){ if(!tierObj())return ""; const inc=includedAddons(), fee=CONFIG.EXTRA_DESIGN_FEE;
+  function addonSec(){ if(!tierObj())return ""; if(FS.tier==="review"&&FS.reviewMode!=="keepsake")return ""; const inc=includedAddons(), fee=CONFIG.EXTRA_DESIGN_FEE;
     const avail=CONFIG.addons.filter(a=>!FS.addonOrder.includes(a.id));
     const dd=`<div class="fs-field" style="max-width:340px"><label>Add a matching product</label>
       <select id="fsAddSel"><option value="">＋ Choose a product…</option>${avail.map(a=>`<option value="${a.id}">${a.name}</option>`).join("")}</select></div>`;
@@ -5676,6 +5732,7 @@ function toggleComfort(){
     const addSel=root.querySelector("#fsAddSel"); if(addSel)addSel.onchange=()=>{ const id=addSel.value; const a=CONFIG.addons.find(x=>x.id===id); if(a&&!FS.addonOrder.includes(id)){ FS.addonOrder.push(id); FS.addons[id]=FS.addons[id]||{variant:a.variants[0][0],qty:a.qtys[0]}; render(); } };
     root.querySelectorAll("[data-arem]").forEach(el=>el.onclick=()=>{ const id=el.getAttribute("data-arem"); FS.addonOrder=FS.addonOrder.filter(x=>x!==id); delete FS.addons[id]; render(); });
     const _files=root.querySelector("#fsCFiles"); if(_files)_files.onchange=()=>fsUpload(_files);
+    const _rm=root.querySelector("#fsReviewMode"); if(_rm)_rm.onchange=()=>{ FS.reviewMode=_rm.value; render(); };
     const sb=root.querySelector("#fsSubmit"); if(sb)sb.onclick=submit;
   }
   function soft(){ const p=root.querySelector(".fs-quote"); if(p){ const t=document.createElement("div"); t.innerHTML=quotePanel(); p.replaceWith(t.firstElementChild); bind(); } const b=root.querySelector("#fsBanner"); if(b)b.innerHTML=addonBanner(); }
@@ -5702,13 +5759,14 @@ function toggleComfort(){
     const q=quote();
     const designFee=(q.tierPrice||0)+(q.extraDesign||0);      // charged now
     const balance=Math.max(0,(q.total||0)-designFee);         // printing, billed at proof approval
+    const reviewOnly = (FS.tier==="review" && FS.reviewMode!=="keepsake");
     const missing=[];
     const need=(id,label)=>{ const el=root.querySelector("#"+id); const val=el?el.value.trim():""; if(!val){ missing.push(label); if(el){ el.style.borderColor="#c0392b"; el.style.background="#fdf3f2"; } } else if(el){ el.style.borderColor=""; el.style.background=""; } return val; };
     const email=need("fsKEmail","your email"), phone=need("fsKPhone","your phone");
     need("fsKName","your name"); need("fsCName","name of the deceased"); need("fsCDates","dates"); need("fsCNotes","service details / notes");
-    need("fsSL1","shipping address"); need("fsSCity","city"); need("fsSState","state"); need("fsSZip","ZIP");
+    if(!reviewOnly){ need("fsSL1","shipping address"); need("fsSCity","city"); need("fsSState","state"); need("fsSZip","ZIP"); }
     let keepsakeMsg="";
-    if(includedAddons()>=1 && FS.addonOrder.length===0){ keepsakeMsg=`This service includes ${includedAddons()} keepsake design${includedAddons()>1?"s":""} — add ${includedAddons()>1?"at least one":"one"} in the Matching keepsakes section. `; }
+    if(!reviewOnly && includedAddons()>=1 && FS.addonOrder.length===0){ keepsakeMsg=`This service includes ${includedAddons()} keepsake design${includedAddons()>1?"s":""} — add ${includedAddons()>1?"at least one":"one"} in the Matching keepsakes section. `; }
     if(missing.length||keepsakeMsg){ note(keepsakeMsg+(missing.length?("Please complete: "+missing.join(", ")+"."):"")); const first=root.querySelector('[style*="c0392b"]'); if(first&&first.scrollIntoView) first.scrollIntoView({behavior:"smooth",block:"center"}); return; }
     const contact={ name:v("fsKName"), email, phone };
     const request={
