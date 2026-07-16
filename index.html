@@ -921,7 +921,7 @@ function fsOrderCard(o,asDesigner){
     action=`<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0">Upload proof<input type="file" accept="image/*,application/pdf" style="display:none" onchange="fsUploadProof('${o.id}',this)"></label>
       ${o.proof_url?`<a class="btn btn-ghost btn-sm" href="${esc(o.proof_url)}" target="_blank" rel="noopener">View proof</a>`:""}
-      <select onchange="fsSetStatus('${o.id}',this.value)" style="width:auto;padding:6px 8px;font-size:12px">${steps.map(s=>`<option value="${s[0]}" ${st===s[0]?"selected":""}>${s[1]}</option>`).join("")}</select></div>
+      <select onchange="fsSetStatus('${o.id}',this.value)" style="width:auto;padding:6px 8px;font-size:12px">${steps.map(s=>`<option value="${s[0]}" ${st===s[0]?"selected":""}>${s[1]}</option>`).join("")}</select>${st==="proof_ready"?(bal>0?`<button class="btn btn-brass btn-sm" onclick="payBalance('${o.id}',${bal})">Approve &amp; pay balance ${fmt(bal)} →</button>`:`<button class="btn btn-brass btn-sm" onclick="fsSetStatus('${o.id}','balance_paid')">Mark approved →</button>`):""}</div>
       <div class="muted" style="font-size:11.5px;margin-top:5px">${esc((o.contact&&o.contact.email)||"")}${o.contact&&o.contact.phone?" · "+esc(o.contact.phone):""}${!asDesigner?(o.assigned_designer_id?' · <span style="color:#3f6b4f">assigned</span>':' · <span style="color:#8F6A24">unassigned</span>'):""}</div>`;
   } else if(st==="proof_ready"){
     action=`<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${o.proof_url?`<a class="btn btn-ghost btn-sm" href="${esc(o.proof_url)}" target="_blank" rel="noopener">View your proof</a>`:""}
