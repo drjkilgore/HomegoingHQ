@@ -2589,7 +2589,7 @@ async function loadCustomThemes(){
   try{
     const {data}=await sb.from("program_themes").select("*").order("created_at");
     S.customThemes=data||[];
-    (data||[]).forEach(t=>{ PG_THEMES[t.key]={name:t.name,ink:t.ink,accent:t.accent,bg:t.bg,script:t.script,display:t.display,body:t.body,motif:t.motif,swatch:t.swatch||t.bg,sw:t.sw}; });
+    (data||[]).forEach(t=>{ PG_THEMES[t.key]={name:t.name,ink:t.ink,accent:t.accent,bg:t.bg,script:t.script,display:t.display,body:t.body,motif:t.motif,swatch:t.swatch||t.bg,sw:t.sw,canvaUrl:t.canva_url||null}; });
   }catch(e){ S.customThemes=S.customThemes||[]; }
 }
 const PG_FONT_OPTS=[["'Great Vibes',cursive","Great Vibes (script)"],["'Playfair Display',serif","Playfair Display"],["'Cinzel',serif","Cinzel (engraved caps)"],["'Cormorant Garamond',serif","Cormorant Garamond"],["'Montserrat',sans-serif","Montserrat (clean sans)"]];
@@ -2601,6 +2601,8 @@ function themeManagerModal(){
     <div class="eyebrow">Design templates</div><h3 style="margin-bottom:6px">Add a design template</h3>
     <p class="muted" style="font-size:12.5px;margin-bottom:12px">Templates you add here appear in "Choose the design" for every family, right away.</p>
     <label>Template name</label><input id="tmName" placeholder="e.g. Ocean Tribute">
+    <label style="margin-top:10px">Canva template link (optional)</label><input id="tmCanva" placeholder="Paste a Canva template share link">
+    <div class="muted" style="font-size:11.5px;margin:4px 0 2px">Add a Canva link to offer one of your Canva designs — the family opens and customizes it in Canva. Leave it blank to build a normal in-app color theme below.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div><label>Text color</label><input id="tmInk" type="color" value="#3a3a3a" style="height:44px;padding:4px"></div>
       <div><label>Accent color</label><input id="tmAccent" type="color" value="#8f6a24" style="height:44px;padding:4px"></div>
@@ -2616,7 +2618,7 @@ function themeManagerModal(){
       <div><label>Picker emoji</label><input id="tmSw" placeholder="🕊" maxlength="4"></div>
     </div>
     <div class="scard-actions" style="margin-top:14px"><button class="btn btn-brass" onclick="saveCustomTheme()">Add template</button></div>
-    ${custom.length?`<div style="margin-top:18px"><div class="eyebrow" style="margin-bottom:8px">Your templates (${custom.length})</div>${custom.map(t=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--line)"><span style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:24px;height:24px;border-radius:7px;background:${t.bg};border:1px solid var(--line)"></span>${esc(t.name)}</span><button class="btn btn-ghost btn-sm" onclick="deleteCustomTheme('${t.id}')">Delete</button></div>`).join("")}</div>`:""}
+    ${custom.length?`<div style="margin-top:18px"><div class="eyebrow" style="margin-bottom:8px">Your templates (${custom.length})</div>${custom.map(t=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--line)"><span style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:24px;height:24px;border-radius:7px;background:${t.bg};border:1px solid var(--line)"></span>${esc(t.name)}${t.canva_url?' <span style="font-size:10px;background:#00c4cc;color:#fff;padding:1px 7px;border-radius:8px">Canva</span>':""}</span><button class="btn btn-ghost btn-sm" onclick="deleteCustomTheme('${t.id}')">Delete</button></div>`).join("")}</div>`:""}
   </div></div>`;
 }
 async function saveCustomTheme(){
@@ -2625,7 +2627,7 @@ async function saveCustomTheme(){
   const key="c_"+name.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"").slice(0,24)+"_"+Math.random().toString(36).slice(2,6);
   const row={key,name,ink:$("tmInk").value,accent:$("tmAccent").value,bg,
     script:$("tmScript").value,display:$("tmDisplay").value,body:$("tmBody").value,
-    motif:($("tmMotif").value||"").trim()||"—",swatch:bg,sw:($("tmSw").value||"").trim()||"🕊",created_by:S.session.user.id};
+    motif:($("tmMotif").value||"").trim()||"—",swatch:bg,sw:($("tmSw").value||"").trim()||"🕊",canva_url:($("tmCanva").value||"").trim()||null,created_by:S.session.user.id};
   const {error}=await sb.from("program_themes").insert(row);
   if(error) return toast(error.message);
   toast("Template added — it's now in Choose the design.");
@@ -4545,8 +4547,10 @@ function pgFormHtml(){
   <div class="pg-step">
     <div class="eyebrow">Choose the design</div>
     <p class="muted" style="font-size:13px;margin:6px 0 10px">Eight collections, each print-tested. You can switch anytime — everything you enter stays.</p>
-    <div class="theme-pick">${Object.entries(PG_THEMES).map(([k,th])=>`
-      <button class="theme-card ${t.theme===k?"on":""}" onclick="pgSet('theme','${k}');renderProgram()">
+    <div class="theme-pick">${Object.entries(PG_THEMES).map(([k,th])=> th.canvaUrl
+      ? `<button class="theme-card" onclick="window.open('${th.canvaUrl}','_blank')" title="Opens your Canva design">
+        <div class="theme-swatch" style="background:${th.swatch}">${th.sw}</div><div class="tn">${th.name} <span style="font-size:10px;opacity:.65">Canva ↗</span></div></button>`
+      : `<button class="theme-card ${t.theme===k?"on":""}" onclick="pgSet('theme','${k}');renderProgram()">
         <div class="theme-swatch" style="background:${th.swatch}">${th.sw}</div><div class="tn">${th.name}</div></button>`).join("")}
     </div>
     ${S.isAdmin?`<div style="margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="themeManagerModal()">＋ Add a design template (admin)</button></div>`:""}
@@ -5442,7 +5446,6 @@ function toggleComfort(){
 (function(){
   /* ---- CONFIG: designer tiers are real; printing prices are PLACEHOLDERS. ---- */
   const CONFIG = {
-    MARKUP_PCT: 50,
     EXTRA_DESIGN_FEE: 39,   // per additional product design beyond the tier's included count
     designerTiers: [
       { id:"review",  name:"Designer Review",         price:49,  pages:null, includedAddons:0,
@@ -5455,24 +5458,43 @@ function toggleComfort(){
         desc:"Magazine-quality, highly personalized design with family consultation. Includes the design of two additional matching products.",
         variants:{ 12:399, 16:499, 20:599 } },
     ],
-    program:{ folds:["bi-fold","tri-fold","no-fold"], wholesaleByPages:{4:0.80,8:1.20,12:1.60,16:2.00,20:2.40} },
+    program:{ folds:["bi-fold","tri-fold","no-fold"], sizes:[["s85","8.5×11 (standard)"],["s1117","11×17 (large)"]], qtys:[25,50,100,150,200,250,300,400,500] },
     addons:[
-      { id:"prayer",   name:"Memorial / Prayer Cards", opts:{ size:["2.5×4.25","4×6","5.5×8.5"], stock:["gloss","matte","laminated"] },
-        wholesale:(o)=>({ "2.5×4.25":0.45, "4×6":0.70, "5.5×8.5":0.95 }[o.size] ?? 0.45) },
-      { id:"bookmark", name:"Memorial Bookmarks (2.5×8.5)", opts:{ stock:["gloss","matte","laminated"], tassel:["none","gold","silver"] },
-        wholesale:(o)=> 0.50 + (o.tassel && o.tassel!=="none" ? 0.25 : 0) },
-      { id:"thankyou", name:"Thank You Cards", opts:{ stock:["gloss","matte"] }, wholesale:()=>0.75 },
-      { id:"poster",   name:"Memorial Poster (20×30)", opts:{}, wholesale:()=>12.00 },
-      { id:"fan",      name:"Memorial Fan (8×8)", opts:{ stock:["gloss","matte"] }, wholesale:()=>1.50 },
-      { id:"guestbook",name:"Guest Book", opts:{ type:["pre-printed","custom"] }, wholesale:(o)=> o.type==="custom" ? 18 : 12 },
+      { id:"prayer",   name:"Memorial / Prayer Cards", variants:[["prayer_std","Standard"],["prayer_lam","Laminated"]], qtys:[50,100,150,200,250,300,400,500] },
+      { id:"bookmark", name:"Memorial Bookmarks", variants:[["bookmark_plain","Standard, no tassel"],["bookmark_tassel","With tassel"],["bookmark_lam_plain","Laminated, no tassel"],["bookmark_lam_tassel","Laminated + tassel"]], qtys:[50,100,150,200,250,300,400,500] },
+      { id:"thankyou", name:"Thank You Cards", variants:[["thankyou","Standard"]], qtys:[25,50,100,150,200,250,300,400,500] },
+      { id:"fan",      name:"Memorial Fans (8×8)", variants:[["fan","Fan"]], qtys:[10,20,30,40,50,60,70,80,90,100] },
     ],
   };
-  const retail=(w)=> Math.round(w*(1+CONFIG.MARKUP_PCT/100)*100)/100;
+  const MARKUP = 1.35;   // 35% over DisciplePress "we customize" wholesale
+  const DP = {
+    program: {
+      "4":  { s85:{25:84.99,50:95.99,100:150.99,150:200.99,200:240.99,250:270.99,300:290.99,400:360.99,500:420.99},
+              s1117:{25:199.99,50:170.99,100:230.99,150:380.99,200:460.99,250:520.99,300:560.99,400:700.99,500:820.99} },
+      "8":  { s85:{25:105.99,50:147.99,100:241.99,150:326.99,200:394.99,250:445.99,300:479.99,400:589.99,500:700.99},
+              s1117:{25:190.99,50:275.99,100:462.99,150:632.99,200:768.99,250:870.99,300:938.99,400:1159.99,500:1380.99} },
+      "12": { s85:{25:147.99,50:241.99,100:326.99,150:441.99,200:531.99,250:594.99,300:661.99,400:837.99,500:995.99},
+              s1117:{25:275.99,50:403.99,100:632.99,150:862.99,200:1041.99,250:1168.99,300:1302.99,400:1653.99,500:2015.99} },
+    },
+    prayer_std:{50:84.99,100:104.99,150:124.99,200:144.99,250:164.99,300:184.99,400:204.99,500:224.99},
+    prayer_lam:{50:94.99,100:124.99,150:154.99,200:184.99,250:214.99,300:244.99,400:284.99,500:324.99},
+    bookmark_plain:{50:95.99,100:125.99,150:155.99,200:185.99,250:215.99,300:245.99,400:275.99,500:305.99},
+    bookmark_tassel:{50:107.99,100:150.99,150:192.99,200:235.99,250:277.99,300:320.99,400:375.99,500:430.99},
+    bookmark_lam_plain:{50:110.99,100:155.99,150:200.99,200:245.99,250:290.99,300:335.99,400:395.99,500:454.99},
+    bookmark_lam_tassel:{50:122.99,100:180.99,150:237.99,200:295.99,250:347.50,300:410.99,400:495.99,500:579.99},
+    thankyou:{25:93.99,50:117.99,100:156.99,150:195.99,200:234.99,250:273.99,300:312.99,400:351.99,500:390.99},
+    fan:{10:69.99,20:95.99,30:119.99,40:150.99,50:180.99,60:209.99,70:238.99,80:253.99,90:283.99,100:309.99},
+  };
+  const retail=(w)=> (w==null)?null:Math.round(w*MARKUP*100)/100;
+  function dpProgram(pages,size,qty){ const p=DP.program[String(pages)];
+    if(p){ const t=p[size]; return t?(t[qty]??null):null; }
+    const b=DP.program["12"][size]; if(!b||b[qty]==null) return null; return Math.round(b[qty]*(pages/12)*100)/100; }
+  function dpAddon(vk,qty){ const t=DP[vk]; return t?(t[qty]??null):null; }
   const money=(n)=> "$"+(n||0).toFixed(2);
   const esc=(s)=> String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const note=(m)=>{ try{ if(typeof window.toast==="function"){ window.toast(m); return; } }catch(e){} alert(m); };
 
-  const FS = { tier:null, tierPages:null, fold:"bi-fold", programQty:100, addons:{}, addonOrder:[], prefill:{} };
+  const FS = { tier:null, tierPages:null, fold:"bi-fold", programSize:"s85", programQty:100, addons:{}, addonOrder:[], prefill:{} };
   let root=null;
 
   window.openFullService = function(){
@@ -5499,15 +5521,17 @@ function toggleComfort(){
   function programPages(){ const t=tierObj(); if(!t)return 4; if(t.variants)return FS.tierPages||Number(Object.keys(t.variants)[0]); return (t.pages&&t.pages[0])||4; }
   function tierPrice(){ const t=tierObj(); if(!t)return 0; return t.variants?(t.variants[programPages()]||0):(t.price||0); }
   function quote(){
-    const t=tierObj();
-    const programUnit=t?retail(CONFIG.program.wholesaleByPages[programPages()]??0.80):0;
-    const programTotal=t?programUnit*(FS.programQty||0):0;
+    const t=tierObj(); const pages=programPages();
+    const programTotal = t ? (retail(dpProgram(pages,FS.programSize,FS.programQty))||0) : 0;
     const lines=[];
-    for(const id of FS.addonOrder){ const a=CONFIG.addons.find(x=>x.id===id); const c=FS.addons[id]; if(a&&c&&c.qty>0){ const u=retail(a.wholesale(c.opts||{})); lines.push({name:a.name,qty:c.qty,unit:u,total:u*c.qty}); } }
+    for(const id of FS.addonOrder){ const a=CONFIG.addons.find(x=>x.id===id); const c=FS.addons[id];
+      if(a&&c){ const vk=c.variant||a.variants[0][0]; const r=retail(dpAddon(vk,c.qty));
+        if(r!=null){ const vlabel=(a.variants.find(v=>v[0]===vk)||[])[1]||""; lines.push({name:a.name,qty:c.qty,variant:vlabel,total:r}); } } }
     const asum=lines.reduce((s,l)=>s+l.total,0), tp=tierPrice();
     const extraCount=Math.max(0, FS.addonOrder.length - includedAddons());
     const extraDesign=extraCount*CONFIG.EXTRA_DESIGN_FEE;
-    return { tier:FS.tier, tierName:t?t.name:"", tierPrice:tp, programUnit, programTotal, addonLines:lines, extraCount, extraDesign, total:tp+programTotal+asum+extraDesign };
+    const est = t && !DP.program[String(pages)];
+    return { tier:FS.tier, tierName:t?t.name:"", tierPrice:tp, programTotal, addonLines:lines, extraCount, extraDesign, est, total:tp+programTotal+asum+extraDesign };
   }
   function addonBanner(){
     const inc=includedAddons(), n=FS.addonOrder.length, t=tierObj(), extra=Math.max(0,n-inc), fee=CONFIG.EXTRA_DESIGN_FEE;
@@ -5535,19 +5559,23 @@ function toggleComfort(){
   function programSec(){ if(!tierObj())return ""; const pg=programPages();
     return `<div class="fs-sec"><h2><span class="fs-step">2</span>Program printing</h2>
       <p class="fs-hint">The printed programs themselves (${pg} pages, based on your design service).</p>
-      <div class="fs-row"><div class="fs-field"><label>Fold</label><select id="fsFold">${CONFIG.program.folds.map(f=>`<option ${FS.fold===f?'selected':''}>${f}</option>`).join("")}</select></div>
-      <div class="fs-field"><label>Quantity</label><input id="fsPQty" type="number" min="25" step="25" value="${FS.programQty}"></div></div>
-      <div class="fs-ph">Placeholder printing price — update from the DisciplePress list.</div></div>`;
+      <div class="fs-row">
+        <div class="fs-field"><label>Fold</label><select id="fsFold">${CONFIG.program.folds.map(f=>`<option ${FS.fold===f?'selected':''}>${f}</option>`).join("")}</select></div>
+        <div class="fs-field"><label>Size</label><select id="fsSize">${CONFIG.program.sizes.map(s=>`<option value="${s[0]}" ${FS.programSize===s[0]?'selected':''}>${s[1]}</option>`).join("")}</select></div>
+        <div class="fs-field"><label>Quantity</label><select id="fsPQty">${CONFIG.program.qtys.map(q=>`<option value="${q}" ${FS.programQty===q?'selected':''}>${q}</option>`).join("")}</select></div>
+      </div>
+      ${!DP.program[String(pg)]?`<div class="fs-ph">${pg}-page is a larger booklet — the price is an estimate your designer confirms with a DisciplePress custom quote.</div>`:''}</div>`;
   }
   function addonSec(){ if(!tierObj())return ""; const inc=includedAddons(), fee=CONFIG.EXTRA_DESIGN_FEE;
     const avail=CONFIG.addons.filter(a=>!FS.addonOrder.includes(a.id));
     const dd=`<div class="fs-field" style="max-width:340px"><label>Add a matching product</label>
       <select id="fsAddSel"><option value="">＋ Choose a product…</option>${avail.map(a=>`<option value="${a.id}">${a.name}</option>`).join("")}</select></div>`;
-    const rows=FS.addonOrder.map((id,i)=>{ const a=CONFIG.addons.find(x=>x.id===id); const c=FS.addons[id]||{qty:0,opts:{}};
+    const rows=FS.addonOrder.map((id,i)=>{ const a=CONFIG.addons.find(x=>x.id===id); const c=FS.addons[id]||{variant:a.variants[0][0],qty:a.qtys[0]};
       const tag=i<inc?`<span class="fs-ph" style="color:#3f6b4f">design included</span>`:`<span class="fs-ph">+$${fee} design</span>`;
-      const sels=Object.entries(a.opts||{}).map(([k,vals])=>`<select data-aopt="${id}" data-key="${k}">${vals.map(v=>`<option ${c.opts[k]===v?'selected':''}>${v}</option>`).join("")}</select>`).join("");
-      return `<div class="fs-addon"><div><div class="fs-anm">${a.name} · ${tag}</div><div class="fs-op">${sels||'<span class="fs-ph">no options</span>'}</div></div>
-        <div style="display:flex;gap:8px;align-items:end"><div><label>Qty</label><input class="fs-q" type="number" min="0" step="25" value="${c.qty}" data-aqty="${id}"></div>
+      const varSel = a.variants.length>1 ? `<select data-avar="${id}">${a.variants.map(v=>`<option value="${v[0]}" ${c.variant===v[0]?'selected':''}>${v[1]}</option>`).join("")}</select>` : '<span class="fs-ph">standard</span>';
+      const qtySel = `<select data-aqty="${id}">${a.qtys.map(q=>`<option value="${q}" ${c.qty===q?'selected':''}>${q}</option>`).join("")}</select>`;
+      return `<div class="fs-addon"><div><div class="fs-anm">${a.name} · ${tag}</div><div class="fs-op">${varSel}</div></div>
+        <div style="display:flex;gap:8px;align-items:end"><div><label>Qty</label>${qtySel}</div>
         <button class="fs-x" style="border-color:var(--fsline);color:var(--fsmuted);padding:8px 10px" data-arem="${id}">✕</button></div></div>`;
     }).join("");
     return `<div class="fs-sec"><h2><span class="fs-step">3</span>Matching keepsakes <span style="font-weight:400;font-size:13px;color:var(--fsmuted)">(optional)</span></h2>
@@ -5572,12 +5600,12 @@ function toggleComfort(){
   function quotePanel(){ const q=quote();
     return `<div class="fs-quote"><h3>Your quote</h3>
       ${q.tier?`<div class="fs-ql"><span>${q.tierName}<div class="fs-s">design service</div></span><span>${money(q.tierPrice)}</span></div>`:`<div class="fs-ql"><span class="fs-s">Choose a design service to begin</span></div>`}
-      ${q.programTotal>0?`<div class="fs-ql"><span>Programs ×${FS.programQty}<div class="fs-s">${programPages()}pg ${FS.fold} · ${money(q.programUnit)}/ea</div></span><span>${money(q.programTotal)}</span></div>`:''}
-      ${q.addonLines.map(l=>`<div class="fs-ql"><span>${l.name} ×${l.qty}<div class="fs-s">${money(l.unit)}/ea</div></span><span>${money(l.total)}</span></div>`).join("")}
+      ${q.programTotal>0?`<div class="fs-ql"><span>Programs ×${FS.programQty}<div class="fs-s">${programPages()}pg ${FS.fold}${q.est?' · est.':''}</div></span><span>${money(q.programTotal)}</span></div>`:''}
+      ${q.addonLines.map(l=>`<div class="fs-ql"><span>${l.name} ×${l.qty}<div class="fs-s">${l.variant}</div></span><span>${money(l.total)}</span></div>`).join("")}
       ${q.extraDesign>0?`<div class="fs-ql"><span>Additional design ×${q.extraCount}<div class="fs-s">$${CONFIG.EXTRA_DESIGN_FEE} per extra product</div></span><span>${money(q.extraDesign)}</span></div>`:''}
       <div class="fs-ql fs-tot"><span>Total</span><span>${money(q.total)}</span></div>
       <button class="fs-btn" ${q.tier?'':'disabled'} id="fsSubmit">Request this design →</button>
-      <div class="fs-note">Printing prices are placeholders until the DisciplePress list is loaded. You'll approve a proof before paying.</div></div>`;
+      <div class="fs-note">Prices are live DisciplePress rates with your markup. You'll approve a proof before paying.</div></div>`;
   }
 
   function bind(){
@@ -5585,10 +5613,11 @@ function toggleComfort(){
     root.querySelectorAll("[data-tier]").forEach(el=>el.onclick=()=>{ FS.tier=el.getAttribute("data-tier"); const t=tierObj(); FS.tierPages=t&&t.variants?Number(Object.keys(t.variants)[0]):null; render(); });
     const lux=root.querySelector("#fsLux"); if(lux)lux.onchange=()=>{ FS.tierPages=Number(lux.value); render(); };
     const fold=root.querySelector("#fsFold"); if(fold)fold.onchange=()=>{ FS.fold=fold.value; soft(); };
-    const pq=root.querySelector("#fsPQty"); if(pq)pq.oninput=()=>{ FS.programQty=Math.max(0,parseInt(pq.value)||0); soft(); };
-    root.querySelectorAll("[data-aqty]").forEach(el=>el.oninput=()=>{ const id=el.getAttribute("data-aqty"); FS.addons[id]=FS.addons[id]||{qty:0,opts:{}}; FS.addons[id].qty=Math.max(0,parseInt(el.value)||0); soft(); });
-    root.querySelectorAll("[data-aopt]").forEach(el=>el.onchange=()=>{ const id=el.getAttribute("data-aopt"); FS.addons[id]=FS.addons[id]||{qty:0,opts:{}}; FS.addons[id].opts[el.getAttribute("data-key")]=el.value; soft(); });
-    const addSel=root.querySelector("#fsAddSel"); if(addSel)addSel.onchange=()=>{ const id=addSel.value; if(id&&!FS.addonOrder.includes(id)){ FS.addonOrder.push(id); FS.addons[id]=FS.addons[id]||{qty:25,opts:{}}; render(); } };
+    const sz=root.querySelector("#fsSize"); if(sz)sz.onchange=()=>{ FS.programSize=sz.value; soft(); };
+    const pq=root.querySelector("#fsPQty"); if(pq)pq.onchange=()=>{ FS.programQty=parseInt(pq.value)||0; soft(); };
+    root.querySelectorAll("[data-aqty]").forEach(el=>el.onchange=()=>{ const id=el.getAttribute("data-aqty"); const a=CONFIG.addons.find(x=>x.id===id); FS.addons[id]=FS.addons[id]||{variant:a.variants[0][0],qty:a.qtys[0]}; FS.addons[id].qty=parseInt(el.value)||0; soft(); });
+    root.querySelectorAll("[data-avar]").forEach(el=>el.onchange=()=>{ const id=el.getAttribute("data-avar"); const a=CONFIG.addons.find(x=>x.id===id); FS.addons[id]=FS.addons[id]||{variant:a.variants[0][0],qty:a.qtys[0]}; FS.addons[id].variant=el.value; soft(); });
+    const addSel=root.querySelector("#fsAddSel"); if(addSel)addSel.onchange=()=>{ const id=addSel.value; const a=CONFIG.addons.find(x=>x.id===id); if(a&&!FS.addonOrder.includes(id)){ FS.addonOrder.push(id); FS.addons[id]=FS.addons[id]||{variant:a.variants[0][0],qty:a.qtys[0]}; render(); } };
     root.querySelectorAll("[data-arem]").forEach(el=>el.onclick=()=>{ const id=el.getAttribute("data-arem"); FS.addonOrder=FS.addonOrder.filter(x=>x!==id); delete FS.addons[id]; render(); });
     const sb=root.querySelector("#fsSubmit"); if(sb)sb.onclick=submit;
   }
