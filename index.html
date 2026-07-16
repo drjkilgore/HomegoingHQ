@@ -1214,7 +1214,8 @@ function goHome(){
   });
   S.estates.forEach(e=>{
     const d=document.createElement("div"); d.className="card"; d.style.cursor="pointer";
-    d.innerHTML = `<div class="eyebrow">Estate</div><h3 style="margin:6px 0 2px">${esc(e.decedent_name)}</h3><div class="muted">${e.date_of_death?("Passed "+fmtDate(e.date_of_death)+" · "):""}${esc(e.state_code||"")}</div>`;
+    const noteNew=(window.__noteUnread&&window.__noteUnread[e.id])?' <span style="background:#c0392b;color:#fff;border-radius:9px;padding:0 6px;font-size:10px;vertical-align:middle">new note</span>':"";
+    d.innerHTML = `<div class="eyebrow">Estate${noteNew}</div><h3 style="margin:6px 0 2px">${esc(e.decedent_name)}</h3><div class="muted">${e.date_of_death?("Passed "+fmtDate(e.date_of_death)+" · "):""}${esc(e.state_code||"")}</div>`;
     d.onclick=()=>openEstate(e.id); list.appendChild(d);
   });
   $("upgradeCard").classList.toggle("hidden", TIER_RANK[tier()]>=TIER_RANK.settle);
@@ -6554,6 +6555,71 @@ function chooseDesigner(id,name){ FS.chosenDesigner = id?{id:id,name:name}:null;
       if(r.error){ if(window.toast) toast(r.error.message); }
     }catch(e){ if(window.toast) toast("Couldn't update."); }
   };
+})();
+
+</script>
+
+<script>
+/* ============ CONCIERGE NOTES — UNREAD INDICATOR (family) ============
+   Mirrors the design-order message unread pattern (window.__unread + msgRead:).
+   Flags estates where the concierge left a note the family hasn't seen:
+   - "new note" badge on the home estate card
+   - a one-time login toast
+   Read state is per-browser (localStorage noteRead:<estateId>); opening the
+   estate (whose Next tab shows the notes) marks them read. */
+(function(){
+  async function refreshFamilyNoteUnread(){
+    window.__noteUnread = window.__noteUnread || {};
+    var any = false;
+    try{
+      if(!S.session || !S.session.user) return false;
+      var myId = S.session.user.id;
+      var ids = (S.estates||[]).map(function(e){ return e.id; });
+      if(!ids.length) return false;
+      var q = await sb.from("concierge_notes")
+        .select("estate_id,created_at,author_id")
+        .order("created_at",{ascending:false}).limit(400);
+      if(q.error) return false;
+      var latest = {};
+      (q.data||[]).forEach(function(n){
+        if(n.author_id !== myId && !latest[n.estate_id]) latest[n.estate_id] = n.created_at;
+      });
+      ids.forEach(function(eid){
+        var t = latest[eid];
+        if(!t){ window.__noteUnread[eid] = false; return; }
+        var lr = localStorage.getItem("noteRead:"+eid);
+        var unread = (!lr || new Date(t) > new Date(lr));
+        window.__noteUnread[eid] = unread; if(unread) any = true;
+      });
+    }catch(e){}
+    return any;
+  }
+
+  // populate after every loadEstates (chains on top of earlier wrappers)
+  if(window.loadEstates && !window.__noteUnreadWrapped){
+    window.__noteUnreadWrapped = true;
+    var _le = window.loadEstates;
+    window.loadEstates = async function(){
+      var r = await _le.apply(this, arguments);
+      var any = await refreshFamilyNoteUnread();
+      if(any && !window.__noteToastShown){
+        window.__noteToastShown = true;
+        if(window.toast) setTimeout(function(){ toast("\uD83D\uDCDD You have a new note from your concierge."); }, 1600);
+      }
+      return r;
+    };
+  }
+
+  // opening the estate (Next tab shows the notes) marks them read
+  if(window.openEstate && !window.__noteReadWrapped){
+    window.__noteReadWrapped = true;
+    var _oe = window.openEstate;
+    window.openEstate = async function(id){
+      var r = await _oe.apply(this, arguments);
+      try{ localStorage.setItem("noteRead:"+id, new Date().toISOString()); if(window.__noteUnread) window.__noteUnread[id] = false; }catch(e){}
+      return r;
+    };
+  }
 })();
 
 </script>
