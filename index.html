@@ -271,6 +271,7 @@ summary::-webkit-details-marker{display:none}
       <span id="eStatusPill" class="pill" style="display:none"></span>
       <div><button id="eStatusBtn" class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="toggleEstateStatus()"></button></div>
       <div><button id="eUpgradeBtn" class="btn btn-brass btn-sm" style="margin-top:6px;display:none" onclick="upgradeModal('Unlock the full roadmap for this estate')">Unlock full roadmap</button></div>
+      <div><button id="eGiftBtn" class="btn btn-ghost btn-sm" style="margin-top:6px;display:none" onclick="claimEstateCredit()">Use my gift</button></div>
     </div>
   </div>
   <div class="tabs" id="eTabs">
@@ -1353,11 +1354,21 @@ async function openEstate(id){
   setTab("next"); show("view-estate");
 }
 function renderEstateUpgrade(){
-  const b=$("eUpgradeBtn"); if(!b) return;
+  const b=$("eUpgradeBtn"), gb=$("eGiftBtn");
   const t=tier();
-  if((TIER_RANK[t]||0) >= TIER_RANK.settle){ b.style.display="none"; return; }
-  b.style.display="inline-block";
-  b.textContent = t==="companion" ? "Upgrade to Settle" : "Unlock full roadmap";
+  const unlocked = (TIER_RANK[t]||0) >= TIER_RANK.settle;
+  if(b){ if(unlocked){ b.style.display="none"; } else { b.style.display="inline-block"; b.textContent = t==="companion" ? "Upgrade to Settle" : "Unlock full roadmap"; } }
+  if(gb){ const credits=(S.profile&&S.profile.settle_credits)||0; gb.style.display=(!unlocked && credits>0)?"inline-block":"none"; gb.textContent="Use my gift ("+credits+")"; }
+}
+async function claimEstateCredit(){
+  if(!S.estate) return;
+  if(!confirm("Use one Settle gift to unlock this estate? This uses one of your gift credits.")) return;
+  const {data,error}=await sb.rpc("claim_estate_credit",{p_estate:S.estate.id});
+  if(error) return toast(error.message);
+  if(data&&data.error) return toast(data.error);
+  if(data&&typeof data.credits==="number" && S.profile) S.profile.settle_credits=data.credits;
+  toast("Unlocked — the full roadmap is open for this estate.");
+  openEstate(S.estate.id);
 }
 function renderEstateStatus(){
   const st = (S.estate && S.estate.status) || "active";
@@ -4000,8 +4011,9 @@ async function redeemGift(){
   const {data,error}=await sb.rpc("redeem_gift",{gcode:$("rdCode").value});
   if(error) return toast(error.message);
   if(data.error) return toast(data.error);
-  S.profile.plan_tier=data.tier;
-  closeModal(); goHome(); toast("Gift redeemed — everything is unlocked. We're sorry for the reason, and glad you're not doing this alone.");
+  if(typeof data.credits==="number" && S.profile) S.profile.settle_credits=data.credits;
+  closeModal(); goHome();
+  toast("Gift received — you have a Settle unlock to use. Open an estate and tap \u201CUse my gift.\u201D");
 }
 
 /* ---------- PROFESSIONAL PORTAL (clients view) ---------- */
