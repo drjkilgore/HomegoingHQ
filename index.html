@@ -213,7 +213,7 @@ summary::-webkit-details-marker{display:none}
     </div>
     <p class="muted" id="authMsg" style="margin-top:12px"></p>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px;margin-top:18px">Are you a professional who walks with families? <a href="https://concierge.homegoinghq.com" style="color:var(--brass-deep)">Become a HomegoingHQ Concierge™</a> &nbsp;·&nbsp; <a href="https://providers.homegoinghq.com" style="color:var(--brass-deep)">Become a Preferred Provider</a></p>
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:18px">Are you a professional who walks with families? <a href="https://concierge.homegoinghq.com" style="color:var(--brass-deep)">Become a HomegoingHQ Concierge™</a> &nbsp;·&nbsp; <a href="https://providers.homegoinghq.com" style="color:var(--brass-deep)">Become a Preferred Provider</a> &nbsp;·&nbsp; <a href="/?designer=apply" style="color:var(--brass-deep)">Become a Designer</a></p>
   <p class="muted" style="text-align:center;font-size:11.5px;margin-top:10px"><a href="privacy.html" style="color:var(--muted)">Privacy Policy</a> · <a href="terms.html" style="color:var(--muted)">Terms of Service</a></p>
   <p style="text-align:center;margin-top:18px"><a href="#" onclick="openGiftModal();return false" style="font-size:14px">🎁 Give HomegoingHQ as a gift — a helping hand for a grieving family</a></p>
   <p class="footer-note">HomegoingHQ provides organizational tools and general legal information, not legal, tax, or financial advice. For advice about your specific situation, consult a licensed attorney, CPA, or financial professional.</p>
@@ -865,7 +865,7 @@ async function handleSession(session){
     $("btnComfort").classList.remove("hidden");
     $("btnVoice").classList.remove("hidden");
     $("btnMenu").classList.remove("hidden");
-    $("btnHelp").classList.remove("hidden"); $("btnDesigner").classList.remove("hidden");
+    $("btnHelp").classList.remove("hidden");
     sb.rpc("is_admin").then(({data})=>{ if(data===true){ S.isAdmin=true; $("btnAdmin").classList.remove("hidden"); if(location.hash==="#admin") setTimeout(openAdmin,60); } }).catch(()=>{});
     sb.rpc("my_account").then(({data})=>{ if(data && data.found){ S.myAccount=data; $("btnBrand").classList.remove("hidden"); } else { S.myAccount=null; } }).catch(()=>{});
     try{ loadAppMessages(); }catch(e){}
@@ -883,7 +883,7 @@ async function handleSession(session){
       await loadEstates();
       try{ const {data:dz}=await sb.from("designers").select("*").eq("user_id",session.user.id).maybeSingle(); S.designer=dz||null; }catch(e){ S.designer=null; }
     }catch(err){ toast("Loading issue: "+err.message); }
-    if(S.designer){ const _b=$("btnDesigner"); if(_b) _b.textContent="Designer portal"; }
+    if(S.designer){ const _b=$("btnDesigner"); if(_b){ _b.textContent="Designer portal"; _b.classList.remove("hidden"); } }
     try{ const {data:_ia}=await sb.rpc("is_admin"); if(_ia===true){ S.isAdmin=true; const _ba=$("btnAdmin"); if(_ba) _ba.classList.remove("hidden"); } }catch(e){}
     // Role-based landing (pick ONE view so the family dashboard never flashes first):
     // approved designer -> portal; a pending/other applicant with no estates -> portal (status page); admins & family -> home.
