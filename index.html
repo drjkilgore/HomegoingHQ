@@ -181,6 +181,7 @@ summary::-webkit-details-marker{display:none}
     <button class="btn btn-ghost btn-sm hidden topbar-menu-btn" id="btnMenu" onclick="toggleTopMenu()" aria-label="Menu">☰</button>
     <div class="topbar-actions" id="topActions">
     <button class="btn btn-ghost btn-sm hidden" id="btnHelp" onclick="openHelp()">? Help</button>
+    <button class="btn btn-ghost btn-sm hidden" id="btnTour" onclick="takeTour()">Take a tour</button>
     <button class="btn btn-ghost btn-sm hidden" id="btnDesigner" onclick="designerButton()">Become a designer</button>
     <button class="btn btn-ghost btn-sm hidden" id="btnBrand" onclick="openMyBrand()">My Brand</button>
     <button class="btn btn-ghost btn-sm hidden" id="btnAdmin" onclick="openAdmin()">Admin</button>
@@ -224,7 +225,7 @@ summary::-webkit-details-marker{display:none}
 <section id="view-home" class="hidden"><div class="wrap">
   <div id="partnerBannerHome"></div>
   <div id="clientsSection"></div>
-  <div class="estate-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="eyebrow">Your workspace</div><h1 class="name" style="font-size:26px">Welcome<span id="homeName"></span></h1></div><button class="btn btn-ghost btn-sm" onclick="howItWorks('family')">How this works</button></div>
+  <div class="estate-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="eyebrow">Your workspace</div><h1 class="name" style="font-size:26px">Welcome<span id="homeName"></span></h1></div><button class="btn btn-ghost btn-sm" onclick="takeTour()">Take a tour</button></div>
   <div class="grid" id="estateList"></div>
   <div class="card" style="margin-top:14px">
     <div class="eyebrow">Start</div>
@@ -877,7 +878,7 @@ async function handleSession(session){
     $("btnComfort").classList.remove("hidden");
     $("btnVoice").classList.remove("hidden");
     $("btnMenu").classList.remove("hidden");
-    $("btnHelp").classList.remove("hidden");
+    $("btnHelp").classList.remove("hidden"); { const _t=$("btnTour"); if(_t) _t.classList.remove("hidden"); }
     sb.rpc("is_admin").then(({data})=>{ if(data===true){ S.isAdmin=true; $("btnAdmin").classList.remove("hidden"); if(location.hash==="#admin") setTimeout(openAdmin,60); } }).catch(()=>{});
     sb.rpc("my_account").then(({data})=>{ if(data && data.found){ S.myAccount=data; $("btnBrand").classList.remove("hidden"); } else { S.myAccount=null; } }).catch(()=>{});
     try{ loadAppMessages(); }catch(e){}
@@ -4564,6 +4565,9 @@ function tourFree(){
      {sel:'#eTabs [data-tab="notify"]',go:()=>setTab("notify"),title:"Who to tell — with the letter written",text:"Track every institution. The bank letter template is included free; it fills itself in with your details."},
      {sel:'#eTabs [data-tab="docs"]',go:()=>setTab("docs"),title:"Documents",text:"A private vault — 3 documents free. Start with the death certificate; nearly everyone will ask for it."},
      {sel:'#eTabs [data-tab="funeral"]',go:()=>setTab("funeral"),title:"Funeral, memorial & music",text:"Budget with honest cost coaching, the obituary builder, a shareable memorial page, the 🕊 Program Designer for a print-ready homegoing program — and live musicians or artist tributes through our booking partner. All free."},
+     {sel:'#eTabs [data-tab="print"]',go:()=>setTab("print"),title:"Programs & Printing",text:"Design a print-ready homegoing program yourself and take a PDF to FedEx, or work with a HomegoingHQ designer full-service \u2014 plus matching keepsakes."},
+     {sel:'#eTabs [data-tab="flowers"]',go:()=>setTab("flowers"),title:"Flowers",text:"Order arrangements for the service, or send a sympathy delivery to someone's door \u2014 without leaving the roadmap."},
+     {sel:'#eTabs [data-tab="funding"]',go:()=>setTab("funding"),title:"Funding",text:"Find help with the cost: Social Security and VA benefits, employer/union payouts, lost life-insurance policies, assistance programs, and a memorial fundraiser."},
      {sel:"#guideFab",title:"The Guide",text:"Ask anything at any hour — a legal term, what a form means, what to do next. Free includes 3 conversations to try it."});
   } else {
     steps.push({title:"Create your first estate or plan",text:"The rest of the tour lights up once one exists — it takes about two minutes. Everything is private until you invite someone."});
@@ -4583,6 +4587,9 @@ function tourCompanion(){
      {sel:'#eTabs [data-tab="ledger"]',go:()=>setTab("ledger"),title:"The Ledger — 10 entries",text:"Assets, debts, expenses, beneficiaries, distributions. Companion includes 10 entries to get the picture in order. The <strong>court-ready Inventory & Accounting reports</strong> are the Settle plan's flagship — when the court or attorney asks for them, that's your moment."},
      {sel:'#eTabs [data-tab="claims"]',go:()=>setTab("claims"),title:"Insurance claims",text:"Every policy as a tracked claim — stage by stage, with the documents checklist and help finding lost policies."},
      {sel:'#eTabs [data-tab="funeral"]',go:()=>setTab("funeral"),title:"Funeral, memorial & music",text:"Budget coaching, the obituary builder, the memorial page, the 🕊 Program Designer for the printed program — and live music or artist tributes through our booking partner."},
+     {sel:'#eTabs [data-tab="print"]',go:()=>setTab("print"),title:"Programs & Printing",text:"Design a print-ready program yourself, or work with a HomegoingHQ designer full-service \u2014 plus matching keepsakes."},
+     {sel:'#eTabs [data-tab="flowers"]',go:()=>setTab("flowers"),title:"Flowers",text:"Arrangements for the service, or a sympathy delivery to someone's door \u2014 without leaving the roadmap."},
+     {sel:'#eTabs [data-tab="funding"]',go:()=>setTab("funding"),title:"Funding",text:"Find help with the cost: Social Security and VA benefits, employer/union payouts, lost policies, assistance programs, and a memorial fundraiser."},
      {sel:"#guideFab",title:"The Guide — 25 conversations",text:"Companion includes 25. Ask it to explain terms, draft letters, or talk through what's next at 3 a.m."});
   } else {
     steps.push({title:"Create your estate",text:"Your Companion features light up inside an estate — start one from the home screen in about two minutes."});
@@ -4599,7 +4606,11 @@ function tourSettle(){
      {sel:'#eTabs [data-tab="ledger"]',go:()=>{openEstate(S.estates[0].id);setTab("ledger");},title:"The court-ready reports",text:"Inside the Ledger: <strong>Inventory</strong> and <strong>Estate Accounting</strong> — print-ready reports in the shape courts and attorneys expect. Keep the ledger current and they're always one click away. \u201cImport from banks\u201d pulls account balances securely, then destroys the connection."},
      {sel:'#eTabs [data-tab="notify"]',go:()=>setTab("notify"),title:"All six letters",text:"Banks, insurers, Social Security, credit bureaus, subscriptions, and the DMV — every template, filled in and tracked."},
      {sel:'#eTabs [data-tab="roadmap"]',go:()=>setTab("roadmap"),title:"Invite the whole family",text:"Unlimited members on Settle — assign steps from any task, and the weekly digest keeps everyone gently in step without another group text."},
-     {sel:'#eTabs [data-tab="funeral"]',go:()=>setTab("funeral"),title:"The service, held well",text:"Budget with FTC-informed coaching, the obituary builder, the memorial page, the 🕊 Program Designer — and soloists, musicians, or artist tribute videos through our booking partner."});
+     {sel:'#eTabs [data-tab="funeral"]',go:()=>setTab("funeral"),title:"The service, held well",text:"Budget with FTC-informed coaching, the obituary builder, the memorial page, the 🕊 Program Designer — and soloists, musicians, or artist tribute videos through our booking partner."},
+     {sel:'#eTabs [data-tab="print"]',go:()=>setTab("print"),title:"Programs & Printing",text:"Design a print-ready homegoing program yourself, or hand it to a <strong>HomegoingHQ designer</strong> full-service \u2014 with matching keepsakes: prayer cards, bookmarks, thank-you cards, a memorial poster, fans, and a guest book."},
+     {sel:'#eTabs [data-tab="flowers"]',go:()=>setTab("flowers"),title:"Flowers",text:"Order arrangements for the service, or send a sympathy delivery to someone's door \u2014 chosen and sent without ever leaving the roadmap."},
+     {sel:'#eTabs [data-tab="funding"]',go:()=>setTab("funding"),title:"Funding \u2014 you may not carry the cost alone",text:"Find every source of support: Social Security's death benefit, VA burial allowances, employer or union payouts, lost life-insurance policies, county and nonprofit assistance, and a dignified memorial fundraiser."},
+     {sel:'#eTabs [data-tab="claims"]',go:()=>setTab("claims"),title:"Insurance, tracked",text:"Every policy becomes a claim with a status pipeline and a documents checklist \u2014 plus help finding policies the family didn't know existed, with the claim letter written for you."});
   }
   steps.push(
    {title:"Sealed Last Wishes recordings 🎥",text:"On any life plan: record wishes on camera, seal them with a digital fingerprint that can never be edited or deleted — by anyone — and email the certificate to witnesses. Verifiable forever."},
@@ -4608,6 +4619,30 @@ function tourSettle(){
   return steps;
 }
 
+/* ---------- one tour launcher: role-aware spotlight tour ---------- */
+function takeTour(){
+  try{ localStorage.removeItem("lhq_tour_done"); }catch(e){}
+  if(S.designer && !S.isAdmin){ TOUR.steps=tourDesigner(); TOUR.i=0; return showTourStep(); }
+  if(S.myAccount){ TOUR.steps=tourConcierge(); TOUR.i=0; return showTourStep(); }
+  startTour(); // family — picks free / companion / settle by plan
+}
+function tourDesigner(){
+  return [
+    {go:()=>{ try{ goDesigner(); }catch(e){} }, title:"Welcome to your Designer Portal", text:"Here's how work flows to you on HomegoingHQ. Skip anytime and re-take this from \u201CTake a tour.\u201D"},
+    {sel:"#dsAvail", go:()=>{ try{ goDesigner(); }catch(e){} }, title:"Set your availability", text:"Available, busy, offline, or on vacation. The assignment engine and families see this before routing work to you."},
+    {sel:"#dsAssignments", title:"Your assignments", text:"When a family in a state you serve orders a full-service design, the job lands here \u2014 accept it to start, or pass it to the next designer in rotation."},
+    {sel:"#dsAssignments", title:"Proof, message, get paid & rated", text:"On each accepted order you upload a proof, message the family right from the card, and once they approve and pay, they rate your work \u2014 building your reputation."},
+    {sel:"#btnDesigner", title:"Always one tap away", text:"Your portal lives here in the header whenever you need it. Approved designers land here automatically at sign-in."}
+  ];
+}
+function tourConcierge(){
+  return [
+    {go:()=>{ try{ show("view-home"); }catch(e){} }, title:"How HomegoingHQ works for concierges", text:"Welcome. Families you serve experience the platform under your brand. Here's a quick tour."},
+    {sel:"#btnBrand", title:"My Brand", text:"Set your name, logo, and branding here \u2014 it appears in the workspaces of the families you serve."},
+    {sel:"#clientsSection", go:()=>{ try{ show("view-home"); }catch(e){} }, title:"Your clients", text:"Estates and plans where you serve as a professional appear here. Open any one to guide that family. Everything is logged; exports live in each estate's Ledger."},
+    {sel:'#eTabs [data-tab="roadmap"]', go:()=>{ try{ if(S.estates&&S.estates.length){ openEstate(S.estates[0].id); setTab("roadmap"); } }catch(e){} }, title:"The full toolkit, at your side", text:"Inside a client's estate you have the same roadmap, documents, ledger, letters, and planning tools families use \u2014 to guide them step by step."}
+  ];
+}
 /* offer the tour once, on first signed-in home render */
 (function(){
   const _orig = window.renderClientsSection;
@@ -5791,7 +5826,7 @@ function goDesigner(){
     <div class="estate-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <div><div class="eyebrow">Designer Portal</div><h1 class="name" style="font-size:24px">${esc(d.full_name||"Welcome")}</h1>
         <div class="muted" style="font-size:13px">${(d.specialties||[]).join(" · ")||""}${d.states&&d.states.length?" · "+d.states.join(", "):""}</div></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="howItWorks('designer')">How this works</button><button class="btn btn-ghost btn-sm" onclick="goHome()">Family workspace →</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="takeTour()">Take a tour</button><button class="btn btn-ghost btn-sm" onclick="goHome()">Family workspace →</button></div>
     </div>
     ${statusMsg}
     ${d.status==="approved"?`
