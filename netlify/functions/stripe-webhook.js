@@ -157,7 +157,7 @@ exports.handler = async (event) => {
     if (estateId && (tier === "companion" || tier === "settle")) {
       const resp = await fetch(SB + "/rest/v1/estates?id=eq." + encodeURIComponent(estateId), {
         method: "PATCH", headers: sbHeaders,
-        body: JSON.stringify({ tier, updated_at: new Date().toISOString() })
+        body: JSON.stringify({ tier })
       });
       // record the customer on the profile too (for receipts), without changing plan_tier
       if (session.customer) {
