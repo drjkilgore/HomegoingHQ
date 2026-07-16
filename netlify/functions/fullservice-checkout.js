@@ -15,7 +15,7 @@ exports.handler = async (event) => {
     if (!process.env.STRIPE_SECRET_KEY) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: "Payments aren't configured yet — add STRIPE_SECRET_KEY." }) };
     }
-    const { amountCents, estateId, email, tierName, summary } = JSON.parse(event.body || "{}");
+    const { amountCents, estateId, orderId, email, tierName, summary } = JSON.parse(event.body || "{}");
     const amt = Math.round(Number(amountCents) || 0);
     if (!amt || amt < 50) { // Stripe minimum is $0.50
       return { statusCode: 400, headers, body: JSON.stringify({ error: "Invalid design-fee amount." }) };
@@ -35,6 +35,7 @@ exports.handler = async (event) => {
     if (estateId) params.append("client_reference_id", estateId);
     params.append("metadata[kind]", "fullservice_design_fee");
     params.append("metadata[estate_id]", estateId || "");
+    if (orderId) params.append("metadata[order_id]", orderId);
     params.append("metadata[tier]", tierName || "");
     params.append("metadata[summary]", String(summary || "").slice(0, 450));
 

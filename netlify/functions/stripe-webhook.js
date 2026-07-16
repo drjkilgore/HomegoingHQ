@@ -32,6 +32,26 @@ exports.handler = async (event) => {
     const session = body.data.object;
     const tier = session.metadata?.tier || "settle";
 
+    // ---- FULL-SERVICE design fee / printing balance: update the order's status ----
+    const fsKind = session.metadata?.kind;
+    if (fsKind === "fullservice_design_fee" || fsKind === "fullservice_balance") {
+      const orderId = session.metadata?.order_id;
+      const newStatus = fsKind === "fullservice_balance" ? "balance_paid" : "design_fee_paid";
+      if (orderId && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        await fetch(process.env.SUPABASE_URL + "/rest/v1/fullservice_requests?id=eq." + encodeURIComponent(orderId), {
+          method: "PATCH",
+          headers: {
+            "apikey": process.env.SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": "Bearer " + process.env.SUPABASE_SERVICE_ROLE_KEY,
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal"
+          },
+          body: JSON.stringify({ status: newStatus, updated_at: new Date().toISOString() })
+        });
+      }
+      return { statusCode: 200, body: "fullservice " + newStatus };
+    }
+
     // ---- GIFT purchase: create a code and email both parties ----
     if (tier === "gift_settle") {
       const code = "GIFT-" + require("crypto").randomBytes(4).toString("hex").toUpperCase();
