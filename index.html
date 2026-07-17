@@ -5988,10 +5988,10 @@ function toggleComfort(){
         desc:"A designer reviews your self-designed program (formatting, grammar, photos) or designs one keepsake of your choice. The design fee for each additional keepsake is $39." },
       { id:"basic",   name:"Custom Designer (Basic)",  price:149, pages:[4], includedAddons:0,
         desc:"Designer personalizes an existing template. Includes one revision. 4-page program." },
-      { id:"premium", name:"Premium Custom Design",    price:249, pages:[4,8], includedAddons:1,
-        desc:"Custom layout with multiple photos and premium graphics. Two revisions, plus the design of one additional matching product." },
+      { id:"premium", name:"Premium Custom Design",    price:249, pages:[4,8], includedAddons:1, variants:{ 4:249, 8:249 },
+        desc:"Custom layout with multiple photos and premium graphics. Two revisions, plus the design of one additional matching product. 4- or 8-page program." },
       { id:"luxury",  name:"Luxury Signature Design",  pages:[12,16,20], includedAddons:2,
-        desc:"Magazine-quality, highly personalized design with family consultation. Includes the design of two additional matching products.",
+        desc:"Magazine-quality, highly personalized design with family consultation. Includes the design of two additional matching products. 12-, 16-, or 20-page program.",
         variants:{ 12:399, 16:499, 20:599 } },
     ],
     program:{ folds:["bi-fold","tri-fold","no-fold"], sizes:[["s85","8.5×11 (standard)"],["s1117","11×17 (large)"]], qtys:[25,50,100,150,200,250,300,400,500] },
@@ -6103,7 +6103,7 @@ function toggleComfort(){
     return `<div class="fs-sec"><h2><span class="fs-step">1</span>Design service</h2>
       <p class="fs-hint">Choose how much design help the family wants. This also sets the program length.</p>
       <div class="fs-tiers">${CONFIG.designerTiers.map(t=>{
-        const price=t.variants?`${money(t.variants[12])}–${money(t.variants[20])}`:money(t.price);
+        const price=t.variants?(()=>{const v=Object.values(t.variants),mn=Math.min(...v),mx=Math.max(...v);return mn===mx?money(mn):`${money(mn)}–${money(mx)}`;})():money(t.price);
         return `<div class="fs-tier ${FS.tier===t.id?'fs-sel':''}" data-tier="${t.id}"><div class="fs-nm">${t.name}</div><div class="fs-pr">${price}</div><div class="fs-ds">${t.desc}</div></div>`;
       }).join("")}</div>
       ${FS.tier==="review"?`<div class="fs-row" style="margin-top:12px"><div class="fs-field"><label>What would you like with this $99 service?</label><select id="fsReviewMode"><option value="review" ${FS.reviewMode!=="keepsake"?"selected":""}>A review of my own program (I print it myself)</option><option value="keepsake" ${FS.reviewMode==="keepsake"?"selected":""}>Design one keepsake for me</option></select></div></div>`:""}
