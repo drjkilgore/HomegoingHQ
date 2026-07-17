@@ -316,6 +316,7 @@ function art(seed){
     <path d="M30 138 q30 -18 40 0 M130 138 q30 -20 40 0" stroke="${p[0]}" stroke-width="2" fill="none" opacity="0.5"/>
   </svg>`;
 }
+window.__art=art;
 
 // ---------- CURATED CATALOG — the list YOU make available ----------
 // Edit this array to control exactly what customers can buy.
@@ -388,7 +389,7 @@ function render(){
 }
 function card(p){
   return `<div class="card">
-    <div class="ph">${art(p.id)}
+    <div class="ph">${p.img?`<img src="${p.img}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover" onerror="this.outerHTML=window.__art('${p.id}')">`:art(p.id)}
       <span class="tag">${p.cat}</span>
       ${p.needsPhoto?`<span class="tag photo">Your photo</span>`:''}
     </div>
@@ -420,7 +421,7 @@ function renderCart(){
   summary.style.display='grid';empty.style.display='none';
   box.innerHTML=`<h2>${CART.reduce((s,i)=>s+i.qty,0)} item(s)</h2><div class="sub">Curated by HomegoingHQ · print-on-demand fulfillment</div>`+
     CART.map(i=>`<div class="li">
-      <div class="thumb">${i.imageUrl?`<img src="${i.imageUrl}" style="width:100%;height:100%;object-fit:cover">`:art(i.id)}${i.needsPhoto&&!i.imageUrl?`<div class="miss">PHOTO NEEDED</div>`:''}</div>
+      <div class="thumb">${i.imageUrl?`<img src="${i.imageUrl}" style="width:100%;height:100%;object-fit:cover">`:(i.img?`<img src="${i.img}" style="width:100%;height:100%;object-fit:cover">`:art(i.id))}${i.needsPhoto&&!i.imageUrl?`<div class="miss">PHOTO NEEDED</div>`:''}</div>
       <div class="info"><h4>${i.name}</h4><small>${i.meaning}</small>
         ${i.apparel?`<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
           <select style="border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:13px;background:#fff" onchange="setOpt('${i.lineId}','size',this.value)">
