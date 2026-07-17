@@ -239,9 +239,9 @@ summary::-webkit-details-marker{display:none}
   <div class="card hidden" id="upgradeCard" style="margin-top:14px">
     <div class="eyebrow">Your plan</div>
     <h3 style="margin:6px 0">Free plan — 1 estate, core roadmap</h3>
-    <p class="muted">Free covers the first 72 hours. <strong>Companion ($39)</strong> opens the full roadmap with 25 Guide conversations. <strong>Settle ($249)</strong> makes everything unlimited and adds the court-ready reports, sealed recordings, all templates, and bank import.</p>
+    <p class="muted">Free covers the first 72 hours. <strong>Companion ($149)</strong> opens the full roadmap with 30 Guide conversations. <strong>Settle ($249)</strong> makes everything unlimited and adds the court-ready reports, sealed recordings, all templates, and bank import.</p>
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-primary" id="btnBuyCompanion" onclick="startCheckout('companion')">Companion — $39</button>
+      <button class="btn btn-primary" id="btnBuyCompanion" onclick="startCheckout('companion')">Companion — $149</button>
       <button class="btn btn-brass" onclick="startCheckout('settle')">Settle — $249</button>
       <button class="btn btn-ghost" onclick="openGiftModal()">🎁 Give as a gift</button>
       <button class="btn btn-ghost" onclick="openRedeemModal()">Redeem a gift code</button>
@@ -749,7 +749,7 @@ let authMode = "signin";
 const TIER_RANK={free:0,companion:1,settle:2,premium:3};
 const LIMITS={
   free:      {ai:3,  docs:3,  ledger:0,  templates:1, vault:5,  phases:["first24"]},
-  companion: {ai:25, docs:10, ledger:10, templates:2, vault:12, phases:null},
+  companion: {ai:30, docs:10, ledger:10, templates:4, vault:12, phases:null},
   settle:    {ai:Infinity, docs:Infinity, ledger:Infinity, templates:Infinity, vault:Infinity, phases:null},
   premium:   {ai:Infinity, docs:Infinity, ledger:Infinity, templates:Infinity, vault:Infinity, phases:null}
 };
@@ -764,20 +764,20 @@ function upgradeModal(context){
     <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
       <div class="card" style="padding:16px">
         <div class="eyebrow">Companion</div>
-        <div style="font-family:var(--font-display);font-size:28px;margin:4px 0">$39</div>
+        <div style="font-family:var(--font-display);font-size:28px;margin:4px 0">$149</div>
         <div class="muted" style="font-size:12px">once, per estate</div>
         <ul style="list-style:none;font-size:13px;margin-top:10px;display:grid;gap:5px">
-          <li>✓ The full roadmap, every phase</li><li>✓ 25 Guide conversations</li>
-          <li>✓ 10 documents · 10 ledger entries</li><li>✓ Bank & insurer letter templates</li></ul>
+          <li>✓ The full roadmap, every phase</li><li>✓ 30 Guide conversations</li>
+          <li>✓ 10 documents · 10 ledger entries</li><li>✓ Core letter templates</li></ul>
         <button class="btn btn-primary btn-sm" style="width:100%;margin-top:12px" onclick="startCheckout('companion')">Get Companion</button>
       </div>
       <div class="card" style="padding:16px;border:2px solid var(--brass)">
-        <div class="eyebrow">Settle</div>
+        <div class="eyebrow">Settle · <span style="color:var(--brass)">best value</span></div>
         <div style="font-family:var(--font-display);font-size:28px;margin:4px 0">$249</div>
         <div class="muted" style="font-size:12px">once, per estate · often reimbursable from the estate</div>
         <ul style="list-style:none;font-size:13px;margin-top:10px;display:grid;gap:5px">
-          <li>✓ Everything unlimited</li><li>✓ Court-ready inventory & accounting</li>
-          <li>✓ All letter templates · bank import</li><li>✓ Sealed last-wishes recordings</li></ul>
+          <li>✓ <strong>Unlimited</strong> documents, ledger &amp; Guide</li><li>✓ Court-ready inventory & accounting</li>
+          <li>✓ Bank import · claim tracker · all templates</li><li>✓ Unlimited family · sealed recordings</li></ul>
         <button class="btn btn-brass btn-sm" style="width:100%;margin-top:12px" onclick="startCheckout('settle')">Get Settle</button>
       </div>
     </div></div></div>`;
@@ -1524,7 +1524,7 @@ function renderNext(){
   const stack=$("nextStack"); stack.innerHTML="";
   if(open.length===0){
     if(lockedCount>0){
-      stack.innerHTML=`<div class="scard" style="position:relative"><div class="phase-tag">The first 72 hours — done</div><h3>You've handled the urgent steps. ${lockedCount} more are waiting on the road ahead.</h3><p class="why">The first week, the first month, probate, taxes, and closing the estate — Companion ($39) opens every remaining step with the same gentle guidance.</p><div class="scard-actions"><button class="btn btn-brass" onclick="upgradeModal('Open the rest of the roadmap')">See the plans</button></div></div>`;
+      stack.innerHTML=`<div class="scard" style="position:relative"><div class="phase-tag">The first 72 hours — done</div><h3>You've handled the urgent steps. ${lockedCount} more are waiting on the road ahead.</h3><p class="why">The first week, the first month, probate, taxes, and closing the estate — Companion ($149) opens every remaining step with the same gentle guidance.</p><div class="scard-actions"><button class="btn btn-brass" onclick="upgradeModal('Open the rest of the roadmap')">See the plans</button></div></div>`;
       $("nextCount").textContent=lockedCount+" steps waiting on the full roadmap"; return;
     }
     stack.innerHTML=`<div class="scard" style="position:relative"><div class="phase-tag">All caught up</div><h3>Every step is done — one less thing to carry.</h3><p class="why">You can review the full roadmap anytime, or add your own tasks as new things come up.</p></div>`;
@@ -1812,7 +1812,7 @@ async function sendGuide(){
     const {data:n}=await sb.rpc("increment_ai_use",{p_estate:(S.estate&&S.estate.id)||null});
     if(typeof n==="number"){ S.profile.ai_uses=n; }
     if((S.profile.ai_uses||0)>lim().ai){
-      guideBubble("You've used your "+lim().ai+" Guide conversations on this plan. "+(tier()==="free"?"Companion ($39) includes 25, and Settle makes the Guide unlimited.":"Settle makes the Guide unlimited — along with the court-ready reports."),"ai");
+      guideBubble("You've used your "+lim().ai+" Guide conversations on this plan. "+(tier()==="free"?"Companion ($149) includes 30, and Settle makes the Guide unlimited.":"Settle makes the Guide unlimited — along with the court-ready reports."),"ai");
       const m=document.createElement("div"); m.style.cssText="align-self:flex-start";
       m.innerHTML='<button class="btn btn-brass btn-sm" onclick="upgradeModal(\'Keep the Guide beside you\')">See the plans</button>';
       $("guideMsgs").appendChild(m); $("guideText").value=q; return;
@@ -4622,7 +4622,7 @@ function tourFree(){
     steps.push(
      {sel:"#estateList",title:"Your estates",text:"Each estate you're part of lives here — tap one to open it."},
      {sel:'#eTabs [data-tab="next"]',go:()=>{openEstate(S.estates[0].id);},title:"The Next tab",text:"One card at a time: what to do, why it matters, and how. On the Free plan, every step of the <strong>first 72 hours</strong> is open — the most urgent stretch, handled."},
-     {sel:'#eTabs [data-tab="roadmap"]',go:()=>setTab("roadmap"),title:"The full road, visible",text:"Every phase is laid out here. Steps marked 🔒 belong to later phases — Companion ($39, once) opens all of them."},
+     {sel:'#eTabs [data-tab="roadmap"]',go:()=>setTab("roadmap"),title:"The full road, visible",text:"Every phase is laid out here. Steps marked 🔒 belong to later phases — Companion ($149, once) opens all of them."},
      {sel:'#eTabs [data-tab="notify"]',go:()=>setTab("notify"),title:"Who to tell — with the letter written",text:"Track every institution. The bank letter template is included free; it fills itself in with your details."},
      {sel:'#eTabs [data-tab="docs"]',go:()=>setTab("docs"),title:"Documents",text:"A private vault — 3 documents free. Start with the death certificate; nearly everyone will ask for it."},
      {sel:'#eTabs [data-tab="funeral"]',go:()=>setTab("funeral"),title:"Funeral, memorial & music",text:"Budget with honest cost coaching, the obituary builder, a shareable memorial page, the 🕊 Program Designer for a print-ready homegoing program — and live musicians or artist tributes through our booking partner. All free."},
@@ -4633,7 +4633,7 @@ function tourFree(){
   } else {
     steps.push({title:"Create your first estate or plan",text:"The rest of the tour lights up once one exists — it takes about two minutes. Everything is private until you invite someone."});
   }
-  steps.push({sel:"#upgradeCard",go:()=>show("view-home"),title:"When you're ready for the whole road",text:"Companion ($39, once per estate) opens every phase and the tools around it. Settle ($249) makes everything unlimited and adds the court-ready reports. No subscriptions — ever."});
+  steps.push({sel:"#upgradeCard",go:()=>show("view-home"),title:"When you're ready for the whole road",text:"Companion ($149, once per estate) opens every phase and the tools around it. Settle ($249) makes everything unlimited and adds the court-ready reports. No subscriptions — ever."});
   return steps;
 }
 function tourCompanion(){
@@ -4651,7 +4651,7 @@ function tourCompanion(){
      {sel:'#eTabs [data-tab="print"]',go:()=>setTab("print"),title:"Programs & Printing",text:"Design a print-ready program yourself, or work with a HomegoingHQ designer full-service \u2014 plus matching keepsakes."},
      {sel:'#eTabs [data-tab="flowers"]',go:()=>setTab("flowers"),title:"Flowers",text:"Arrangements for the service, or a sympathy delivery to someone's door \u2014 without leaving the roadmap."},
      {sel:'#eTabs [data-tab="funding"]',go:()=>setTab("funding"),title:"Funding",text:"Find help with the cost: Social Security and VA benefits, employer/union payouts, lost policies, assistance programs, and a memorial fundraiser."},
-     {sel:"#guideFab",title:"The Guide — 25 conversations",text:"Companion includes 25. Ask it to explain terms, draft letters, or talk through what's next at 3 a.m."});
+     {sel:"#guideFab",title:"The Guide — 25 conversations",text:"Companion includes 30. Ask it to explain terms, draft letters, or talk through what's next at 3 a.m."});
   } else {
     steps.push({title:"Create your estate",text:"Your Companion features light up inside an estate — start one from the home screen in about two minutes."});
   }
