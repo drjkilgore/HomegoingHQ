@@ -285,6 +285,7 @@ summary::-webkit-details-marker{display:none}
     <button data-tab="funeral" onclick="setTab('funeral')">Funeral</button>
     <button data-tab="print" onclick="setTab('print')">Programs &amp; Printing</button>
     <button data-tab="flowers" onclick="setTab('flowers')">Flowers</button>
+    <button data-tab="keepsakes" onclick="setTab('keepsakes')">Keepsakes</button>
     <button data-tab="funding" onclick="setTab('funding')">Funding</button>
     <button data-tab="claims" onclick="setTab('claims')">Insurance</button>
     <button data-tab="notify" onclick="setTab('notify')">Notify</button>
@@ -358,6 +359,7 @@ summary::-webkit-details-marker{display:none}
       <div id="fsOrders"></div></div>
   </div>
   <div id="tab-flowers" class="hidden"><iframe src="flowerhub.html" title="FlowerHub" style="width:100%;height:82vh;min-height:640px;border:0;border-radius:12px;background:#F6F2EA"></iframe></div>
+  <div id="tab-keepsakes" class="hidden"><iframe src="keepsakes.html" title="Keepsakes" style="width:100%;height:82vh;min-height:640px;border:0;border-radius:12px;background:#F6F2EA"></iframe></div>
   <div id="tab-claims" class="hidden"></div>
   <div id="tab-ledger" class="hidden"></div>
   <div id="tab-probate" class="hidden"></div>
@@ -1496,7 +1498,7 @@ async function mbSave(){
   else toast(data&&data.error==="no_account"?"No practice found.":"Couldn't save brand.");
 }
 function setTab(t){
-  ["next","roadmap","funeral","print","flowers","funding","claims","notify","docs","ledger","probate","memories","family"].forEach(x=>{
+  ["next","roadmap","funeral","print","flowers","keepsakes","funding","claims","notify","docs","ledger","probate","memories","family"].forEach(x=>{
     $("tab-"+x).classList.toggle("hidden",x!==t);
     document.querySelector(`#eTabs [data-tab="${x}"]`).classList.toggle("active",x===t);
   });
