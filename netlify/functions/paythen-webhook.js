@@ -8,6 +8,7 @@
 // Paythen plan id -> concierge tier. (Last path segment of each plan link.)
 const PLAN_TIER = {
   frusqkt0ur: "starter",      fo82kbiyxi: "starter",
+  xkw7tq4i77: "starter",      "60uijuoatp": "starter",
   kocldycond: "professional", "4tpig9m5ua": "professional",
   kf83pe9y6m: "enterprise",   dg1bg3q3in: "enterprise",
   "9qrau4sk14": "agency",     wazeflgqet: "agency"
