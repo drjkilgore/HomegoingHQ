@@ -545,7 +545,10 @@ async function placeOrder(){
     const j=await r.json();
     if(!r.ok||!j.url) throw new Error(j.error||'could not start checkout');
     try{ localStorage.setItem('hhq_keepsake_order', j.orderId||''); }catch(e){}
-    window.location.href=j.url;   // to Stripe Checkout
+    // Break out of the app iframe — Stripe Checkout refuses to load inside a
+    // frame, so navigate the TOP window instead of this embedded one.
+    try{ (window.top||window).location.href=j.url; }
+    catch(e){ window.location.href=j.url; }   // fallback if top is cross-origin
   }catch(e){ btn.disabled=false; btn.textContent='Continue to payment'; toast(e.message||'Checkout failed'); }
 }
 
