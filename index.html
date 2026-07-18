@@ -126,9 +126,10 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:18px 0}
 .t-meta{font-size:12.5px;color:var(--slate);margin-top:2px}
 
 /* Tabs */
-.tabs{display:flex;gap:4px;overflow-x:auto;padding:14px 0 2px;border-bottom:1px solid var(--line);margin-bottom:20px;-webkit-overflow-scrolling:touch}
-.tabs button{flex:none;background:transparent;border:none;padding:9px 14px;border-radius:9px 9px 0 0;font-size:14.5px;font-weight:600;color:var(--slate)}
-.tabs button.active{color:var(--ink);border-bottom:2.5px solid var(--brass)}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;padding:14px 0 8px;margin-bottom:20px}
+.tabs button{flex:none;background:var(--card);border:1px solid var(--line);padding:8px 16px;border-radius:999px;font-size:14px;font-weight:700;color:var(--ink);transition:background .15s,border-color .15s,color .15s}
+.tabs button:hover{border-color:var(--brass-soft)}
+.tabs button.active{background:var(--ink);border-color:var(--ink);color:var(--parchment)}
 
 /* Estate header */
 .estate-head{padding:24px 0 6px}
@@ -4568,7 +4569,17 @@ function tourEls(){
 function startTour(){
   const t=tier();
   TOUR.steps = t==="free"?tourFree() : t==="companion"?tourCompanion() : tourSettle();
+  TOUR.steps = orderTourByTabs(TOUR.steps);
   TOUR.i=0; showTourStep();
+}
+// Keep the guided tour in the same order as the tab bar. Steps that point at a
+// tab pill are sorted by that tab's position; non-tab steps stay put.
+function orderTourByTabs(steps){
+  const order=["next","roadmap","funeral","print","flowers","keepsakes","funding","claims","notify","docs","ledger","probate","memories","family"];
+  const pos=s=>{ const m=/data-tab="([^"]+)"/.exec((s&&s.sel)||""); if(!m) return -1; const i=order.indexOf(m[1]); return i; };
+  const tabPositions=[]; steps.forEach((s,i)=>{ if(pos(s)>=0) tabPositions.push(i); });
+  const sorted=tabPositions.map(i=>steps[i]).sort((a,b)=>pos(a)-pos(b));
+  let k=0; return steps.map(s=> pos(s)>=0 ? sorted[k++] : s );
 }
 function endTour(){
   const {ov,ring,card}=tourEls();
