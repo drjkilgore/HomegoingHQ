@@ -331,7 +331,8 @@ summary::-webkit-details-marker{display:none}
   </div>
 
   <div id="tab-docs" class="hidden">
-    <div class="card">
+    <div id="vaultGate"></div>
+    <div class="card" id="docUploadCard">
       <div class="eyebrow">Document vault</div>
       <p class="muted" style="margin:8px 0 14px">Death certificates, the will, policies, receipts. Stored privately — only members of this estate can open them.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -764,6 +765,28 @@ function tier(){ const pt=S.profile?.plan_tier||"free"; const et=(S.estate&&S.es
 function lim(){ return LIMITS[tier()]||LIMITS.free; }
 function isFree(){ return tier()==="free"; }
 function phaseLocked(p){ const ph=lim().phases; return ph && !ph.includes(p); }
+
+/* ---- Vault Keeper: freemium vault + hard lock + 45-day grace ----
+   Free: up to FREE_VAULT_DOCS documents OR FREE_VAULT_BYTES of storage (whichever
+   first). At the cap while unsubscribed the vault HARD-LOCKS — existing documents
+   can't be opened until they subscribe ($8/mo). Cancelling or a failed payment
+   opens a 45-day grace window (vault_grace_until): read/download stays open and the
+   family is warned; if unresolved, vault-sweep.js deletes the documents. A paid
+   settlement tier (Companion/Settle/Premium) lifts the caps entirely. */
+const VAULT_PRICE = 8;                       // $/month — must match the STRIPE_PRICE_VAULT recurring price
+const FREE_VAULT_DOCS  = 10;                 // free allowance: number of documents…
+const FREE_VAULT_BYTES = 50 * 1024 * 1024;   // …or total storage (50 MB) — whichever cap is reached first
+const VAULT_GRACE_DAYS = 45;                 // grace window (days) after cancel / failed payment before access & files are lost
+function vaultSubActive(){ return (S.profile?.vault_status||"inactive")==="active"; }
+function vaultInPlan(){ return ["companion","settle","premium"].includes(tier()); }
+function vaultUnlimited(){ return vaultSubActive() || vaultInPlan(); }   // subscription OR paid settlement tier lifts the caps
+function vaultBytesUsed(){ return (S.docs||[]).reduce((s,d)=>s+Number(d.size_bytes||0),0); }
+function vaultOverFree(){ return S.docs.length>=FREE_VAULT_DOCS || vaultBytesUsed()>=FREE_VAULT_BYTES; }
+function vaultGraceLeft(){ const g=S.profile?.vault_grace_until; if(!g) return 0; const ms=new Date(g)-Date.now(); return ms>0?Math.ceil(ms/864e5):0; }
+function vaultInGrace(){ return ["past_due","canceled"].includes(S.profile?.vault_status) && vaultGraceLeft()>0; }
+function vaultReadable(){ return vaultUnlimited() || vaultInGrace() || !vaultOverFree(); }              // can open/download existing docs
+function vaultCanUpload(){ return vaultUnlimited() || (!vaultInGrace() && !vaultOverFree()); }          // grace = read-only; free = until the cap
+function vaultHardLocked(){ return !vaultUnlimited() && !vaultInGrace() && vaultOverFree(); }           // at cap, unsubscribed, no grace → locked
 function upgradeModal(context){
   $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <button class="close" onclick="closeModal()">×</button>
@@ -1113,6 +1136,11 @@ try{ const _q=new URLSearchParams(location.search), _fp=_q.get("fs"), _bp=_q.get
     // webhook stamps the estate's tier server-side; refresh a moment later to pick it up
     setTimeout(async ()=>{ try{ if(window.loadEstates) await loadEstates(); var oid=window.S&&window.S.estate&&window.S.estate.id; if(oid&&window.openEstate){ openEstate(oid); } else if(window.goHome){ goHome(); } }catch(e){} }, 3500); }
   else if(_bl==="cancelled"){ setTimeout(()=>toast("Checkout cancelled — you can upgrade this estate anytime."),900); history.replaceState({},"",location.pathname); }
+  else if(_bl==="vault"){ history.replaceState({},"",location.pathname);
+    setTimeout(()=>toast("Vault Keeper is active — thank you. Your documents are safe."),900);
+    // webhook stamps profiles.vault_status='active'; refresh the profile and re-render the vault
+    setTimeout(async ()=>{ try{ if(window.sb && window.S && window.S.session){ const {data:p}=await window.sb.from("profiles").select("*").eq("id",window.S.session.user.id).maybeSingle(); if(p) window.S.profile=p; if(typeof renderDocs==="function" && window.S.estate) renderDocs(); } }catch(e){} }, 3000); }
+  else if(_bl==="vault_cancelled"){ setTimeout(()=>toast("Checkout cancelled — you can start Vault Keeper anytime."),900); history.replaceState({},"",location.pathname); }
 }catch(e){}
 
 async function forgotPass(){
@@ -1252,6 +1280,25 @@ async function startCheckout(tier){
     const d = await r.json();
     if(d.url) location.href=d.url; else toast(d.error||"Checkout isn't configured yet.");
   }catch(e){ toast("Checkout isn't configured yet."); }
+}
+async function startVaultSub(){
+  if(!S.session){ return toast("Please sign in first."); }
+  toast("Opening secure checkout…");
+  try{
+    const r = await fetch("/.netlify/functions/stripe-checkout",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({tier:"vault", userId:S.session.user.id, email:S.session.user.email, estateId:(S.estate&&S.estate.id)||null})});
+    const d = await r.json();
+    if(d.url) location.href=d.url; else toast(d.error||"Subscriptions aren't configured yet.");
+  }catch(e){ toast("Subscriptions aren't configured yet."); }
+}
+async function manageVaultSub(){
+  toast("Opening the billing portal…");
+  try{
+    const r = await fetch("/.netlify/functions/stripe-portal",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({userId:S.session.user.id})});
+    const d = await r.json();
+    if(d.url) location.href=d.url; else toast(d.error||"Billing portal isn't configured yet.");
+  }catch(e){ toast("Billing portal isn't configured yet."); }
 }
 </script>
 <script>
@@ -1710,34 +1757,181 @@ async function loadDocs(){
   const {data} = await sb.from("documents").select("*").eq("estate_id",S.estate.id).order("created_at",{ascending:false});
   S.docs = data||[];
 }
+function renderVaultGate(){
+  const gate=$("vaultGate"), card=$("docUploadCard"); if(!gate) return;
+  const st=S.profile?.vault_status||"inactive";
+
+  // Grace window (cancelled or payment failed): read/download stays open, uploads paused, clear warning.
+  if(vaultInGrace()){
+    if(card) card.style.display="none";
+    const days=vaultGraceLeft(), by=S.profile?.vault_grace_until?fmtDate(S.profile.vault_grace_until.slice(0,10)):"";
+    const canceled=(st==="canceled");
+    gate.innerHTML=`<div class="card" style="border-top:3px solid #B4451F;background:#FBF1EC">
+      <div class="eyebrow" style="color:#B4451F">${canceled?"Subscription cancelled":"Payment needs attention"}</div>
+      <h3 style="margin:6px 0 4px;font-family:var(--font-display);font-weight:500">${canceled
+        ? `Download your documents within ${days} day${days===1?"":"s"}`
+        : `Update your payment within ${days} day${days===1?"":"s"}`}</h3>
+      <p class="muted" style="font-size:13.5px;margin:0 0 12px">${canceled
+        ? `You can still open and download everything until <strong>${by}</strong>. After that, the documents in this vault are <strong>permanently deleted</strong> — please save anything you want to keep.`
+        : `Your last payment didn't go through, so new uploads are paused. Update your payment method before <strong>${by}</strong> to keep your vault — otherwise access ends and the documents are removed.`}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-brass btn-sm" onclick="downloadAllDocs()">⬇ Download all (${S.docs.length})</button>
+        ${canceled
+          ? `<button class="btn btn-primary btn-sm" onclick="startVaultSub()">Reactivate — $${VAULT_PRICE}/mo</button>`
+          : `<button class="btn btn-primary btn-sm" onclick="manageVaultSub()">Update payment method</button>`}
+      </div>
+    </div>`;
+    return;
+  }
+
+  if(card) card.style.display="";
+  if(vaultUnlimited()){
+    gate.innerHTML = vaultInPlan()
+      ? `<div class="muted" style="font-size:12px;padding:0 2px 6px">🔓 Unlimited vault — included with your plan for this estate.</div>`
+      : `<div class="card" style="padding:12px 16px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;border-left:3px solid var(--brass)">
+           <div style="font-size:13px"><strong>Vault Keeper active</strong> · $${VAULT_PRICE}/month · unlimited documents, kept safe.</div>
+           <button class="btn btn-ghost btn-sm" onclick="manageVaultSub()">Manage subscription</button>
+         </div>`;
+    return;
+  }
+
+  // Hard-locked: at/over the free cap, unsubscribed, no grace → no access until they subscribe.
+  if(vaultHardLocked()){
+    if(card) card.style.display="none";
+    gate.innerHTML=`<div class="card" style="border-top:3px solid var(--brass)">
+      <div class="eyebrow">Vault locked</div>
+      <h3 style="margin:6px 0 4px;font-family:var(--font-display);font-weight:500">Your free vault is full</h3>
+      <p class="muted" style="font-size:13.5px;margin:0 0 12px">You've reached the free limit of ${FREE_VAULT_DOCS} documents or ${fmtBytes(FREE_VAULT_BYTES)}. Start Vault Keeper to unlock your documents and keep adding — secure, encrypted, and there whenever your family needs them. <a href="#" onclick="vaultWhyModal();return false" style="color:var(--brass)">Why a fee?</a></p>
+      <div style="display:flex;gap:16px;align-items:baseline;margin:2px 0 10px">
+        <div style="font-family:var(--font-display);font-size:30px">$${VAULT_PRICE}<span style="font-size:14px;color:var(--slate)">/month</span></div>
+        <div class="muted" style="font-size:12.5px">Cancel anytime · often reimbursable from the estate</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-brass btn-sm" onclick="startVaultSub()">Unlock my vault — $${VAULT_PRICE}/mo</button>
+        ${isFree()?`<button class="btn btn-ghost btn-sm" onclick="startCheckout('settle')">Or get Settle (vault included)</button>`:""}
+      </div>
+    </div>`;
+    return;
+  }
+
+  // Free tier, under the cap — usage meter.
+  const nDocs=S.docs.length, used=vaultBytesUsed();
+  const pct=Math.min(100, Math.max(Math.round(nDocs/FREE_VAULT_DOCS*100), Math.round(used/FREE_VAULT_BYTES*100)));
+  gate.innerHTML=`<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+      <div class="eyebrow">Free vault · ${nDocs} of ${FREE_VAULT_DOCS} documents · ${fmtBytes(used)} of ${fmtBytes(FREE_VAULT_BYTES)}</div>
+      <div class="muted" style="font-size:12px">whichever comes first</div>
+    </div>
+    <div class="progress" style="margin:8px 0 2px"><i style="width:${pct}%"></i></div>
+    <div class="muted" style="font-size:12px;margin-top:6px">At the limit, the vault locks until you start Vault Keeper — $${VAULT_PRICE}/month. <a href="#" onclick="vaultWhyModal();return false" style="color:var(--brass)">Why?</a></div>
+  </div>`;
+}
 function renderDocs(){
+  renderVaultGate();
   const root=$("docList"); root.innerHTML="";
+  const readable=vaultReadable();
   if(S.docs.length===0){ root.innerHTML=`<div class="muted" style="padding:4px 6px">Nothing uploaded yet. Start with a scan of the death certificate when you receive them.</div>`; return; }
   S.docs.forEach(doc=>{
     const d=document.createElement("div"); d.className="card"; d.style.padding="14px 16px";
-    d.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
-      <div><strong>${esc(doc.name)}</strong> <span class="pill">${esc((doc.doc_type||"other").replace("_"," "))}</span>
-        <div class="muted" style="font-size:12.5px">${fmtDate(doc.created_at.slice(0,10))}</div></div>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-ghost btn-sm" onclick="openDoc('${doc.id}')">Open</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteDoc('${doc.id}')">Delete</button>
-      </div></div>`;
+    const meta=`<div><strong>${esc(doc.name)}</strong> <span class="pill">${esc((doc.doc_type||"other").replace("_"," "))}</span>
+        <div class="muted" style="font-size:12.5px">${fmtDate(doc.created_at.slice(0,10))}${doc.size_bytes?" · "+fmtBytes(doc.size_bytes):""}</div></div>`;
+    if(readable){
+      d.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+        ${meta}
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="openDoc('${doc.id}')">Open</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteDoc('${doc.id}')">Delete</button>
+        </div></div>`;
+    } else {
+      d.style.opacity=".7";
+      d.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+        ${meta}
+        <button class="btn btn-brass btn-sm" onclick="startVaultSub()">🔒 Unlock — $${VAULT_PRICE}/mo</button></div>`;
+    }
     root.appendChild(d);
   });
 }
-async function uploadDoc(){
-  if(S.docs.length>=lim().docs){
-    return upgradeModal("Room for every document");
+async function downloadAllDocs(){
+  if(!S.docs.length) return toast("Nothing to download yet.");
+  toast("Opening your documents — please allow pop-ups so they all save.");
+  for(const doc of S.docs){
+    try{
+      const {data,error}=await sb.storage.from("estate-docs").createSignedUrl(doc.storage_path,600);
+      if(!error && data){ window.open(data.signedUrl,"_blank"); }
+    }catch(e){}
+    await new Promise(r=>setTimeout(r,500));
   }
+}
+/* Educational + limit modals for the document vault */
+function vaultWhyModal(){
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">Why we charge for the vault</div>
+    <h3 style="font-family:var(--font-display);font-weight:500">$${VAULT_PRICE}/month keeps your documents safe</h3>
+    <p class="muted" style="font-size:14px;line-height:1.6;margin:10px 0">Estate documents often need to stay reachable for years — the death certificate, will, deeds, and tax records are commonly kept for seven. Holding them safely has a real, ongoing cost, and the fee covers it: <strong>encrypted storage</strong> so files can't be read by anyone but your family, <strong>protected, backed-up hosting</strong>, and <strong>reliable access</strong> the moment a bank, court, or relative needs a record. We never sell or share what's in your vault.</p>
+    <div class="scard-actions"><button class="btn btn-primary" onclick="closeModal()">Understood</button></div>
+  </div></div>`;
+}
+function vaultLimitModal(reason){
+  const why = reason==="space"
+    ? `You've reached your <strong>${fmtBytes(FREE_VAULT_BYTES)}</strong> of free storage.`
+    : `You've reached your <strong>${FREE_VAULT_DOCS} free documents</strong>.`;
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">Vault locked</div>
+    <h3 style="font-family:var(--font-display);font-weight:500">Unlock your vault to keep going</h3>
+    <p class="muted" style="font-size:14px;line-height:1.55;margin:8px 0 12px">${why} Your vault is now locked — start Vault Keeper to reopen your documents and add more.</p>
+    <div style="display:flex;gap:16px;align-items:baseline;margin:2px 0 12px">
+      <div style="font-family:var(--font-display);font-size:30px">$${VAULT_PRICE}<span style="font-size:14px;color:var(--slate)">/month</span></div>
+      <div class="muted" style="font-size:12.5px">Encrypted storage · cancel anytime · <a href="#" onclick="vaultWhyModal();return false" style="color:var(--brass)">why a fee?</a></div>
+    </div>
+    <div class="scard-actions">
+      <button class="btn btn-brass" onclick="startVaultSub()">Unlock — $${VAULT_PRICE}/mo</button>
+      ${isFree()?`<button class="btn btn-ghost" onclick="startCheckout('settle')">Get Settle instead</button>`:""}
+    </div>
+  </div></div>`;
+}
+function maybeShowVaultIntro(){
+  if(vaultUnlimited()) return;   // families with unlimited vaults don't need the free-limit explainer
+  try{
+    const key="hq_vault_intro_"+(S.session?.user?.id||"anon");
+    if(localStorage.getItem(key)) return;
+    localStorage.setItem(key,"1");
+  }catch(e){}
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">Your first document is saved 🔒</div>
+    <h3 style="font-family:var(--font-display);font-weight:500">How your vault works</h3>
+    <p class="muted" style="font-size:14px;line-height:1.55;margin:8px 0 12px">It's stored privately and encrypted — visible only to the family members you invite to this estate.</p>
+    <div class="card" style="padding:14px 16px;margin-bottom:10px">
+      <strong style="font-size:14px">Free to start</strong>
+      <p class="muted" style="font-size:13px;margin:4px 0 0">Keep up to <strong>${FREE_VAULT_DOCS} documents</strong> or <strong>${fmtBytes(FREE_VAULT_BYTES)}</strong> of storage — whichever you reach first — at no cost.</p>
+    </div>
+    <div class="card" style="padding:14px 16px;margin-bottom:14px">
+      <strong style="font-size:14px">After that — $${VAULT_PRICE}/month</strong>
+      <p class="muted" style="font-size:13px;margin:4px 0 0">Reach either limit and the vault locks until you start Vault Keeper. The fee covers the real cost of holding files safely for years: secure encrypted storage, protected hosting, and reliable access. If you ever cancel, you'll have <strong>${VAULT_GRACE_DAYS} days</strong> to download everything before it's removed. Cancel anytime — often reimbursable from the estate.</p>
+    </div>
+    <div class="scard-actions"><button class="btn btn-primary" onclick="closeModal()">Got it</button></div>
+  </div></div>`;
+}
+async function uploadDoc(){
   const f=$("docFile").files[0]; if(!f) return toast("Choose a file first.");
   if(f.size>25*1024*1024) return toast("Files up to 25 MB, please.");
+  if(!vaultCanUpload()){
+    if(vaultInGrace()) return toast(S.profile?.vault_status==="past_due" ? "Update your payment to add documents again." : "Reactivate Vault Keeper to add documents again.");
+    return vaultLimitModal(vaultBytesUsed()>=FREE_VAULT_BYTES ? "space" : "count");   // hard-locked at cap
+  }
+  const wasFirst = S.docs.length===0;
   const path=`${S.estate.id}/${Date.now()}-${f.name.replace(/[^a-zA-Z0-9_.-]/g,"_")}`;
   const {error} = await sb.storage.from("estate-docs").upload(path,f);
   if(error) return toast(error.message);
-  const {data} = await sb.from("documents").insert({estate_id:S.estate.id,name:f.name,storage_path:path,doc_type:$("docType").value,uploaded_by:S.session.user.id}).select().single();
-  if(data){S.docs.unshift(data); $("docFile").value=""; renderDocs(); logActivity("uploaded document",f.name); toast("Uploaded.");}
+  const {data} = await sb.from("documents").insert({estate_id:S.estate.id,name:f.name,storage_path:path,doc_type:$("docType").value,size_bytes:f.size,uploaded_by:S.session.user.id}).select().single();
+  if(data){S.docs.unshift(data); $("docFile").value=""; renderDocs(); logActivity("uploaded document",f.name); toast("Uploaded.");
+    if(wasFirst) maybeShowVaultIntro();
+  }
 }
 async function openDoc(id){
+  if(!vaultReadable()){ return startVaultSub(); }
   const doc=S.docs.find(x=>x.id===id);
   const {data,error} = await sb.storage.from("estate-docs").createSignedUrl(doc.storage_path,300);
   if(error) return toast(error.message);

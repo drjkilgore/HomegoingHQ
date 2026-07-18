@@ -7,3 +7,6 @@
 
 [functions."family-digest"]
   schedule = "0 14 * * 1"
+
+[functions."vault-sweep"]
+  schedule = "@daily"

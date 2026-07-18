@@ -45,11 +45,38 @@ Paste your two values. (The anon key is safe to ship in the frontend — RLS is 
 2. Netlify env vars: add `STRIPE_SECRET_KEY` and `STRIPE_PRICE_SETTLE` (and `STRIPE_PRICE_PREMIUM` later).
 3. Stripe → **Developers → Webhooks → Add endpoint**:
    `https://YOUR-SITE.netlify.app/.netlify/functions/stripe-webhook`
-   Event: `checkout.session.completed`.
+   Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`, `invoice.payment_succeeded`.
 4. Netlify env vars: add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (Supabase → Project Settings → API → service_role — **server-side only, never in index.html**).
 5. Redeploy. Test with Stripe test mode card `4242 4242 4242 4242` — after checkout the user's tier flips to `settle` and gates lift.
 
 ⚠️ Before charging real customers: add Stripe webhook **signature verification** (`STRIPE_WEBHOOK_SECRET`) to `stripe-webhook.js` — v1 omits it to stay dependency-free.
+
+### Vault Keeper — freemium vault, hard lock, 45-day grace ($8/mo)
+Every family stores **10 documents or 50 MB** free (whichever first). At the cap,
+an unsubscribed vault **hard-locks** — existing documents can't be opened until
+they start Vault Keeper ($8/mo). A one-time explainer pops on the first upload.
+When a subscriber **cancels or a payment fails**, a **45-day grace window** opens:
+they keep read/download access and see a banner telling them to download (cancel)
+or update payment (failure); if unresolved, the documents are deleted. Paid
+settlement tiers (Companion/Settle/Premium) lift the caps and are never swept.
+1. Run `supabase-migration-v23-vault-subscription.sql` (adds `vault_status`,
+   `vault_subscription_id`, `vault_current_period_end`, `vault_grace_until` to
+   `profiles`; `size_bytes` to `documents`).
+2. Stripe → **Products**: create "HomegoingHQ Vault Keeper" — **recurring, $8/month**.
+   Copy the price ID → Netlify env var `STRIPE_PRICE_VAULT`.
+3. Add the five webhook events above. The webhook sets `vault_status` = `active`
+   on checkout/recovery, `past_due` on failed payment, `canceled` on cancellation,
+   and stamps a 45-day `vault_grace_until` on the first lapse (matched by
+   `vault_subscription_id`, so a concierge subscription is never affected).
+4. **Deletion** is handled by `vault-sweep.js`, a daily Netlify Scheduled Function
+   (already wired in `netlify.toml`). It removes the vault documents of lapsed
+   subscribers past their grace deadline and resets them to `inactive`. No extra
+   setup — it uses `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`.
+5. Stripe → **Settings → Billing → Customer portal**: enable it so "Update payment
+   method" / "Manage subscription" (`stripe-portal.js`) works.
+6. Tune in `index.html`: `FREE_VAULT_DOCS`, `FREE_VAULT_BYTES`, `VAULT_PRICE`,
+   `VAULT_GRACE_DAYS` (keep `VAULT_GRACE_DAYS` in step with the 45-day value in
+   `stripe-webhook.js` and `vault-sweep.js` if you change it).
 
 ## Free vs. Settle gating (built in)
 | | Free | Settle |
@@ -241,7 +268,7 @@ are encrypted in place when the lock is enabled.
 | SITE_URL | links in emails, Stripe redirects |
 | SENDGRID_API_KEY, FROM_EMAIL | invites, alerts, digests, gift emails |
 | SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY | webhook tier updates, digest, gift codes |
-| STRIPE_SECRET_KEY, STRIPE_PRICE_SETTLE, STRIPE_PRICE_PREMIUM, STRIPE_WEBHOOK_SECRET | payments & gifts |
+| STRIPE_SECRET_KEY, STRIPE_PRICE_SETTLE, STRIPE_PRICE_PREMIUM, STRIPE_PRICE_VAULT, STRIPE_WEBHOOK_SECRET | payments, gifts & Vault Keeper |
 | PLAID_CLIENT_ID, PLAID_SECRET, PLAID_ENV | bank import |
 
 
