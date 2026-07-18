@@ -165,7 +165,7 @@ footer{border-top:1px solid var(--line);padding:30px 0;text-align:center;font-si
     <h1>Every way to pay for a funeral, <em>found for you</em>.</h1>
     <p>Answer a few questions and FundingHub identifies every benefit, claim, and financing option your family qualifies for — free money first, loans last.</p>
     <div class="hero-cta">
-      <button class="btn" onclick="startIntake()">Find my funding sources</button>
+      <button class="btn" id="findBtn" onclick="startIntake()">Find my funding sources</button>
       <button class="btn btn-ghost" onclick="document.getElementById('sources').scrollIntoView()">See what we search</button>
     </div>
     <div class="trust">
@@ -253,6 +253,7 @@ function chip(list){document.getElementById('chiplist').innerHTML=list.map(c=>`<
 chip(CHIP_LABELS);
 
 function startIntake(){
+  if(new URLSearchParams(location.search).get('locked')==='1'){ try{ window.parent.postMessage({type:'hhq-upgrade',feature:'Funding help'},'*'); }catch(e){} return; }
   document.getElementById('landing').style.display='none';
   document.getElementById('app').classList.add('on');
   document.getElementById('restart').style.display='block';
@@ -564,6 +565,11 @@ function providerAction(id,mode){
     : `Walk me through, step by step, how to ${verb} "${p.name}" for my situation — who to contact, what documents I'll need, and how long it usually takes.`;
   if(typeof askAdvisor==='function') askAdvisor(q);
 }
+</script>
+<script>
+(function(){ if(new URLSearchParams(location.search).get('locked')!=='1') return;
+  var b=document.getElementById('findBtn'); if(b){ b.textContent='\uD83D\uDD12 Find my funding sources'; b.title='Part of the paid plans'; }
+})();
 </script>
 </body>
 </html>

@@ -348,7 +348,7 @@ summary::-webkit-details-marker{display:none}
   </div>
 
   <div id="tab-funeral" class="hidden"></div>
-  <div id="tab-funding" class="hidden"><iframe src="fundinghub.html" title="FundingHub" style="width:100%;height:82vh;min-height:640px;border:0;border-radius:12px;background:#F6F2EA"></iframe></div>
+  <div id="tab-funding" class="hidden"><iframe id="fundFrame" title="FundingHub" style="width:100%;height:82vh;min-height:640px;border:0;border-radius:12px;background:#F6F2EA"></iframe></div>
   <div id="tab-print" class="hidden">
     <div class="card" style="border-top:3px solid var(--brass)">
       <div class="eyebrow">Programs &amp; Printing</div>
@@ -1455,10 +1455,12 @@ async function openEstate(id){
 // is the fully-gated one on free (0 entries; Reports & Bank import live inside it).
 const TAB_LOCKS = {
   ledger:  ()=> lim().ledger === 0,
-  probate: ()=> tier()==="free",
-  funding: ()=> tier()==="free",
   claims:  ()=> tier()==="free"
 };
+// The Funding iframe posts up when a free user taps its locked action.
+window.addEventListener("message", function(e){
+  if(e && e.data && e.data.type==="hhq-upgrade"){ upgradeModal(e.data.feature||"Funding help"); }
+});
 function applyTabLocks(){
   Object.keys(TAB_LOCKS).forEach(t=>{
     const btn = document.querySelector(`#eTabs [data-tab="${t}"]`); if(!btn) return;
@@ -1622,7 +1624,7 @@ function setTab(t){
   if(t==="claims") loadClaims();
   if(t==="ledger") loadLedger();
   if(t==="probate") renderProbate();
-  if(t==="funding" && tier()==="free"){ $("tab-funding").innerHTML=lockPanelHTML("Funding help"); }
+  if(t==="funding"){ const fr=$("fundFrame"); if(fr){ const q="locked="+(tier()==="free"?"1":"0"); if((fr.getAttribute("src")||"").indexOf(q)===-1) fr.src="fundinghub.html?"+q; } }
   if(t==="memories") loadMemories();
   if(t==="family"){ renderMembers(); renderActivity(); }
 }
@@ -2524,8 +2526,35 @@ async function loadStatePack(){
     if(sc){ const {data:cty}=await sb.from("county_directory").select("*").eq("state_code",sc).order("county"); S.counties=cty||[]; }
   }catch(e){}
 }
+function probateLockedBox(title){
+  return `<details class="card" style="margin-top:12px;padding:0;overflow:hidden" ontoggle="if(this.open){this.open=false;upgradeModal('The Probate Assistant');}">
+    <summary style="cursor:pointer;list-style:none;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:700;font-size:14.5px">
+      <span>${title}</span><span class="muted" style="font-size:12.5px;font-weight:400">🔒 Companion</span>
+    </summary></details>`;
+}
 function renderProbate(){
-  if(tier()==="free"){ $("tab-probate").innerHTML=lockPanelHTML("The Probate Assistant"); return; }
+  if(tier()==="free"){
+    const pack=packFor();
+    $("tab-probate").innerHTML=`<div class="card">
+      <div class="eyebrow">Probate Assistant · ${pack.name}</div>
+      <h2 style="margin:10px 0 6px;font-size:21px">Which path fits this estate?</h2>
+      <p class="muted">Three questions map the estate to the right probate path — part of the paid plans.</p>
+      <div style="margin-top:16px;opacity:.5;pointer-events:none">
+        <strong style="font-size:15px">Are there assets titled ONLY in their name, with no beneficiary and no co-owner?</strong>
+        <div class="choice" style="margin-top:8px">
+          <button disabled>No — everything is joint, in trust, or has beneficiaries</button>
+          <button disabled>Yes</button>
+          <button disabled>I'm not sure</button>
+        </div>
+      </div>
+      <div style="margin-top:14px"><button class="btn btn-brass btn-sm" onclick="upgradeModal('The Probate Assistant')">🔒 Unlock the Probate Assistant</button></div>
+    </div>
+    ${probateLockedBox("Find your probate court")}
+    ${probateLockedBox(pack.name+" — worth knowing")}
+    ${probateLockedBox("Probate resource center")}
+    <p class="footer-note" style="padding:20px 0 10px">General information about court procedure, not legal advice. Contested, insolvent, or complex estates need an attorney.</p>`;
+    return;
+  }
   const pack=packFor();
   const rec=probateRecommend();
   let h=`<div class="card">
