@@ -766,22 +766,31 @@ function lim(){ return LIMITS[tier()]||LIMITS.free; }
 function isFree(){ return tier()==="free"; }
 function phaseLocked(p){ const ph=lim().phases; return ph && !ph.includes(p); }
 
-/* ---- Vault Keeper: freemium vault + hard lock + 45-day grace ----
-   Free: up to FREE_VAULT_DOCS documents OR FREE_VAULT_BYTES of storage (whichever
-   first). At the cap while unsubscribed the vault HARD-LOCKS — existing documents
-   can't be opened until they subscribe ($8/mo). Cancelling or a failed payment
-   opens a 45-day grace window (vault_grace_until): read/download stays open and the
-   family is warned; if unresolved, vault-sweep.js deletes the documents. A paid
-   settlement tier (Companion/Settle/Premium) lifts the caps entirely. */
+/* ---- Vault Keeper: tiered free vault + hard lock + 45-day grace ----
+   Every family is metered. The included allowance scales with the plan
+   (VAULT_ALLOWANCE): free 5 docs, Companion 10, Settle 20 — each with a matching
+   storage cap, whichever is reached first. At the cap the vault HARD-LOCKS; only
+   an active Vault Keeper subscription ($8/mo) lifts it entirely. Cancelling or a
+   failed payment opens a 45-day grace window (vault_grace_until): read/download
+   stays open and the family is warned; if unresolved, vault-sweep.js deletes the
+   documents. */
 const VAULT_PRICE = 8;                       // $/month — must match the STRIPE_PRICE_VAULT recurring price
-const FREE_VAULT_DOCS  = 10;                 // free allowance: number of documents…
-const FREE_VAULT_BYTES = 50 * 1024 * 1024;   // …or total storage (50 MB) — whichever cap is reached first
+// Documents (and storage) included per plan before Vault Keeper is required.
+// Everyone is metered; a settlement purchase just raises the included allowance.
+const VAULT_ALLOWANCE = {
+  free:      { docs: 5,  bytes: 25  * 1024 * 1024 },
+  companion: { docs: 10, bytes: 50  * 1024 * 1024 },
+  settle:    { docs: 20, bytes: 100 * 1024 * 1024 },
+  premium:   { docs: 20, bytes: 100 * 1024 * 1024 }
+};
 const VAULT_GRACE_DAYS = 45;                 // grace window (days) after cancel / failed payment before access & files are lost
 function vaultSubActive(){ return (S.profile?.vault_status||"inactive")==="active"; }
-function vaultInPlan(){ return ["companion","settle","premium"].includes(tier()); }
-function vaultUnlimited(){ return vaultSubActive() || vaultInPlan(); }   // subscription OR paid settlement tier lifts the caps
+function vaultUnlimited(){ return vaultSubActive(); }   // ONLY an active Vault Keeper subscription lifts the caps — paid settlement tiers do not
+function vaultAllowance(){ return VAULT_ALLOWANCE[tier()] || VAULT_ALLOWANCE.free; }
+function vaultDocCap(){ return vaultAllowance().docs; }
+function vaultByteCap(){ return vaultAllowance().bytes; }
 function vaultBytesUsed(){ return (S.docs||[]).reduce((s,d)=>s+Number(d.size_bytes||0),0); }
-function vaultOverFree(){ return S.docs.length>=FREE_VAULT_DOCS || vaultBytesUsed()>=FREE_VAULT_BYTES; }
+function vaultOverFree(){ return S.docs.length>=vaultDocCap() || vaultBytesUsed()>=vaultByteCap(); }
 function vaultGraceLeft(){ const g=S.profile?.vault_grace_until; if(!g) return 0; const ms=new Date(g)-Date.now(); return ms>0?Math.ceil(ms/864e5):0; }
 function vaultInGrace(){ return ["past_due","canceled"].includes(S.profile?.vault_status) && vaultGraceLeft()>0; }
 function vaultReadable(){ return vaultUnlimited() || vaultInGrace() || !vaultOverFree(); }              // can open/download existing docs
@@ -1786,9 +1795,7 @@ function renderVaultGate(){
 
   if(card) card.style.display="";
   if(vaultUnlimited()){
-    gate.innerHTML = vaultInPlan()
-      ? `<div class="muted" style="font-size:12px;padding:0 2px 6px">🔓 Unlimited vault — included with your plan for this estate.</div>`
-      : `<div class="card" style="padding:12px 16px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;border-left:3px solid var(--brass)">
+    gate.innerHTML = `<div class="card" style="padding:12px 16px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;border-left:3px solid var(--brass)">
            <div style="font-size:13px"><strong>Vault Keeper active</strong> · $${VAULT_PRICE}/month · unlimited documents, kept safe.</div>
            <button class="btn btn-ghost btn-sm" onclick="manageVaultSub()">Manage subscription</button>
          </div>`;
@@ -1800,15 +1807,14 @@ function renderVaultGate(){
     if(card) card.style.display="none";
     gate.innerHTML=`<div class="card" style="border-top:3px solid var(--brass)">
       <div class="eyebrow">Vault locked</div>
-      <h3 style="margin:6px 0 4px;font-family:var(--font-display);font-weight:500">Your free vault is full</h3>
-      <p class="muted" style="font-size:13.5px;margin:0 0 12px">You've reached the free limit of ${FREE_VAULT_DOCS} documents or ${fmtBytes(FREE_VAULT_BYTES)}. Start Vault Keeper to unlock your documents and keep adding — secure, encrypted, and there whenever your family needs them. <a href="#" onclick="vaultWhyModal();return false" style="color:var(--brass)">Why a fee?</a></p>
+      <h3 style="margin:6px 0 4px;font-family:var(--font-display);font-weight:500">Your vault is full</h3>
+      <p class="muted" style="font-size:13.5px;margin:0 0 12px">You've reached your plan's included ${vaultDocCap()} documents or ${fmtBytes(vaultByteCap())}. Start Vault Keeper to unlock your documents and keep adding — secure, encrypted, and there whenever your family needs them. <a href="#" onclick="vaultWhyModal();return false" style="color:var(--brass)">Why a fee?</a></p>
       <div style="display:flex;gap:16px;align-items:baseline;margin:2px 0 10px">
         <div style="font-family:var(--font-display);font-size:30px">$${VAULT_PRICE}<span style="font-size:14px;color:var(--slate)">/month</span></div>
         <div class="muted" style="font-size:12.5px">Cancel anytime · often reimbursable from the estate</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-brass btn-sm" onclick="startVaultSub()">Unlock my vault — $${VAULT_PRICE}/mo</button>
-        ${isFree()?`<button class="btn btn-ghost btn-sm" onclick="startCheckout('settle')">Or get Settle (vault included)</button>`:""}
       </div>
     </div>`;
     return;
@@ -1816,10 +1822,10 @@ function renderVaultGate(){
 
   // Free tier, under the cap — usage meter.
   const nDocs=S.docs.length, used=vaultBytesUsed();
-  const pct=Math.min(100, Math.max(Math.round(nDocs/FREE_VAULT_DOCS*100), Math.round(used/FREE_VAULT_BYTES*100)));
+  const pct=Math.min(100, Math.max(Math.round(nDocs/vaultDocCap()*100), Math.round(used/vaultByteCap()*100)));
   gate.innerHTML=`<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
-      <div class="eyebrow">Free vault · ${nDocs} of ${FREE_VAULT_DOCS} documents · ${fmtBytes(used)} of ${fmtBytes(FREE_VAULT_BYTES)}</div>
+      <div class="eyebrow">${isFree()?"Free vault":"Vault"} · ${nDocs} of ${vaultDocCap()} documents · ${fmtBytes(used)} of ${fmtBytes(vaultByteCap())}</div>
       <div class="muted" style="font-size:12px">whichever comes first</div>
     </div>
     <div class="progress" style="margin:8px 0 2px"><i style="width:${pct}%"></i></div>
@@ -1874,8 +1880,8 @@ function vaultWhyModal(){
 }
 function vaultLimitModal(reason){
   const why = reason==="space"
-    ? `You've reached your <strong>${fmtBytes(FREE_VAULT_BYTES)}</strong> of free storage.`
-    : `You've reached your <strong>${FREE_VAULT_DOCS} free documents</strong>.`;
+    ? `You've reached your <strong>${fmtBytes(vaultByteCap())}</strong> of included storage.`
+    : `You've reached your <strong>${vaultDocCap()} included documents</strong>.`;
   $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <button class="close" onclick="closeModal()">×</button>
     <div class="eyebrow">Vault locked</div>
@@ -1887,7 +1893,6 @@ function vaultLimitModal(reason){
     </div>
     <div class="scard-actions">
       <button class="btn btn-brass" onclick="startVaultSub()">Unlock — $${VAULT_PRICE}/mo</button>
-      ${isFree()?`<button class="btn btn-ghost" onclick="startCheckout('settle')">Get Settle instead</button>`:""}
     </div>
   </div></div>`;
 }
@@ -1904,8 +1909,8 @@ function maybeShowVaultIntro(){
     <h3 style="font-family:var(--font-display);font-weight:500">How your vault works</h3>
     <p class="muted" style="font-size:14px;line-height:1.55;margin:8px 0 12px">It's stored privately and encrypted — visible only to the family members you invite to this estate.</p>
     <div class="card" style="padding:14px 16px;margin-bottom:10px">
-      <strong style="font-size:14px">Free to start</strong>
-      <p class="muted" style="font-size:13px;margin:4px 0 0">Keep up to <strong>${FREE_VAULT_DOCS} documents</strong> or <strong>${fmtBytes(FREE_VAULT_BYTES)}</strong> of storage — whichever you reach first — at no cost.</p>
+      <strong style="font-size:14px">${isFree()?"Free to start":"Included with your plan"}</strong>
+      <p class="muted" style="font-size:13px;margin:4px 0 0">Keep up to <strong>${vaultDocCap()} documents</strong> or <strong>${fmtBytes(vaultByteCap())}</strong> of storage — whichever you reach first.</p>
     </div>
     <div class="card" style="padding:14px 16px;margin-bottom:14px">
       <strong style="font-size:14px">After that — $${VAULT_PRICE}/month</strong>
@@ -1919,7 +1924,7 @@ async function uploadDoc(){
   if(f.size>25*1024*1024) return toast("Files up to 25 MB, please.");
   if(!vaultCanUpload()){
     if(vaultInGrace()) return toast(S.profile?.vault_status==="past_due" ? "Update your payment to add documents again." : "Reactivate Vault Keeper to add documents again.");
-    return vaultLimitModal(vaultBytesUsed()>=FREE_VAULT_BYTES ? "space" : "count");   // hard-locked at cap
+    return vaultLimitModal(vaultBytesUsed()>=vaultByteCap() ? "space" : "count");   // hard-locked at cap
   }
   const wasFirst = S.docs.length===0;
   const path=`${S.estate.id}/${Date.now()}-${f.name.replace(/[^a-zA-Z0-9_.-]/g,"_")}`;

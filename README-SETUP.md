@@ -52,13 +52,15 @@ Paste your two values. (The anon key is safe to ship in the frontend — RLS is 
 ⚠️ Before charging real customers: add Stripe webhook **signature verification** (`STRIPE_WEBHOOK_SECRET`) to `stripe-webhook.js` — v1 omits it to stay dependency-free.
 
 ### Vault Keeper — freemium vault, hard lock, 45-day grace ($8/mo)
-Every family stores **10 documents or 50 MB** free (whichever first). At the cap,
-an unsubscribed vault **hard-locks** — existing documents can't be opened until
-they start Vault Keeper ($8/mo). A one-time explainer pops on the first upload.
-When a subscriber **cancels or a payment fails**, a **45-day grace window** opens:
-they keep read/download access and see a banner telling them to download (cancel)
-or update payment (failure); if unresolved, the documents are deleted. Paid
-settlement tiers (Companion/Settle/Premium) lift the caps and are never swept.
+**Every** family is metered; the included allowance scales with the plan —
+**free 5 documents, Companion 10, Settle 20** (each with a matching storage cap,
+whichever is reached first). At the cap the vault **hard-locks**; only an active
+Vault Keeper subscription ($8/mo) lifts it. A settlement purchase
+(Companion/Settle/Premium) unlocks the rest of the app but **not** the vault. A
+one-time explainer pops on the first upload. When a subscriber **cancels or a
+payment fails**, a **45-day grace window** opens: they keep read/download access
+and see a banner telling them to download (cancel) or update payment (failure); if
+unresolved, `vault-sweep.js` deletes the documents.
 1. Run `supabase-migration-v23-vault-subscription.sql` (adds `vault_status`,
    `vault_subscription_id`, `vault_current_period_end`, `vault_grace_until` to
    `profiles`; `size_bytes` to `documents`).
@@ -74,7 +76,8 @@ settlement tiers (Companion/Settle/Premium) lift the caps and are never swept.
    setup — it uses `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`.
 5. Stripe → **Settings → Billing → Customer portal**: enable it so "Update payment
    method" / "Manage subscription" (`stripe-portal.js`) works.
-6. Tune in `index.html`: `FREE_VAULT_DOCS`, `FREE_VAULT_BYTES`, `VAULT_PRICE`,
+6. Tune in `index.html`: `VAULT_ALLOWANCE` (per-plan document + storage caps),
+   `VAULT_PRICE`,
    `VAULT_GRACE_DAYS` (keep `VAULT_GRACE_DAYS` in step with the 45-day value in
    `stripe-webhook.js` and `vault-sweep.js` if you change it).
 
