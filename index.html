@@ -112,6 +112,7 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:18px 0}
 
 /* Roadmap */
 .phase-block{margin-bottom:26px}
+.tab-lock{font-size:10px;margin-left:5px;opacity:.7;vertical-align:middle}
 .phase-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
 .phase-head h2{font-size:20px}
 .progress{height:6px;background:#EBE4D6;border-radius:99px;overflow:hidden;margin:6px 0 12px}
@@ -148,6 +149,7 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:18px 0}
 .guide-fab{position:fixed;right:16px;bottom:16px;z-index:50;background:var(--ink);color:var(--parchment);border:none;border-radius:99px;padding:14px 20px;font-size:15px;font-weight:600;box-shadow:var(--shadow);display:flex;gap:8px;align-items:center}
 .guide-drawer{position:fixed;inset:auto 0 0 0;z-index:70;background:var(--card);border-radius:18px 18px 0 0;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(38,51,46,.25)}
 @media(min-width:760px){.guide-drawer{inset:0 0 0 auto;width:420px;border-radius:0;max-height:none}}
+@media(max-width:760px){#view-estate,#view-home,#view-plan,#view-memorial,#view-intake,#view-program{padding-bottom:96px}}
 .guide-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--line)}
 .guide-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
 .gm{max-width:88%;padding:11px 14px;border-radius:14px;font-size:14.5px;white-space:pre-wrap}
@@ -244,7 +246,7 @@ summary::-webkit-details-marker{display:none}
   <div class="card hidden" id="upgradeCard" style="margin-top:14px">
     <div class="eyebrow">Your plan</div>
     <h3 style="margin:6px 0">Free plan — 1 estate, core roadmap</h3>
-    <p class="muted">Free covers the first 72 hours. <strong>Companion ($149)</strong> opens the full roadmap with 30 Guide conversations. <strong>Settle ($249)</strong> unlocks every phase and adds the court-ready reports, sealed recordings, all templates, and bank import.</p>
+    <p class="muted">Free covers the guided roadmap on what to do after a loss. <strong>Companion ($149)</strong> opens the full roadmap with 30 Guide conversations. <strong>Settle ($249)</strong> unlocks every phase and adds the court-ready reports, sealed recordings, all templates, and bank import.</p>
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-primary" id="btnBuyCompanion" onclick="startCheckout('companion')">Companion — $149</button>
       <button class="btn btn-brass" onclick="startCheckout('settle')">Settle — $249</button>
@@ -317,7 +319,7 @@ summary::-webkit-details-marker{display:none}
     <div class="card">
       <div class="eyebrow">Who to notify</div>
       <p class="muted" style="margin:8px 0 14px">Track every institution in one list. Open a template, personalize it, and log the confirmation number when it's done.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div id="notifAddRow" style="display:flex;gap:8px;flex-wrap:wrap">
         <input id="notifName" placeholder="Institution or person (e.g., Ally Bank)" style="flex:1;min-width:200px">
         <select id="notifCat" style="width:auto"><option value="bank">Bank</option><option value="insurer">Insurer</option><option value="government">Government</option><option value="utility">Utility</option><option value="subscription">Subscription</option><option value="family">Family / friend</option><option value="other">Other</option></select>
         <button class="btn btn-primary btn-sm" onclick="addNotification()">Add</button>
@@ -765,6 +767,16 @@ function tier(){ const pt=S.profile?.plan_tier||"free"; const et=(S.estate&&S.es
 function lim(){ return LIMITS[tier()]||LIMITS.free; }
 function isFree(){ return tier()==="free"; }
 function phaseLocked(p){ const ph=lim().phases; return ph && !ph.includes(p); }
+// Free-tier gates: block a paid action (shows the upgrade modal), and a full-tab lock panel.
+function freeLocked(msg){ if(tier()==="free"){ upgradeModal(msg||"This is part of the paid plans"); return true; } return false; }
+function lockPanelHTML(title){
+  return `<div class="card" style="text-align:center;padding:34px 20px">
+    <div style="font-size:30px">🔒</div>
+    <h3 style="margin:10px 0 6px">${title} is part of the paid plans</h3>
+    <p class="muted" style="max-width:440px;margin:0 auto 16px">Companion ($149, once per estate) opens this — with the full roadmap and the settlement tools. Settle ($249) adds the court-ready reports.</p>
+    <button class="btn btn-brass" onclick="upgradeModal('${title}')">See the plans</button>
+  </div>`;
+}
 
 /* ---- Vault Keeper: tiered vault + read-only-at-cap + 45-day grace ----
    Every family is metered. The included allowance scales with the plan
@@ -1435,8 +1447,29 @@ async function openEstate(id){
   $("eName").textContent = est.decedent_name;
   $("eSub").textContent = (est.date_of_death?("Passed "+fmtDate(est.date_of_death)):"") + (est.state_code?" · "+est.state_code:"") + (est.relationship?" · You: "+est.relationship:"");
   await Promise.all([loadTasks(),loadMembers(),loadNotifs(),loadDocs(),loadStatePack()]);
-  renderEstateStatus(); renderOOSCard(); renderEstateUpgrade();
+  renderEstateStatus(); renderOOSCard(); renderEstateUpgrade(); applyTabLocks();
   setTab("next"); show("view-estate");
+}
+// Show a lock badge on tabs whose core tool the current plan can't use, so free
+// families see what's paid instead of only hitting a wall on the action. Ledger
+// is the fully-gated one on free (0 entries; Reports & Bank import live inside it).
+const TAB_LOCKS = {
+  ledger:  ()=> lim().ledger === 0,
+  probate: ()=> tier()==="free",
+  funding: ()=> tier()==="free",
+  claims:  ()=> tier()==="free"
+};
+function applyTabLocks(){
+  Object.keys(TAB_LOCKS).forEach(t=>{
+    const btn = document.querySelector(`#eTabs [data-tab="${t}"]`); if(!btn) return;
+    btn.querySelectorAll(".tab-lock").forEach(e=>e.remove());
+    if(TAB_LOCKS[t]()){
+      const s=document.createElement("span");
+      s.className="tab-lock"; s.textContent="🔒";
+      s.title="Part of the paid plans";
+      btn.appendChild(s);
+    }
+  });
 }
 function renderEstateUpgrade(){
   const b=$("eUpgradeBtn"), gb=$("eGiftBtn");
@@ -1589,6 +1622,7 @@ function setTab(t){
   if(t==="claims") loadClaims();
   if(t==="ledger") loadLedger();
   if(t==="probate") renderProbate();
+  if(t==="funding" && tier()==="free"){ $("tab-funding").innerHTML=lockPanelHTML("Funding help"); }
   if(t==="memories") loadMemories();
   if(t==="family"){ renderMembers(); renderActivity(); }
 }
@@ -1608,7 +1642,7 @@ function renderNext(){
   const stack=$("nextStack"); stack.innerHTML="";
   if(open.length===0){
     if(lockedCount>0){
-      stack.innerHTML=`<div class="scard" style="position:relative"><div class="phase-tag">The first 72 hours — done</div><h3>You've handled the urgent steps. ${lockedCount} more are waiting on the road ahead.</h3><p class="why">The first week, the first month, probate, taxes, and closing the estate — Companion ($149) opens every remaining step with the same gentle guidance.</p><div class="scard-actions"><button class="btn btn-brass" onclick="upgradeModal('Open the rest of the roadmap')">See the plans</button></div></div>`;
+      stack.innerHTML=`<div class="scard" style="position:relative"><div class="phase-tag">The urgent first steps — done</div><h3>You've handled the urgent steps. ${lockedCount} more are waiting on the road ahead.</h3><p class="why">The first week, the first month, probate, taxes, and closing the estate — Companion ($149) opens every remaining step with the same gentle guidance.</p><div class="scard-actions"><button class="btn btn-brass" onclick="upgradeModal('Open the rest of the roadmap')">See the plans</button></div></div>`;
       $("nextCount").textContent=lockedCount+" steps waiting on the full roadmap"; return;
     }
     stack.innerHTML=`<div class="scard" style="position:relative"><div class="phase-tag">All caught up</div><h3>Every step is done — one less thing to carry.</h3><p class="why">You can review the full roadmap anytime, or add your own tasks as new things come up.</p></div>`;
@@ -1725,6 +1759,8 @@ async function loadNotifs(){
 }
 function renderNotifs(){
   const root=$("notifList"); root.innerHTML="";
+  const ar=$("notifAddRow"); if(ar) ar.style.display = tier()==="free" ? "none" : "";
+  if(tier()==="free"){ root.innerHTML=`<div class="muted" style="padding:4px 6px">🔒 Notification tracking is part of the paid plans. <span onclick="upgradeModal('Notification tracking')" style="color:var(--brass-deep);cursor:pointer;font-weight:600">See the plans</span></div>`; return; }
   if(S.notifs.length===0){ root.innerHTML=`<div class="muted" style="padding:4px 6px">Nothing tracked yet. Add each institution above as you discover it — statements and mail are your best leads.</div>`; return; }
   S.notifs.forEach(n=>{
     const d=document.createElement("div"); d.className="card"; d.style.padding="14px 16px";
@@ -1741,11 +1777,13 @@ function renderNotifs(){
   });
 }
 async function addNotification(){
+  if(freeLocked("Notification tracking is part of the paid plans")) return;
   const recipient=$("notifName").value.trim(); if(!recipient) return;
   const {data} = await sb.from("notifications_log").insert({estate_id:S.estate.id,recipient,category:$("notifCat").value}).select().single();
   if(data){S.notifs.push(data); $("notifName").value=""; renderNotifs(); logActivity("added notification",recipient);}
 }
 async function notifStatus(id,status){
+  if(freeLocked("Notification tracking is part of the paid plans")) return;
   await sb.from("notifications_log").update({status,updated_at:new Date().toISOString()}).eq("id",id);
   const n=S.notifs.find(x=>x.id===id); if(n)n.status=status;
 }
@@ -2487,6 +2525,7 @@ async function loadStatePack(){
   }catch(e){}
 }
 function renderProbate(){
+  if(tier()==="free"){ $("tab-probate").innerHTML=lockPanelHTML("The Probate Assistant"); return; }
   const pack=packFor();
   const rec=probateRecommend();
   let h=`<div class="card">
@@ -2679,8 +2718,10 @@ function renderFuneral(){
       <div><div class="muted" style="font-size:12px">${act>est?"Over plan":"Under plan"}</div><div style="font-family:var(--font-display);font-size:26px;color:${act>est?"var(--clay)":"var(--sage)"}">${money(Math.abs(est-act))}</div></div>
     </div>
     <p class="muted" style="margin-top:10px;font-size:13px">Under the FTC Funeral Rule, every funeral home must give you an itemized price list, and you may choose items individually instead of packages. Bring this budget to the meeting.</p>
-    ${F.budget.length===0?`<div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="seedFuneralBudget()">Start with the standard 15 line items</button></div>`:""}
-    <div style="margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="funeralItemModal()">+ Add line item</button></div>
+    ${tier()==="free"
+      ? `<div class="muted" style="margin-top:12px;font-size:13px">🔒 Budget planning is part of the paid plans. <span onclick="upgradeModal('Funeral budget')" style="color:var(--brass-deep);cursor:pointer;font-weight:600">See the plans</span></div>`
+      : `${F.budget.length===0?`<div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="seedFuneralBudget()">Start with the standard 15 line items</button></div>`:""}
+    <div style="margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="funeralItemModal()">+ Add line item</button></div>`}
   </div>
   <div class="grid" style="margin-top:12px">`;
   const bcats={};
@@ -3255,6 +3296,7 @@ const TRADITION_STARTERS={
  general:[]
 };
 async function seedFuneralBudget(){
+  if(freeLocked("Funeral budget planning is part of the paid plans")) return;
   const trad=S.estate?.intake?.tradition||"general";
   const items=FUNERAL_STARTERS.concat(TRADITION_STARTERS[trad]||[]);
   const rows=items.map(([item,category])=>({estate_id:S.estate.id,item,category,estimated:0}));
@@ -3262,6 +3304,7 @@ async function seedFuneralBudget(){
   loadFuneral();
 }
 function funeralItemModal(id){
+  if(freeLocked("Funeral budget planning is part of the paid plans")) return;
   const r=id?F.budget.find(x=>x.id===id):{};
   $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <button class="close" onclick="closeModal()">×</button>
@@ -3538,7 +3581,9 @@ function renderClaims(){
       <div><div class="muted" style="font-size:12px">Outstanding</div><div style="font-family:var(--font-display);font-size:26px">${money(Math.max(0,expected-received))}</div></div>
     </div>
     <p class="muted" style="margin-top:10px;font-size:13px">Life insurance proceeds are generally income-tax-free to beneficiaries. If a claim takes a long time, insurers typically owe interest on the delay — that interest portion is taxable.</p>
-    <div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="claimModal()">+ Add a policy / claim</button></div>
+    ${tier()==="free"
+      ? `<div class="muted" style="margin-top:12px;font-size:13px">🔒 Insurance &amp; benefit tracking is part of the paid plans. <span onclick="upgradeModal('Insurance tracking')" style="color:var(--brass-deep);cursor:pointer;font-weight:600">See the plans</span></div>`
+      : `<div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="claimModal()">+ Add a policy / claim</button></div>`}
   </div>`;
   if(C.claims.length===0){
     h+=`<div class="card" style="margin-top:14px"><div class="eyebrow">Can't find the policies?</div>
@@ -3569,6 +3614,7 @@ function renderClaims(){
   $("tab-claims").innerHTML=h;
 }
 function claimModal(id){
+  if(freeLocked("Insurance & benefit tracking is part of the paid plans")) return;
   const c=id?C.claims.find(x=>x.id===id):{docs:{}};
   const docs=c.docs||{};
   $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
@@ -4793,7 +4839,7 @@ function openHelp(){
     <div class="scard-actions" style="margin-bottom:14px"><button class="btn btn-brass" onclick="closeModal();startTour()">▶ Start the interactive tour</button></div>`;
   h+=sec("Getting started","From your home screen, choose <strong>\u201cSomeone close to me has died\u201d</strong> to build a settlement roadmap (about two minutes of gentle questions — \u201cI'm not sure\u201d is always fine), or <strong>\u201cI'm planning ahead\u201d</strong> to organize your own affairs and see your Readiness Score.");
   h+=sec("The Next tab — one thing at a time","Your roadmap is shown one card at a time so it never overwhelms. Each card explains <em>why</em> the step matters and <em>how</em> to do it. Mark it done, skip it, or open the full step. The counter shows what remains.");
-  h+=sec("The Roadmap tab","Every step, organized by phase: the first 24–72 hours, the first week, the first month, and the road to closing. "+(t==="free"?"On the Free plan the first 72 hours are open; later phases are visible with a 🔒 and unlock with Companion.":"All phases are open on your plan."));
+  h+=sec("The Roadmap tab","Every step, organized by phase: the first 24–72 hours, the first week, the first month, and the road to closing. "+(t==="free"?"On the Free plan the urgent first steps are open; later phases are visible with a 🔒 and unlock with Companion.":"All phases are open on your plan."));
   h+=sec("Notify — letters written for you","Track every bank, insurer, and agency you need to inform. Letter templates fill themselves in with your loved one's details. "+(t==="settle"||t==="premium"?"All six templates are yours.":t==="companion"?"Bank and insurer templates are included; Settle adds all six.":"The bank letter is included; paid plans add more."));
   h+=sec("Documents","A private vault for death certificates, the will, statements, and anything the estate needs. "+(t==="free"?"Free includes 3 documents.":t==="companion"?"Companion includes 10 documents.":"Unlimited on Settle."));
   h+=sec("The Ledger"+(t==="free"?" (paid plans)":""),"Assets, debts, expenses, beneficiaries, and distributions — the money side of the estate in one place. "+(t==="settle"||t==="premium"?"Your plan includes the <strong>court-ready Inventory and Accounting reports</strong> — print them for the probate court or the attorney — plus bank import.":t==="companion"?"Companion includes 10 entries; Settle makes it unlimited and adds the court-ready reports courts and attorneys ask for.":"Included with Companion (10 entries) and Settle (unlimited + court-ready reports)."));
@@ -4895,7 +4941,7 @@ function tourFree(){
   if(S.estates.length){
     steps.push(
      {sel:"#estateList",title:"Your estates",text:"Each estate you're part of lives here — tap one to open it."},
-     {sel:'#eTabs [data-tab="next"]',go:()=>{openEstate(S.estates[0].id);},title:"The Next tab",text:"One card at a time: what to do, why it matters, and how. On the Free plan, every step of the <strong>first 72 hours</strong> is open — the most urgent stretch, handled."},
+     {sel:'#eTabs [data-tab="next"]',go:()=>{openEstate(S.estates[0].id);},title:"The Next tab",text:"One card at a time: what to do, why it matters, and how. On the Free plan, the <strong>urgent first steps after a loss</strong> are open — the most urgent stretch, handled."},
      {sel:'#eTabs [data-tab="roadmap"]',go:()=>setTab("roadmap"),title:"The full road, visible",text:"Every phase is laid out here. Steps marked 🔒 belong to later phases — Companion ($149, once) opens all of them."},
      {sel:'#eTabs [data-tab="notify"]',go:()=>setTab("notify"),title:"Who to tell — with the letter written",text:"Track every institution. The bank letter template is included free; it fills itself in with your details."},
      {sel:'#eTabs [data-tab="docs"]',go:()=>setTab("docs"),title:"Documents",text:"A private vault — 3 documents free. Start with the death certificate; nearly everyone will ask for it."},
@@ -7203,7 +7249,7 @@ function chooseDesigner(id,name){ FS.chosenDesigner = id?{id:id,name:name}:null;
       drawer.id = "myAffairs"; drawer.className = "card"; drawer.style.marginTop = "14px";
       drawer.innerHTML =
         '<summary style="cursor:pointer;font-weight:600;list-style:none">My own affairs '+
-        '<span class="muted" style="font-weight:400;font-size:12.5px">— included with your concierge account</span></summary>'+
+        '<span class="muted" style="font-weight:400;font-size:12.5px">— included with your '+((S.myAccount&&S.myAccount.tenant_type==="funeral_home")?"funeral home":(S.myAccount&&S.myAccount.tenant_type==="church")?"church":"concierge")+' account</span></summary>'+
         '<p class="muted" style="font-size:12.5px;margin:8px 0 10px">Plan ahead for yourself, or manage a loved one\u2019s estate here. This is your personal workspace, separate from the families you support above.</p>'+
         '<div id="myAffairsBody"></div>';
       var head = home.querySelector(".estate-head");
