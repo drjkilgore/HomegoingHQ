@@ -3889,7 +3889,7 @@ function admProvisionPartnerModal(){
     <label>Business name</label>
     <input id="ppBiz" placeholder="e.g., Grace Funeral Home">
     <label>Subdomain <span class="muted" style="font-weight:400">(they'll live at name.homegoinghq.com — add it as a Netlify domain alias too)</span></label>
-    <input id="ppSub" placeholder="grace-funeral">
+    <input id="ppSub" placeholder="grace-funeral" autocapitalize="none" autocorrect="off" autocomplete="off" spellcheck="false" oninput="this.value=this.value.toLowerCase()">
     <div class="scard-actions" style="margin-top:16px"><button class="btn btn-primary" onclick="admProvisionPartner()">Provision partner</button></div>
   </div></div>`;
 }
