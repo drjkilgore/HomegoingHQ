@@ -27,6 +27,50 @@ exports.handler = async (event) => {
     } // if secret unset (test phase), events are accepted unverified — set it before real sales
 
     const body = JSON.parse(event.body || "{}");
+
+    // ---- VAULT KEEPER lifecycle: keep vault_status / vault_grace_until in sync ----
+    // Matched strictly by vault_subscription_id, so concierge subs are never touched.
+    // Cancel or failed payment opens a 45-day grace window; the sweep function
+    // deletes documents only after that window lapses.
+    if (["customer.subscription.deleted","customer.subscription.updated",
+         "invoice.payment_failed","invoice.payment_succeeded"].includes(body.type)) {
+      const SB = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!SB || !KEY) return { statusCode: 200, body: "vault: not configured" };
+      const H = { "apikey": KEY, "Authorization": "Bearer " + KEY, "Content-Type": "application/json" };
+      const obj = body.data.object;
+      const subId = obj.subscription || obj.id;   // invoices carry .subscription; subscription events use .id
+      if (!subId) return { statusCode: 200, body: "vault: no sub id" };
+
+      const pr = await fetch(SB + "/rest/v1/profiles?vault_subscription_id=eq." + encodeURIComponent(subId) +
+        "&select=id,vault_status,vault_grace_until", { headers: H });
+      const rows = await pr.json();
+      const prof = Array.isArray(rows) && rows[0];
+      if (!prof) return { statusCode: 200, body: "vault: no matching profile" };
+
+      const graceISO = new Date(Date.now() + 45 * 864e5).toISOString();   // 45-day window
+      const keepGrace = prof.vault_grace_until || graceISO;               // don't extend an existing deadline
+      let patch = null;
+      if (body.type === "invoice.payment_succeeded") {
+        patch = { vault_status: "active", vault_grace_until: null };
+      } else if (body.type === "invoice.payment_failed") {
+        patch = { vault_status: "past_due", vault_grace_until: keepGrace };
+      } else if (body.type === "customer.subscription.deleted") {
+        patch = { vault_status: "canceled", vault_grace_until: keepGrace };
+      } else { // customer.subscription.updated
+        const s = obj.status;
+        if (s === "active" || s === "trialing") patch = { vault_status: "active", vault_grace_until: null };
+        else if (s === "past_due" || s === "unpaid") patch = { vault_status: "past_due", vault_grace_until: keepGrace };
+        else if (s === "canceled" || s === "incomplete_expired") patch = { vault_status: "canceled", vault_grace_until: keepGrace };
+        if (patch && obj.current_period_end) patch.vault_current_period_end = new Date(obj.current_period_end * 1000).toISOString();
+      }
+      if (patch) {
+        await fetch(SB + "/rest/v1/profiles?id=eq." + encodeURIComponent(prof.id), {
+          method: "PATCH", headers: { ...H, "Prefer": "return=minimal" }, body: JSON.stringify(patch)
+        });
+      }
+      return { statusCode: 200, body: "vault sync: " + body.type };
+    }
+
     if (body.type !== "checkout.session.completed") return { statusCode: 200, body: "ignored" };
 
     const session = body.data.object;
@@ -148,6 +192,24 @@ exports.handler = async (event) => {
         })
       });
       return { statusCode: rpc.ok ? 200 : 500, body: rpc.ok ? "account provisioned" : "provision error" };
+    }
+
+    // ---- VAULT KEEPER: activate ongoing document-vault access on the profile ----
+    if (tier === "vault") {
+      const owner = session.metadata?.user_id || session.client_reference_id;
+      if (!owner) return { statusCode: 200, body: "no user" };
+      const SB = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const sbHeaders = { "apikey": KEY, "Authorization": "Bearer " + KEY, "Content-Type": "application/json", "Prefer": "return=minimal" };
+      const resp = await fetch(SB + "/rest/v1/profiles?id=eq." + encodeURIComponent(owner), {
+        method: "PATCH", headers: sbHeaders,
+        body: JSON.stringify({
+          vault_status: "active",
+          vault_grace_until: null,
+          vault_subscription_id: session.subscription || null,
+          stripe_customer_id: session.customer || undefined
+        })
+      });
+      return { statusCode: resp.ok ? 200 : 500, body: resp.ok ? "vault active" : "supabase error" };
     }
 
     const userId = session.metadata?.user_id || session.client_reference_id;

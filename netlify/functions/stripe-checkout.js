@@ -12,8 +12,10 @@ exports.handler = async (event) => {
   try {
     const { tier, userId, email, estateId, recipientEmail, giftMessage } = JSON.parse(event.body || "{}");
     const isGift = tier === "gift_settle";
-    const isSub = tier === "premium";
-    const price = isSub ? process.env.STRIPE_PRICE_PREMIUM
+    const isVault = tier === "vault";                 // ongoing document-vault subscription ($8/mo)
+    const isSub = tier === "premium" || isVault;
+    const price = isVault ? process.env.STRIPE_PRICE_VAULT
+                : tier === "premium" ? process.env.STRIPE_PRICE_PREMIUM
                 : tier === "companion" ? process.env.STRIPE_PRICE_COMPANION
                 : process.env.STRIPE_PRICE_SETTLE;
     if (!price) return { statusCode: 400, headers, body: JSON.stringify({ error: "Price not configured" }) };
@@ -22,8 +24,8 @@ exports.handler = async (event) => {
     params.append("mode", isSub ? "subscription" : "payment");
     params.append("line_items[0][price]", price);
     params.append("line_items[0][quantity]", "1");
-    params.append("success_url", (process.env.SITE_URL || "") + "/?billing=success");
-    params.append("cancel_url", (process.env.SITE_URL || "") + "/?billing=cancelled");
+    params.append("success_url", (process.env.SITE_URL || "") + (isVault ? "/?billing=vault" : "/?billing=success"));
+    params.append("cancel_url", (process.env.SITE_URL || "") + (isVault ? "/?billing=vault_cancelled" : "/?billing=cancelled"));
     if (email) params.append("customer_email", email);
     if (userId) params.append("client_reference_id", userId);
     if (userId) params.append("metadata[user_id]", userId);
