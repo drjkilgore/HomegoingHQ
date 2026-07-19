@@ -81,10 +81,18 @@ exports.handler = async (event) => {
 
     // ---- start (default): ensure an Express account, then an onboarding link ----
     if (!acct) {
+      // Modern Connect: use controller properties instead of the legacy
+      // type:"express". Same result — Stripe-hosted onboarding, Express-style
+      // dashboard, platform pays fees + owns losses — but this is the account
+      // shape Stripe now enables by default, avoiding the legacy "sign up for
+      // Connect" rejection on newer platforms.
       const created = await stripePost("accounts", form({
-        "type": "express",
         "country": "US",
         "email": designer.email || "",
+        "controller[stripe_dashboard][type]": "express",
+        "controller[fees][payer]": "application",
+        "controller[losses][payments]": "application",
+        "controller[requirement_collection]": "stripe",
         "capabilities[transfers][requested]": "true",
         "business_type": "individual",
         "business_profile[product_description]": "Memorial and funeral design services via HomegoingHQ",
