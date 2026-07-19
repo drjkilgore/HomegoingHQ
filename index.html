@@ -455,6 +455,7 @@ summary::-webkit-details-marker{display:none}
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-brass btn-sm" onclick="admProvisionPartnerModal()">+ Provision partner</button>
         <button class="btn btn-ghost btn-sm" onclick="admInvitePartnerModal()">✉️ Invite a partner</button>
+        <button class="btn btn-ghost btn-sm" onclick="admBulkInviteModal()">📄 Bulk invite (CSV)</button>
       </div>
       <input id="admAcctSearch" placeholder="Search business or owner email" onkeydown="if(event.key==='Enter')admLoadAccounts()" style="width:auto;flex:1;min-width:200px;max-width:320px">
     </div>
@@ -4167,6 +4168,100 @@ async function admInvitePartner(){
     else toast((d&&d.error)||"Couldn't send invite.");
   }catch(e){ toast("Couldn't send invite."); }
 }
+async function admSaveBusiness(id){
+  const name=($("acBiz").value||"").trim();
+  if(!name) return toast("Enter a business name.");
+  const {data,error}=await sb.rpc("admin_set_account_business",{target:id,new_name:name});
+  if(error) return toast(error.message);
+  if(data===true){ toast("Business name saved."); const h=document.querySelector("#modalRoot h3"); if(h) h.textContent=name; admLoadAccounts(); }
+  else toast("Couldn't save name.");
+}
+async function admDeletePartnerAccount(id){
+  const {data:acct}=await sb.from("concierge_accounts").select("business_name").eq("id",id).maybeSingle();
+  const name=((acct&&acct.business_name)||"").trim();
+  const typed=prompt("This permanently deletes the white-label account for:\n\n"+(name||"(unnamed)")+"\n\nThe owner's login and any families they created are kept.\n\nType the business name to confirm:");
+  if(typed===null) return;
+  if(typed.trim()!==name){ toast("Name didn't match — nothing deleted."); return; }
+  const {data,error}=await sb.rpc("admin_delete_partner_account",{p_account_id:id});
+  if(error) return toast(error.message);
+  if(data&&data.ok){ toast("Account deleted."); closeModal(); admLoadAccounts(); }
+  else toast((data&&data.error)==="not_found"?"Account not found.":(data&&data.error)==="forbidden"?"Admin only.":"Couldn't delete.");
+}
+/* ----- Bulk invite from CSV (type,email,business) ----- */
+function admBulkTemplate(){
+  const csv="type,email,business\nfuneral_home,director@example.com,Grace Funeral Home\nchurch,pastor@example.com,First Baptist Church\nconcierge,pro@example.com,Rivera Family Services\n";
+  const blob=new Blob([csv],{type:"text/csv"}), url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download="homegoinghq-invite-template.csv"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function admCsvCells(line){
+  const out=[]; let cur="",q=false;
+  for(let i=0;i<line.length;i++){ const c=line[i];
+    if(q){ if(c==='"'){ if(line[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else { if(c===','){out.push(cur);cur="";} else if(c==='"'){q=true;} else cur+=c; } }
+  out.push(cur); return out;
+}
+function admBulkParse(text){
+  const rows=[], lines=text.replace(/\r/g,"").split("\n").filter(l=>l.trim()!=="");
+  if(!lines.length) return rows;
+  let start=0; if(lines[0].toLowerCase().includes("email")) start=1;
+  for(let i=start;i<lines.length;i++){
+    const c=admCsvCells(lines[i]);
+    let type=(c[0]||"").trim().toLowerCase().replace(/\s+/g,"_");
+    let email=(c[1]||"").trim().toLowerCase();
+    let business=(c[2]||"").trim();
+    if(email.indexOf("@")<0 && type.indexOf("@")>=0){ business=email; email=type; type="funeral_home"; }
+    if(!["funeral_home","church","concierge"].includes(type)) type="funeral_home";
+    rows.push({type,email,business});
+  }
+  return rows;
+}
+function admBulkInviteModal(){
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">Bulk invite</div>
+    <h3 style="margin-bottom:4px">Invite many at once</h3>
+    <p class="muted" style="font-size:13px">Upload a CSV with columns <b>type, email, business</b>. Type is <b>funeral_home</b>, <b>church</b>, or <b>concierge</b>. Each person gets the same invite email as a single invite.</p>
+    <p style="margin:8px 0"><a href="#" onclick="admBulkTemplate();return false" style="color:var(--brass-deep);font-size:13px;font-weight:600">↓ Download CSV template</a></p>
+    <input id="bulkFile" type="file" accept=".csv,text/csv" onchange="admBulkPreview()">
+    <div id="bulkPreview" class="muted" style="font-size:13px;margin-top:10px"></div>
+    <div class="scard-actions" style="margin-top:14px"><button class="btn btn-primary" id="bulkGo" onclick="admBulkInviteRun()" disabled>Send invites</button></div>
+    <div id="bulkOut" style="font-size:13px;margin-top:12px"></div>
+  </div></div>`;
+  window.__bulkRows=[];
+}
+function admBulkPreview(){
+  const f=$("bulkFile").files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=()=>{
+    const all=admBulkParse(String(r.result||""));
+    const valid=all.filter(x=>x.email && x.email.includes("@"));
+    window.__bulkRows=valid;
+    const skipped=all.length-valid.length;
+    const counts=valid.reduce((m,x)=>{m[x.type]=(m[x.type]||0)+1;return m;},{});
+    let html=`Found <b>${valid.length}</b> valid ${valid.length===1?"row":"rows"}${skipped?` · ${skipped} skipped (no email)`:""}.`;
+    const parts=Object.entries(counts).map(([k,v])=>`${v} ${k.replace("_"," ")}`); if(parts.length) html+="<br>"+parts.join(" · ");
+    if(valid.length>300) html+=`<br><span style="color:#8B0000">Over 300 at once — please split into smaller files.</span>`;
+    $("bulkPreview").innerHTML=html;
+    $("bulkGo").disabled = valid.length===0 || valid.length>300;
+  };
+  r.readAsText(f);
+}
+async function admBulkInviteRun(){
+  const rows=window.__bulkRows||[]; if(!rows.length) return;
+  const token=S.session&&S.session.access_token; if(!token) return toast("Please sign in again.");
+  if(!confirm("Send "+rows.length+" invite email"+(rows.length>1?"s":"")+" now?")) return;
+  $("bulkGo").disabled=true; const out=$("bulkOut"); let sent=0,failed=0;
+  for(let i=0;i<rows.length;i++){
+    out.innerHTML="Sending "+(i+1)+" of "+rows.length+"…";
+    try{
+      const r=await fetch("/.netlify/functions/partner-invite",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({accessToken:token,email:rows[i].email,business:rows[i].business,tenant_type:rows[i].type})});
+      const d=await r.json(); if(d&&d.ok) sent++; else failed++;
+    }catch(e){ failed++; }
+    await new Promise(res=>setTimeout(res,250));
+  }
+  out.innerHTML="<b>Done.</b> "+sent+" sent"+(failed?" · "+failed+" failed":"")+".";
+}
 async function admLoadAccounts(){
   const {data}=await sb.rpc("admin_list_accounts",{search:$("admAcctSearch").value.trim()});
   const rows=Array.isArray(data)?data:[];
@@ -4217,6 +4312,10 @@ async function admAccountModal(id){
     <div class="eyebrow">White-label account</div><h3 style="margin-bottom:2px">${esc(acct.business_name)}</h3>
     <div class="muted" style="font-size:12.5px">${tenantLabel(acct.tenant_type)} · account ${esc(acct.id.slice(0,8))}…</div>
 
+    <div class="eyebrow" style="margin-top:16px">Business name</div>
+    <div style="display:flex;gap:6px;margin-top:6px"><input id="acBiz" value="${esc(acct.business_name||"")}" placeholder="Grace Funeral Home" style="flex:1">
+      <button class="btn btn-primary btn-sm" onclick="admSaveBusiness('${id}')">Save</button></div>
+
     <div class="eyebrow" style="margin-top:18px">Plan &amp; limits</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px">
       <div><label>Estate limit</label>
@@ -4265,6 +4364,10 @@ async function admAccountModal(id){
       <button class="btn btn-brass" onclick="admSaveBranding('${id}')">Save branding</button>
       <button class="btn btn-ghost" onclick="admOpenLiveSite()">Open live site \u2197</button>
       <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    </div>
+    <div style="border-top:1px solid var(--line);margin-top:16px;padding-top:12px">
+      <button class="btn btn-ghost btn-sm" style="color:#8B0000" onclick="admDeletePartnerAccount('${id}')">Delete this account…</button>
+      <div class="muted" style="font-size:11.5px;margin-top:5px">Removes the white-label account and its branding. The owner's login and any families they created are kept.</div>
     </div>
   </div></div>`;
   admBrandPreview(); admCheckDomain();
