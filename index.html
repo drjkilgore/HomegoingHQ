@@ -4098,7 +4098,9 @@ function admPartnerAppModal(id){
     ${a.status==="pending"?`
     <label style="margin-top:14px">Subdomain to assign <span class="muted" style="font-weight:400">(they'll live at name.homegoinghq.com)</span></label>
     <input id="paSub" value="${esc(a.desired_subdomain||"")}" placeholder="grace-funeral" autocapitalize="none" spellcheck="false" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')">
-    <div class="muted" style="font-size:12px;margin-top:8px">Approving provisions the co-brand account. If <b>${esc(a.owner_email||"this email")}</b> doesn't have a HomegoingHQ account yet, we'll create one and email them a set-password link. Remember to add the subdomain as a Netlify domain alias.</div>
+    <div class="muted" style="font-size:12px;margin-top:8px">${a.tenant_type==="church"
+      ? `Approving makes this church live for <b>free</b>. If <b>${esc(a.owner_email||"this email")}</b> has no account yet, we'll create one and email a set-password link. Remember to add the subdomain as a Netlify domain alias.`
+      : `Approving emails <b>${esc(a.owner_email||"this funeral home")}</b> a set-password link and a <b>$149/mo Stripe checkout</b>. Their co-branded portal activates once they pay — set the subdomain then.`}</div>
     <div class="scard-actions" style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-primary" onclick="admApprovePartnerApp('${a.id}')">Approve &amp; provision</button>
       <button class="btn btn-ghost" onclick="admDeclinePartnerApp('${a.id}')">Decline</button>
@@ -4116,12 +4118,8 @@ async function admApprovePartnerApp(id){
       body:JSON.stringify({accessToken:token,id,subdomain:sub||null})});
     const d=await r.json();
     if(d&&d.ok){
-      const a=PARTNER_APPS.find(x=>x.id===id);
-      if(d.created){ toast("Approved — account created & set-password email sent."); }
-      else{
-        toast("Approved & provisioned — sending welcome email.");
-        if(a&&a.owner_email) fetch("/.netlify/functions/send-partner-welcome",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:a.owner_email})}).catch(()=>{});
-      }
+      if(d.tenant_type==="funeral_home") toast("Approved — subscription + set-up email sent to the funeral home.");
+      else toast(d.created?"Approved — church is live; set-password email sent.":"Approved — church is live; welcome email sent.");
       closeModal(); admLoadPartnerApps(); admLoadAccounts(); return;
     }
     const e=d&&d.error;
