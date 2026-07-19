@@ -10,8 +10,8 @@ exports.handler = async (event) => {
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Content-Type": "application/json",
-    // branding rarely changes; let the edge/browser cache it briefly
-    "Cache-Control": "public, max-age=300"
+    // branding can change during onboarding — keep the cache short so edits appear fast
+    "Cache-Control": "public, max-age=30, must-revalidate"
   };
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
 
