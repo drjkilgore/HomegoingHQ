@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Live Guide (preview) — HomegoingHQ</title>
+<style>
+  :root{ --ink:#26332E; --paper:#F5F3EE; --line:#DED9CF; --accent:#7A8B76; --muted:#6B6B63; }
+  body{font-family:Georgia,'Times New Roman',serif;max-width:760px;margin:0 auto;padding:26px;color:var(--ink);background:var(--paper);line-height:1.6}
+  h1{font-size:1.6rem;margin:0 0 6px;font-weight:600}
+  .mut{color:var(--muted);font-size:.94rem}
+  .ui{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  fieldset{border:1px solid var(--line);border-radius:12px;padding:18px;margin:18px 0;background:#fff}
+  legend{font-weight:700;padding:0 6px}
+  label{display:block;font-weight:700;font-size:.82rem;margin:10px 0 4px}
+  input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:ui-monospace,monospace;font-size:.82rem;box-sizing:border-box}
+  button{background:var(--ink);color:#fff;border:0;border-radius:10px;padding:11px 18px;font-weight:700;cursor:pointer;font-family:system-ui,sans-serif}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .note{background:#EFEAE0;border:1px solid var(--line);border-radius:10px;padding:14px;font-size:.9rem;margin:14px 0}
+  code{background:#EAE5DB;padding:1px 5px;border-radius:5px;font-size:.85em}
+  #stage{margin-top:16px}
+  #err{color:#9B4A3F;font-weight:700;margin-top:8px}
+  .chk{display:flex;align-items:center;gap:8px;font-weight:700;font-size:.9rem;margin-top:12px}
+  .chk input{width:auto}
+</style>
+</head>
+<body>
+<h1>HomegoingHQ — Live Guide (preview)</h1>
+<p class="mut">A gentle, face-to-face companion to help a family settle an estate. This preview uses the LiveAvatar embed: a real-time avatar answers, steered by the compassionate context you configure.</p>
+
+<div class="note ui">
+  <strong>Please read before using with families.</strong> This preview runs LiveAvatar FULL mode — HeyGen's model
+  answers, guided by your context, with HeyGen's moderation. It does <em>not</em> run the <code>ai-guide</code>
+  function's Survivor-Mode guardrails (information not advice; defer contested legal, tax, and financial questions
+  to a licensed professional). Configure a strict, grief-appropriate <b>context/persona</b> in the LiveAvatar
+  dashboard that mirrors those rules. Keep <b>Sandbox mode</b> on while testing — it's free (no credits).
+</div>
+
+<fieldset class="ui">
+  <legend>Set up</legend>
+  <p class="mut">Get a <b>LiveAvatar</b> API key at <code>app.liveavatar.com/developers</code> (separate from your
+  HeyGen key) and set it in Netlify as <code>LIVEAVATAR_API_KEY</code>. Create a warm, calm avatar and a
+  context/persona in the LiveAvatar dashboard, then paste their IDs below. The pre-filled IDs are a public sandbox
+  demo so you can see it work first.</p>
+  <label>Avatar ID</label>
+  <input id="avatarId" value="65f9e3c9-d48b-4118-b73a-4ae2e3cbb8f0" />
+  <label>Context ID (persona / knowledge base)</label>
+  <input id="contextId" value="158f5d55-2d4f-11f1-8d28-066a7fa2e369" />
+  <div class="chk"><input type="checkbox" id="sandbox" checked /> <label for="sandbox" style="margin:0">Sandbox mode (free, no credits)</label></div>
+  <div class="row" style="margin-top:14px">
+    <button id="start">Start live guide</button>
+    <span id="status" class="mut"></span>
+  </div>
+  <div id="err"></div>
+</fieldset>
+
+<div id="stage"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+$('start').onclick=async ()=>{
+  $('err').textContent=''; $('status').textContent='starting…'; $('start').disabled=true;
+  try{
+    const r=await fetch('/.netlify/functions/liveavatar-embed',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ avatarId:$('avatarId').value.trim(), contextId:$('contextId').value.trim(), sandbox:$('sandbox').checked })});
+    const raw=await r.text(); let d; try{ d=JSON.parse(raw); }catch(e){ throw new Error('HTTP '+r.status+' — '+(raw.slice(0,200)||'empty response')); }
+    if(!d.url) throw new Error(d.error || 'No embed URL returned');
+    $('status').textContent = d.sandbox ? 'running (sandbox — free)' : 'running (live — using credits)';
+    $('stage').innerHTML='<iframe src="'+d.url+'" allow="microphone" title="Live Guide" style="width:100%;aspect-ratio:16/9;border:none;border-radius:12px;box-shadow:0 10px 30px rgba(38,51,46,.15)"></iframe>';
+  }catch(e){ $('status').textContent=''; $('err').textContent='Could not start: '+e.message+' (is LIVEAVATAR_API_KEY set + redeployed?)'; }
+  $('start').disabled=false;
+};
+</script>
+</body>
+</html>

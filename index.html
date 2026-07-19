@@ -319,6 +319,13 @@ summary::-webkit-details-marker{display:none}
         <button class="btn btn-brass btn-sm" onclick="conciergeModal()">Talk to a person</button>
       </div>
     </div>
+    <div class="card" id="liveGuideCard" style="margin-top:8px;border-top:3px solid var(--brass)">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;min-width:230px"><strong>Prefer to talk it through, face to face?</strong>
+        <div class="muted" style="font-size:13.5px;margin-top:3px">Meet the HomegoingHQ Guide — a calm, face-to-face companion who can explain a term, a next step, or a letter, any time of day.</div></div>
+        <button class="btn btn-brass btn-sm" onclick="openLiveGuide()">Meet the Guide</button>
+      </div>
+    </div>
     <div class="banner">A note for right now: don't pay the deceased's bills from your own money, don't distribute belongings yet, and don't announce dates the home will be empty. The roadmap will tell you when each of those is safe.</div>
   </div>
 
@@ -498,7 +505,7 @@ summary::-webkit-details-marker{display:none}
 <button class="guide-fab hidden" id="guideFab" onclick="openGuide()">✦ Ask the Guide</button>
 <div class="guide-drawer hidden" id="guideDrawer">
   <div class="guide-head"><div><div class="eyebrow">HomegoingHQ Guide</div><strong>Here to help, one step at a time</strong></div>
-  <button class="btn btn-ghost btn-sm" onclick="closeGuide()">Close</button></div>
+  <div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" id="liveGuideDrawerBtn" onclick="openLiveGuide()">Face to face</button><button class="btn btn-ghost btn-sm" onclick="closeGuide()">Close</button></div></div>
   <div class="guide-msgs" id="guideMsgs"><div class="gm ai">I'm here whenever you need something explained — a legal term, a letter drafted, or simply what to do next. What can I help with?</div></div>
   <div class="guide-input"><input id="guideText" placeholder="Ask anything…" onkeydown="if(event.key==='Enter')sendGuide()"><button class="btn btn-primary" onclick="sendGuide()">Send</button></div>
   <div class="guide-note">General information, not legal, tax, or financial advice.</div>
@@ -509,6 +516,38 @@ summary::-webkit-details-marker{display:none}
 <div id="toast" class="hidden"></div>
 
 <script>
+/* ===== LIVE GUIDE (LiveAvatar embed) =====
+   Fill these to enable the face-to-face Guide. Create a calm, estate-appropriate
+   avatar + context at app.liveavatar.com and set LIVEAVATAR_API_KEY in Netlify.
+   Set enabled:false to hide the launchers. Keep sandbox:true (free) while testing.
+   NOTE: FULL mode — HeyGen's model steered by your context, NOT the ai-guide
+   Survivor-Mode guardrails. Mirror those rules in your LiveAvatar context. */
+const LIVEGUIDE = { enabled:true, avatarId:'65f9e3c9-d48b-4118-b73a-4ae2e3cbb8f0', contextId:'158f5d55-2d4f-11f1-8d28-066a7fa2e369', sandbox:true };
+async function openLiveGuide(){
+  if(!LIVEGUIDE.enabled || !LIVEGUIDE.avatarId || !LIVEGUIDE.contextId) return;
+  var root=document.getElementById('modalRoot')||document.body;
+  var ov=document.createElement('div');
+  ov.setAttribute('style','position:fixed;inset:0;z-index:200;background:rgba(38,51,46,.55);display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif');
+  ov.innerHTML='<div style="background:#F5F3EE;border-radius:16px;max-width:820px;width:100%;box-shadow:0 20px 60px rgba(38,51,46,.35);overflow:hidden">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px">'
+    +'<strong>HomegoingHQ Guide</strong><button class="lgx" style="border:0;background:#26332E;color:#fff;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Close</button></div>'
+    +'<div class="lgbody" style="padding:0 16px 16px"><div style="color:#6B6B63;padding:28px;text-align:center">Connecting you with the Guide\u2026</div></div></div>';
+  root.appendChild(ov);
+  function close(){ ov.remove(); }
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  ov.querySelector('.lgx').addEventListener('click',close);
+  try{
+    var r=await fetch('/.netlify/functions/liveavatar-embed',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({avatarId:LIVEGUIDE.avatarId,contextId:LIVEGUIDE.contextId,sandbox:LIVEGUIDE.sandbox})});
+    var d=await r.json();
+    if(!d||!d.url) throw new Error((d&&d.error)||'unavailable');
+    ov.querySelector('.lgbody').innerHTML='<iframe src="'+d.url+'" allow="microphone" title="Live Guide" style="width:100%;aspect-ratio:16/9;border:none;border-radius:12px"></iframe>';
+  }catch(e){
+    ov.querySelector('.lgbody').innerHTML='<div style="color:#9B4A3F;padding:28px;text-align:center">The live Guide isn\u2019t available right now. Please try the chat, or a concierge.</div>';
+  }
+}
+document.addEventListener('DOMContentLoaded',function(){ if(!LIVEGUIDE.enabled){ ['liveGuideCard','liveGuideDrawerBtn'].forEach(function(id){ var e=document.getElementById(id); if(e) e.style.display='none'; }); } });
+
 /* ================= BRANDS — one app, four front doors ================= */
 const BRANDS={
  homegoing:{name:"HomegoingHQ",mark:"H",tagline:"Aftercare · Estate Guidance · Memorial",
