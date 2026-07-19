@@ -33,6 +33,21 @@ exports.handler = async (event) => {
 
   try {
     const { token, action } = JSON.parse(event.body || "{}");
+    // ---- diagnostic: which Stripe account is this key, and is Connect on? ----
+    if (action === "whoami") {
+      const who = await fetch("https://api.stripe.com/v1/account", { headers: { Authorization: "Bearer " + SK } });
+      const wd = await who.json();
+      return { statusCode: 200, headers: H, body: JSON.stringify({
+        key_last4: SK.slice(-4),
+        livemode: SK.indexOf("sk_live_") === 0,
+        account_id: wd.id || null,
+        business_name: (wd.settings && wd.settings.dashboard && wd.settings.dashboard.display_name) || wd.business_profile && wd.business_profile.name || null,
+        charges_enabled: wd.charges_enabled,
+        payouts_enabled: wd.payouts_enabled,
+        connect_capable: !!(wd.capabilities || wd.controller || wd.type),
+        stripe_error: wd.error ? wd.error.message : null
+      }) };
+    }
     if (!token) return { statusCode: 401, headers: H, body: JSON.stringify({ error: "not signed in" }) };
 
     // Identify the caller from their Supabase JWT.
