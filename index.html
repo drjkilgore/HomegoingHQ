@@ -7125,7 +7125,7 @@ function chooseDesigner(id,name){ FS.chosenDesigner = id?{id:id,name:name}:null;
   /* ---------- helpers ---------- */
   function escd(s){ return window.esc? esc(s) : String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
   function escAttr(s){ return String(s==null?"":s).replace(/"/g,"&quot;"); }
-  function fd(d){ try{ return window.fmtDate? fmtDate(d) : new Date(d).toLocaleDateString(); }catch(e){ return ""; } }
+  function fd(d){ try{ if(!d) return ""; var dt=new Date(d); if(isNaN(dt.getTime())) return ""; var out=window.fmtDate?fmtDate(d):dt.toLocaleDateString(); return (!out||out==="Invalid Date")?dt.toLocaleDateString():out; }catch(e){ try{ var dt2=new Date(d); return isNaN(dt2.getTime())?"":dt2.toLocaleDateString(); }catch(_){ return ""; } } }
   function money(n){ return window.money? money2(n) : "$"+Number(n||0).toFixed(2); }
   function money2(n){ return "$"+Number(n||0).toFixed(2); }
 
