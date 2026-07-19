@@ -951,14 +951,27 @@ const FIRST_PARTY_HOSTS = ["homegoinghq.com","www.homegoinghq.com","app.homegoin
     if(b.color_ink)         root.setProperty("--ink", b.color_ink);
     if(b.business_name)     document.title = b.business_name;
     // Logo: image if provided, else the tenant business name; keep the square mark.
+    const HDR_FONTS={display:"var(--font-display),Georgia,serif",serif:"Georgia,'Times New Roman',serif",sans:"system-ui,-apple-system,'Segoe UI',Roboto,sans-serif",trebuchet:"'Trebuchet MS',Verdana,sans-serif",times:"'Times New Roman',serif",garamond:"Garamond,'Times New Roman',serif"};
+    const HDR_SIZES={sm:"18px",md:"24px",lg:"30px",xl:"38px"};
+    const _hesc=s=>String(s||"").replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
+    const htxt=(b.header_text||"").trim();
+    let wordmark="";
+    if(htxt){
+      const ff=HDR_FONTS[b.header_font]||HDR_FONTS.display, fs=HDR_SIZES[b.header_size]||HDR_SIZES.md;
+      wordmark='<span class="tenant-wordmark" style="font-family:'+ff+';font-size:'+fs+';color:var(--ink);font-weight:'+(b.header_bold?"700":"500")+';'+(b.header_italic?"font-style:italic;":"")+'line-height:1.05">'+_hesc(htxt)+'</span>';
+    }
     document.querySelectorAll(".logo").forEach(l=>{
       const mark = (b.business_name||"H").trim().charAt(0).toUpperCase() || "H";
-      l.innerHTML = b.logo_url
-        ? '<span class="mark"></span><img src="'+b.logo_url+'" alt="'+(b.business_name||"Provider")+' logo" style="height:66px;width:auto;max-height:66px;max-width:300px;object-fit:contain">'
-        : '<span class="mark">'+mark+'</span>'+ (b.business_name||"");
-      const m=l.querySelector(".mark"); if(m && !b.logo_url) m.textContent=mark; else if(m) m.style.display="none";
+      if(b.logo_url){
+        l.innerHTML='<span class="mark" style="display:none"></span><img src="'+b.logo_url+'" alt="'+_hesc(b.business_name||"Provider")+' logo" style="height:66px;width:auto;max-height:66px;max-width:300px;object-fit:contain">'+wordmark;
+      } else if(htxt){
+        l.innerHTML='<span class="mark" style="display:none"></span>'+wordmark;
+      } else {
+        l.innerHTML='<span class="mark">'+mark+'</span>'+ (b.business_name||"");
+      }
     });
     if(b.logo_url){ document.querySelectorAll(".topbar-inner").forEach(t=>{ t.style.height="86px"; }); }
+    else if(htxt){ document.querySelectorAll(".topbar-inner").forEach(t=>{ t.style.height="72px"; }); }
     if(b.favicon_url){
       let ic=document.querySelector('link[rel="icon"]');
       if(!ic){ ic=document.createElement("link"); ic.rel="icon"; document.head.appendChild(ic); }
@@ -4204,6 +4217,18 @@ async function admRevokeFamilies(id){
   if(error) return toast(error.message);
   toast("Revoked "+((data&&data.revoked)||0)+" link(s)."); admAccountModal(id);
 }
+async function admSaveHeaderText(id){
+  const {data,error}=await sb.rpc("admin_set_header_text",{
+    target:id,
+    p_text:($("acHdrText").value||"").trim(),
+    p_font:$("acHdrFont").value,
+    p_bold:$("acHdrBold").checked,
+    p_italic:$("acHdrItalic").checked,
+    p_size:$("acHdrSize").value
+  });
+  if(error) return toast(error.message);
+  toast(data===true?"Header wordmark saved.":"Couldn't save wordmark.");
+}
 async function admSaveBusiness(id){
   const name=($("acBiz").value||"").trim();
   if(!name) return toast("Enter a business name.");
@@ -4411,6 +4436,21 @@ async function admAccountModal(id){
         <input id="ac_${k}" value="${esc(cur)}" placeholder="https://…" oninput="admBrandPreview()" style="flex:1">
         <label class="btn btn-ghost btn-sm" style="margin:0;cursor:pointer">Upload<input type="file" accept="image/*" style="display:none" onchange="admUploadAsset('${id}','${k}',this)"></label>
       </div>`;}).join("")}
+    <div class="eyebrow" style="margin-top:16px">Header wordmark</div>
+    <div class="muted" style="font-size:12px;margin:2px 0 6px">Text shown next to the logo — useful when the logo is small or icon-only. Leave blank to show the logo alone.</div>
+    <input id="acHdrText" value="${esc(b.header_text||"")}" placeholder="e.g., Lifewise Funeral Concierge" oninput="admBrandPreview()">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
+      <div><label>Font</label>
+        <select id="acHdrFont" onchange="admBrandPreview()">${[["display","Brand serif (default)"],["serif","Serif (Georgia)"],["sans","Sans-serif"],["trebuchet","Trebuchet"],["times","Times"],["garamond","Garamond"]].map(o=>`<option value="${o[0]}"${(b.header_font||"display")===o[0]?" selected":""}>${o[1]}</option>`).join("")}</select></div>
+      <div><label>Size</label>
+        <select id="acHdrSize" onchange="admBrandPreview()">${[["sm","Small"],["md","Medium"],["lg","Large"],["xl","Extra large"]].map(o=>`<option value="${o[0]}"${(b.header_size||"md")===o[0]?" selected":""}>${o[1]}</option>`).join("")}</select></div>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:10px;align-items:center;flex-wrap:wrap">
+      <label style="display:flex;gap:6px;align-items:center;font-weight:400;margin:0"><input type="checkbox" id="acHdrBold" ${b.header_bold?"checked":""} style="width:auto" onchange="admBrandPreview()"> Bold</label>
+      <label style="display:flex;gap:6px;align-items:center;font-weight:400;margin:0"><input type="checkbox" id="acHdrItalic" ${b.header_italic?"checked":""} style="width:auto" onchange="admBrandPreview()"> Italic</label>
+      <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="admSaveHeaderText('${id}')">Save wordmark</button>
+    </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div><label>Contact name</label><input id="acCName" value="${esc(b.contact_name||"")}"></div>
       <div><label>Contact phone</label><input id="acCPhone" value="${esc(b.contact_phone||"")}"></div>
@@ -4472,12 +4512,21 @@ async function admCheckDomain(){
 function admBrandPreview(){
   const g=id=>($(id)?$(id).value:"");
   const ink=g("acInk")||"#26332E", accent=g("acAccent")||"#8F6A24";
-  const logo=g("ac_logo"), hero=g("ac_hero"), name=($("acCName")?$("acCName").value:"")||"Your practice";
+  const logo=g("ac_logo"), hero=g("ac_hero");
+  const htxt=($("acHdrText")?$("acHdrText").value:"").trim();
+  const PFONT={display:"Georgia,serif",serif:"Georgia,serif",sans:"system-ui,sans-serif",trebuchet:"'Trebuchet MS',sans-serif",times:"'Times New Roman',serif",garamond:"Garamond,serif"};
+  const PSIZE={sm:"15px",md:"19px",lg:"23px",xl:"27px"};
+  const ff=PFONT[$("acHdrFont")?$("acHdrFont").value:"display"]||"Georgia,serif";
+  const fs=PSIZE[$("acHdrSize")?$("acHdrSize").value:"md"]||"19px";
+  const fb=($("acHdrBold")&&$("acHdrBold").checked)?"700":"500";
+  const fi=($("acHdrItalic")&&$("acHdrItalic").checked)?"italic":"normal";
+  const name = htxt || g("acCName") || "Your practice";
+  const wordmark = `<span style="font-family:${ff};font-size:${fs};font-weight:${fb};font-style:${fi};color:#F6F2EA">${esc(name)}</span>`;
   const el=$("acPreview"); if(!el) return;
   el.innerHTML=`<div style="border:1px solid var(--line);border-radius:12px;overflow:hidden">
     <div style="background:${esc(ink)};color:#F6F2EA;padding:14px 16px;display:flex;align-items:center;gap:10px;${hero?`background-image:linear-gradient(rgba(38,51,46,.55),rgba(38,51,46,.55)),url('${esc(hero)}');background-size:cover;background-position:center`:""}">
-      ${logo?`<img alt="" src="${esc(logo)}" style="height:26px;width:auto" onerror="this.style.display='none'">`:`<span style="width:26px;height:26px;border-radius:7px;background:#F6F2EA;color:${esc(ink)};display:grid;place-items:center;font-weight:600">${esc(name.trim().charAt(0).toUpperCase()||"H")}</span>`}
-      <strong style="font-family:var(--font-display)">${esc(name)}</strong></div>
+      ${logo?`<img alt="" src="${esc(logo)}" style="height:42px;width:auto;max-width:180px;object-fit:contain" onerror="this.style.display='none'">`:(htxt?"":`<span style="width:26px;height:26px;border-radius:7px;background:#F6F2EA;color:${esc(ink)};display:grid;place-items:center;font-weight:600">${esc(name.trim().charAt(0).toUpperCase()||"H")}</span>`)}
+      ${wordmark}</div>
     <div style="padding:14px 16px;background:var(--card)">
       <button onclick="admOpenLiveSite()" title="Open the live branded site" style="background:${esc(accent)};color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer">Begin</button>
       <div style="font-size:11px;letter-spacing:.04em;color:var(--ink-soft);opacity:.7;margin-top:10px">Powered by HomegoingHQ®</div>
