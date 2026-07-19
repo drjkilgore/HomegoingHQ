@@ -45,12 +45,18 @@ exports.handler = async (event) => {
     const isChurch = type === "church";
     const kindWord = isChurch ? "congregation" : "the families you serve";
     const bizSafe = (business || "your organization").replace(/</g, "&lt;");
+    const priceLine = isChurch
+      ? "As a place of worship, it's <strong>free</strong> — a gift to your congregation, always."
+      : "For funeral homes it's a simple monthly subscription, with no extra per-family cost — families choose their own plans.";
 
     const html = `<div style="font-family:Georgia,serif;max-width:540px;margin:0 auto;color:#26332E">
       <div style="background:#26332E;color:#F6F2EA;border-radius:14px 14px 0 0;padding:22px 26px;font-size:20px">An invitation from HomegoingHQ</div>
       <div style="border:1px solid #E4DDCE;border-top:none;border-radius:0 0 14px 14px;padding:26px;background:#FFFDF9">
         <p style="font-size:15px;line-height:1.6">Hello${business ? " " + bizSafe : ""},</p>
-        <p style="font-size:15px;line-height:1.6">We'd love to offer <strong>HomegoingHQ</strong> to ${kindWord} — the full guided aftercare platform (roadmap, letters, documents, and memorial tools) under your own name, at <em>yourname.homegoinghq.com</em>. There's no per-family cost to you.</p>
+        <p style="font-size:15px;line-height:1.6">We'd love to offer <strong>HomegoingHQ</strong> to ${kindWord} — the full guided aftercare platform (roadmap, letters, documents, and memorial tools) under your own name, at <em>yourname.homegoinghq.com</em>.</p>
+        <p style="font-size:14px;line-height:1.6;color:#26332E">HomegoingHQ is a guided platform that helps families through the weeks after a death — a step-by-step roadmap of every task and deadline, ready-to-send notification letters and documents, memorial pages, and a calm place to keep what matters.</p>
+        ${process.env.INTRO_VIDEO_URL ? `<p style="text-align:center;margin:14px 0"><a href="${process.env.INTRO_VIDEO_URL}" style="font-family:Arial,sans-serif;color:#8F6A24;font-weight:bold;text-decoration:none">▶ Watch a short introduction</a></p>` : ""}
+        <p style="font-size:14px;line-height:1.6">${priceLine}</p>
         <p style="font-size:14px;line-height:1.6">If you'd like to bring it on, apply here — it takes about two minutes, and we review each partner personally:</p>
         <p style="margin:22px 0;text-align:center"><a href="${link}" style="background:#8F6A24;color:#fff;text-decoration:none;padding:13px 26px;border-radius:10px;font-family:Arial,sans-serif;font-weight:bold">Apply to co-brand →</a></p>
         <p style="font-size:12.5px;color:#5B7183">Questions? Reach us at <a href="mailto:care@homegoinghq.com" style="color:#8F6A24">care@homegoinghq.com</a>.</p>
