@@ -55,7 +55,7 @@ exports.handler = async (event) => {
         <p style="font-size:15px;line-height:1.6">Hello${business ? " " + bizSafe : ""},</p>
         <p style="font-size:15px;line-height:1.6">We'd love to offer <strong>HomegoingHQ</strong> to ${kindWord} — the full guided aftercare platform (roadmap, letters, documents, and memorial tools) under your own name, at <em>yourname.homegoinghq.com</em>.</p>
         <p style="font-size:14px;line-height:1.6;color:#26332E">HomegoingHQ is a guided platform that helps families through the weeks after a death — a step-by-step roadmap of every task and deadline, ready-to-send notification letters and documents, memorial pages, and a calm place to keep what matters.</p>
-        ${process.env.INTRO_VIDEO_URL ? `<p style="text-align:center;margin:14px 0"><a href="${process.env.INTRO_VIDEO_URL}" style="font-family:Arial,sans-serif;color:#8F6A24;font-weight:bold;text-decoration:none">▶ Watch a short introduction</a></p>` : ""}
+        ${(process.env.INTRO_VIDEO_URL || "https://youtu.be/aMxpT9fuYII") ? `<p style="text-align:center;margin:14px 0"><a href="${(process.env.INTRO_VIDEO_URL || "https://youtu.be/aMxpT9fuYII")}" style="font-family:Arial,sans-serif;color:#8F6A24;font-weight:bold;text-decoration:none">▶ See how HomegoingHQ works</a></p>` : ""}
         <p style="font-size:14px;line-height:1.6">${priceLine}</p>
         <p style="font-size:14px;line-height:1.6">If you'd like to bring it on, apply here — it takes about two minutes, and we review each partner personally:</p>
         <p style="margin:22px 0;text-align:center"><a href="${link}" style="background:#8F6A24;color:#fff;text-decoration:none;padding:13px 26px;border-radius:10px;font-family:Arial,sans-serif;font-weight:bold">Apply to co-brand →</a></p>

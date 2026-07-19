@@ -48,7 +48,7 @@ exports.handler = async (event) => {
       <div style="border:1px solid #E4DDCE;border-top:none;border-radius:0 0 14px 14px;padding:26px;background:#FFFDF9">
         <p style="font-size:15px;line-height:1.6">Welcome, <strong>${biz}</strong> — your co-branded aftercare portal is live. ${kindWord === "congregation" ? "Your congregation" : "The families you serve"} will see it as <em>“Aftercare provided by ${biz}, with HomegoingHQ.”</em></p>
         <p style="font-size:14px;line-height:1.6;color:#26332E">HomegoingHQ is a guided platform that helps families through the weeks after a death — a step-by-step roadmap of every task and deadline, ready-to-send letters and documents, memorial pages, and a calm place to keep what matters.</p>
-        ${process.env.INTRO_VIDEO_URL ? `<p style="text-align:center;margin:12px 0"><a href="${process.env.INTRO_VIDEO_URL}" style="font-family:Arial,sans-serif;color:#8F6A24;font-weight:bold;text-decoration:none">▶ Watch a short introduction</a></p>` : ""}
+        ${(process.env.INTRO_VIDEO_URL || "https://youtu.be/aMxpT9fuYII") ? `<p style="text-align:center;margin:12px 0"><a href="${(process.env.INTRO_VIDEO_URL || "https://youtu.be/aMxpT9fuYII")}" style="font-family:Arial,sans-serif;color:#8F6A24;font-weight:bold;text-decoration:none">▶ See how HomegoingHQ works</a></p>` : ""}
         <p style="font-size:14px;margin:18px 0 6px">Your branded link:</p>
         <p style="text-align:center;margin:0 0 18px"><a href="${link}" style="font-family:Arial,sans-serif;font-size:16px;color:#8F6A24;word-break:break-all">${link}</a></p>
         <p style="font-size:14px;line-height:1.6">${useLine}</p>

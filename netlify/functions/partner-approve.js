@@ -11,8 +11,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const INTRO_HTML = () => `
   <p style="font-size:14px;line-height:1.6;color:#26332E">HomegoingHQ is a guided platform that helps families through the weeks after a death — a step-by-step roadmap of every task and deadline, ready-to-send notification letters and documents, memorial pages, and a calm place to keep what matters. When you co-brand it, the families you serve get all of it under your name.</p>`;
 const VIDEO_HTML = () => {
-  const v = process.env.INTRO_VIDEO_URL;
-  return v ? `<p style="text-align:center;margin:14px 0"><a href="${v}" style="font-family:Arial,sans-serif;color:#8F6A24;font-weight:bold;text-decoration:none">▶ Watch a short introduction</a></p>` : "";
+  const v = (process.env.INTRO_VIDEO_URL || "https://youtu.be/aMxpT9fuYII");
+  return v ? `<p style="text-align:center;margin:14px 0"><a href="${v}" style="font-family:Arial,sans-serif;color:#8F6A24;font-weight:bold;text-decoration:none">▶ See how HomegoingHQ works</a></p>` : "";
 };
 
 exports.handler = async (event) => {
