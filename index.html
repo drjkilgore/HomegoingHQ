@@ -2509,12 +2509,45 @@ function ledgerTotals(){
   const dist=L.dists.reduce((s,r)=>s+Number(r.amount||0),0);
   return {assets,debts,debtsPaid,exp,reimb,dist,net:assets-debts-exp,remaining:assets-debtsPaid-exp-dist};
 }
+function ledgerNarration(t){
+  const obligations=(t.debts||0)+(t.exp||0);
+  const hasData=(L.assets.length>0||L.debts.length>0||L.expenses.length>0);
+  if(!hasData){
+    return `<div class="card" style="border-left:3px solid var(--brass);margin-bottom:14px">
+      <div class="eyebrow">Where things stand</div>
+      <p style="font-size:14px;line-height:1.6;margin:6px 0 0">As you add the estate's assets and debts here, the Guide will explain — in plain language — where things stand, and flag anything that changes what to do next. Start with the <strong>Assets</strong> and <strong>Debts &amp; Claims</strong> tabs above, or import accounts from the bank.</p>
+    </div>`;
+  }
+  const solvent=t.assets>=obligations;
+  let inner, border;
+  if(solvent){
+    const margin=t.assets-obligations;
+    const tight=margin<Math.max(2000,t.assets*0.12);
+    border=tight?"var(--brass)":"var(--sage)";
+    inner=`<p style="font-size:14px;line-height:1.6;margin:6px 0 0">As recorded so far, the estate's assets (${money(t.assets)}) are enough to cover its debts and expenses (${money(obligations)}). After those are settled, about <strong>${money(margin)}</strong> would remain to distribute.</p>`;
+    if(tight) inner+=`<p style="font-size:13.5px;line-height:1.6;margin:8px 0 0;color:var(--ink-soft)">The margin is slim — hold off on distributing anything to heirs until every debt and creditor claim has come in, since late claims can still arrive.</p>`;
+    inner+=`<p class="muted" style="font-size:12.5px;margin:8px 0 0">Based only on what's entered here — add anything missing to keep this accurate.</p>`;
+  } else {
+    border="var(--clay)";
+    inner=`<p style="font-size:14px;line-height:1.6;margin:6px 0 0">As recorded so far, the estate's debts and expenses (${money(obligations)}) are larger than its assets (${money(t.assets)}). An estate in this position is called <strong>insolvent</strong>, and it changes what to do next:</p>
+      <ul style="font-size:13.5px;line-height:1.55;margin:8px 0 0;padding-left:18px">
+        <li>Debts are paid from <strong>estate funds only — never your own money</strong>. You are generally not personally responsible for the deceased's debts.</li>
+        <li>When an estate can't cover everything, claims are paid in a <strong>legal priority order</strong> set by your state — not first-come, first-served. Paying the wrong creditor first can make an executor personally liable.</li>
+        <li>Do not distribute anything to heirs until debts and claims are resolved.</li>
+        <li>This is a good moment to speak with an estate attorney — one consultation can prevent an expensive mistake.</li>
+      </ul>
+      <p class="muted" style="font-size:12.5px;margin:8px 0 0">This is general information, not legal advice, and reflects only what's entered here.</p>`;
+  }
+  return `<div class="card" style="border-left:3px solid ${border};margin-bottom:14px">
+    <div class="eyebrow">Where things stand</div>${inner}</div>`;
+}
 function renderLedger(){
   const t=ledgerTotals();
   const subs=[["overview","Overview"],["assets","Assets"],["debts","Debts & Claims"],["expenses","Expenses"],["bens","Beneficiaries"],["dists","Distributions"]];
   let h=`<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">
     ${subs.map(([k,l])=>`<button class="btn btn-sm ${L.sub===k?"btn-primary":"btn-ghost"}" onclick="L.sub='${k}';renderLedger()">${l}</button>`).join("")}</div>`;
   if(L.sub==="overview"){
+    h+=ledgerNarration(t);
     h+=`<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">
       ${[["Estate value (at death)",money(t.assets)],["Debts & claims",money(t.debts)],["Estate expenses",money(t.exp)],["Projected net estate",money(t.net)],["Distributed so far",money(t.dist)],["Remaining to settle",money(t.remaining)]]
         .map(([l,v])=>`<div class="card" style="padding:16px"><div class="eyebrow">${l}</div><div style="font-family:var(--font-display);font-size:26px;margin-top:4px">${v}</div></div>`).join("")}
@@ -2525,7 +2558,10 @@ function renderLedger(){
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="exportInventory()">Inventory of Assets</button>
         <button class="btn btn-primary btn-sm" onclick="exportAccounting()">Estate Accounting</button>
-      </div></div>`;
+      </div></div>
+    <div class="card" style="margin-top:14px"><div class="eyebrow">Recurring charges &amp; subscriptions</div>
+      <p class="muted" style="margin:8px 0 12px">Connect a bank once to scan the last 90 days for recurring charges — streaming, memberships, subscriptions — so the family can cancel what's no longer needed. The connection is used once and discarded.</p>
+      <button class="btn btn-primary btn-sm" onclick="sweepRecurring()">Scan for recurring charges</button></div>`;
   } else {
     const cfg=ledgerCfg(L.sub), rows=L[L.sub];
     h+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -4979,6 +5015,55 @@ function renderClientsSection(){
 }
 
 /* ---------- PLAID DISCOVERY ---------- */
+async function sweepRecurring(){
+  if(TIER_RANK[tier()]<TIER_RANK.settle){ return upgradeModal("Scanning for recurring charges is part of Settle"); }
+  toast("Opening secure bank connection…");
+  try{
+    await loadPlaidScript();
+    const r=await fetch("/.netlify/functions/plaid",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"link_token",userId:S.session.user.id,products:["transactions"]})});
+    const d=await r.json();
+    if(!d.link_token) return toast(d.error||"Plaid isn't configured yet.");
+    const handler=Plaid.create({token:d.link_token,onSuccess:async(public_token)=>{
+      recurringModal({loading:true});
+      const r2=await fetch("/.netlify/functions/plaid",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action:"recurring",public_token})});
+      const d2=await r2.json();
+      if(d2.error){ recurringModal({error:d2.error}); return; }
+      if(d2.status==="gathering"){ recurringModal({gathering:true}); return; }
+      recurringModal({data:d2});
+    }});
+    handler.open();
+  }catch(e){ toast(e.message); }
+}
+function recurringModal(st){
+  st=st||{}; let body="";
+  if(st.loading){
+    body=`<div class="muted" style="padding:24px 6px;text-align:center">Scanning the last 90 days of transactions…</div>`;
+  } else if(st.gathering){
+    body=`<div style="padding:12px 2px;font-size:14px;line-height:1.6">Your bank is still preparing its transaction history — the first time, this can take up to a minute. Please tap <strong>Scan again</strong> in a moment.
+      <div style="margin-top:14px"><button class="btn btn-primary btn-sm" onclick="sweepRecurring()">Scan again</button></div></div>`;
+  } else if(st.error){
+    body=`<div style="padding:12px 2px;color:#8B0000">${esc(st.error)}</div>`;
+  } else if(st.data){
+    const s=st.data.streams||[];
+    if(!s.length){
+      body=`<div class="muted" style="padding:12px 2px">No clearly recurring charges found in the last 90 days.</div>`;
+    } else {
+      const rows=s.map(x=>`<div class="card" style="padding:11px 14px;margin-top:8px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+        <div><strong>${esc(x.name)}</strong><div class="muted" style="font-size:12.5px">${esc(x.cadence)} · seen ${x.count}× · last ${esc(x.last_date||"")}</div></div>
+        <div style="text-align:right"><div style="font-weight:700">${money(x.amount)}</div><div class="muted" style="font-size:11.5px">≈ ${money(x.monthly)}/mo</div></div></div>`).join("");
+      body=`<p style="font-size:14px;line-height:1.55;margin:2px 0 4px">About <strong>${money(st.data.monthly_total)}/month</strong> in recurring charges. Cancel the ones no longer needed — recurring charges quietly drain the estate.</p>
+        ${rows}
+        <div class="muted" style="font-size:11.5px;margin-top:12px;border-top:1px solid var(--line);padding-top:10px">Detected from the last 90 days of transactions. Your bank connection was used once and <strong>not stored</strong>. Review each before cancelling — some may still be needed (insurance, utilities, storage).</div>`;
+    }
+  }
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:600px">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">Recurring charges &amp; subscriptions</div><h3 style="margin-bottom:8px">What's still being charged</h3>
+    ${body}</div></div>`;
+}
+
 function loadPlaidScript(){
   return new Promise((res,rej)=>{
     if(window.Plaid) return res();
