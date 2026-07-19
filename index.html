@@ -321,9 +321,9 @@ summary::-webkit-details-marker{display:none}
     </div>
     <div class="card" id="liveGuideCard" style="margin-top:8px;border-top:3px solid var(--brass)">
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
-        <div style="flex:1;min-width:230px"><strong>Prefer to talk it through, face to face?</strong>
-        <div class="muted" style="font-size:13.5px;margin-top:3px">Meet the HomegoingHQ Guide — a calm, face-to-face companion who can explain a term, a next step, or a letter, any time of day.</div></div>
-        <button class="btn btn-brass btn-sm" onclick="openLiveGuide()">Meet the Guide</button>
+        <div style="flex:1;min-width:230px"><strong>Rather see and hear the Guide?</strong>
+        <div class="muted" style="font-size:13.5px;margin-top:3px">Our AI Guide — now on video. See and talk with it to understand a term, a next step, or a letter, any time.</div></div>
+        <button class="btn btn-brass btn-sm" id="liveGuideCardBtn" onclick="openLiveGuide()">Meet the Guide</button>
       </div>
     </div>
     <div class="banner">A note for right now: don't pay the deceased's bills from your own money, don't distribute belongings yet, and don't announce dates the home will be empty. The roadmap will tell you when each of those is safe.</div>
@@ -505,7 +505,7 @@ summary::-webkit-details-marker{display:none}
 <button class="guide-fab hidden" id="guideFab" onclick="openGuide()">✦ Ask the Guide</button>
 <div class="guide-drawer hidden" id="guideDrawer">
   <div class="guide-head"><div><div class="eyebrow">HomegoingHQ Guide</div><strong>Here to help, one step at a time</strong></div>
-  <div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" id="liveGuideDrawerBtn" onclick="openLiveGuide()">Face to face</button><button class="btn btn-ghost btn-sm" onclick="closeGuide()">Close</button></div></div>
+  <div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" id="liveGuideDrawerBtn" onclick="openLiveGuide()">See the Guide</button><button class="btn btn-ghost btn-sm" onclick="closeGuide()">Close</button></div></div>
   <div class="guide-msgs" id="guideMsgs"><div class="gm ai">I'm here whenever you need something explained — a legal term, a letter drafted, or simply what to do next. What can I help with?</div></div>
   <div class="guide-input"><input id="guideText" placeholder="Ask anything…" onkeydown="if(event.key==='Enter')sendGuide()"><button class="btn btn-primary" onclick="sendGuide()">Send</button></div>
   <div class="guide-note">General information, not legal, tax, or financial advice.</div>
@@ -522,9 +522,24 @@ summary::-webkit-details-marker{display:none}
    Set enabled:false to hide the launchers. Keep sandbox:true (free) while testing.
    NOTE: FULL mode — HeyGen's model steered by your context, NOT the ai-guide
    Survivor-Mode guardrails. Mirror those rules in your LiveAvatar context. */
-const LIVEGUIDE = { enabled:true, avatarId:'65f9e3c9-d48b-4118-b73a-4ae2e3cbb8f0', contextId:'158f5d55-2d4f-11f1-8d28-066a7fa2e369', sandbox:true };
+const LIVEGUIDE = { enabled:true, avatarId:'65f9e3c9-d48b-4118-b73a-4ae2e3cbb8f0', contextId:'f7a0979b-b28c-49ac-bebb-6b41427286aa', sandbox:false };
+/* Live guide is a Settle-tier feature (settle & premium). */
+function liveGuideAllowed(){
+  try{ var t=tier(); if(typeof TIER_RANK==='object'&&TIER_RANK&&TIER_RANK.settle!=null&&TIER_RANK[t]!=null) return TIER_RANK[t]>=TIER_RANK.settle; return t==='settle'||t==='premium'; }
+  catch(e){ return false; }
+}
+function applyLiveGuideGate(){
+  var card=document.getElementById('liveGuideCard'), cardBtn=document.getElementById('liveGuideCardBtn'), drawerBtn=document.getElementById('liveGuideDrawerBtn');
+  if(!LIVEGUIDE.enabled){ [card,drawerBtn].forEach(function(e){ if(e) e.style.display='none'; }); return; }
+  [card,drawerBtn].forEach(function(e){ if(e) e.style.display=''; });
+  var ok=liveGuideAllowed();
+  if(cardBtn) cardBtn.innerHTML = ok ? 'Meet the Guide' : '\uD83D\uDD12 Meet the Guide';
+  if(drawerBtn) drawerBtn.innerHTML = ok ? 'See the Guide' : '\uD83D\uDD12 See the Guide';
+}
 async function openLiveGuide(){
-  if(!LIVEGUIDE.enabled || !LIVEGUIDE.avatarId || !LIVEGUIDE.contextId) return;
+  if(!LIVEGUIDE.enabled) return;
+  if(!liveGuideAllowed()){ if(typeof upgradeModal==='function') upgradeModal('The face-to-face Guide is part of Settle'); return; }
+  if(!LIVEGUIDE.avatarId || !LIVEGUIDE.contextId) return;
   var root=document.getElementById('modalRoot')||document.body;
   var ov=document.createElement('div');
   ov.setAttribute('style','position:fixed;inset:0;z-index:200;background:rgba(38,51,46,.55);display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif');
@@ -546,7 +561,7 @@ async function openLiveGuide(){
     ov.querySelector('.lgbody').innerHTML='<div style="color:#9B4A3F;padding:28px;text-align:center">The live Guide isn\u2019t available right now. Please try the chat, or a concierge.</div>';
   }
 }
-document.addEventListener('DOMContentLoaded',function(){ if(!LIVEGUIDE.enabled){ ['liveGuideCard','liveGuideDrawerBtn'].forEach(function(id){ var e=document.getElementById(id); if(e) e.style.display='none'; }); } });
+document.addEventListener('DOMContentLoaded',function(){ try{ applyLiveGuideGate(); }catch(e){} });
 
 /* ================= BRANDS — one app, four front doors ================= */
 const BRANDS={
@@ -1498,7 +1513,7 @@ async function openEstate(id){
   $("eName").textContent = est.decedent_name;
   $("eSub").textContent = (est.date_of_death?("Passed "+fmtDate(est.date_of_death)):"") + (est.state_code?" · "+est.state_code:"") + (est.relationship?" · You: "+est.relationship:"");
   await Promise.all([loadTasks(),loadMembers(),loadNotifs(),loadDocs(),loadStatePack()]);
-  renderEstateStatus(); renderOOSCard(); renderEstateUpgrade(); applyTabLocks();
+  renderEstateStatus(); renderOOSCard(); renderEstateUpgrade(); applyTabLocks(); applyLiveGuideGate();
   setTab("next"); show("view-estate");
 }
 // Show a lock badge on tabs whose core tool the current plan can't use, so free
@@ -2109,7 +2124,7 @@ async function renderActivity(){
 }
 
 /* ===================== AI GUIDE ===================== */
-function openGuide(){ $("guideDrawer").classList.remove("hidden"); $("guideText").focus(); }
+function openGuide(){ $("guideDrawer").classList.remove("hidden"); try{ applyLiveGuideGate(); }catch(e){} $("guideText").focus(); }
 function closeGuide(){ $("guideDrawer").classList.add("hidden"); }
 function guideBubble(text,cls){
   const m=document.createElement("div"); m.className="gm "+cls; m.textContent=text;
