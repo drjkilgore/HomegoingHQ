@@ -313,6 +313,7 @@ summary::-webkit-details-marker{display:none}
     <div id="oosCard" style="margin-bottom:12px"></div>
     <div class="stack-zone"><div class="stack" id="nextStack"></div></div>
     <div class="stack-count" id="nextCount"></div>
+    <div id="smsOptinNext" style="margin-top:12px"></div>
     <div class="card" style="margin-top:8px;border-top:3px solid var(--brass)">
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
         <div style="flex:1;min-width:230px"><strong>Prefer a person beside you?</strong>
@@ -715,7 +716,14 @@ const RULES = [
 {id:"gn_design",phase:"week1",cat:"Funeral",due:4,cond:i=>i.tradition==="general",title:"Design the service itself",why:"With no church or institution supplying the form, the shape of the service is yours to choose — which is freedom, and also work. We'll walk it.",how:"Decide: venue (funeral home chapel, graveside, a hall, outdoors), length (30–60 minutes is typical), and structure — welcome, two or three speakers with gentle time limits, one or two musical moments, a reading, a closing. Simple and sincere beats elaborate and rushed."},
 {id:"gn_officiant",phase:"week1",cat:"Funeral",due:4,cond:i=>i.tradition==="general",title:"Choose who will lead the service",why:"A steady voice at the front lets the family sit in the front row instead of running the room.",how:"A celebrant or officiant, a family friend who holds a room well, or a chaplain all work. If you'd like us to source a professional officiant or celebrant, use the request button in Music & Special Tributes — we'll bring options."},
 {id:"gn_readings",phase:"week1",cat:"Funeral",due:5,cond:i=>i.tradition==="general",title:"Choose readings & music",why:"Two readings and two or three pieces of music are the skeleton of a beautiful secular or interfaith service.",how:"Poems that serve well: 'Do Not Stand at My Grave and Weep,' Mary Oliver, Maya Angelou's 'When Great Trees Fall.' Music: their favorites first — one reflective, one that sounds like them. Live music (a soloist, strings) through Music & Special Tributes lifts the room more than any speaker system."},
-{id:"records",phase:"longterm",cat:"Closing",due:360,title:"Archive the records (keep 7 years)",why:"Tax questions and beneficiary disputes can surface years later; the file is your protection.",how:"Keep the will, letters, inventory, accountings, tax returns, receipts/releases, and the estate account statements together — one physical folder plus scans in the vault here."}
+{id:"records",phase:"longterm",cat:"Closing",due:360,title:"Archive the records (keep 7 years)",why:"Tax questions and beneficiary disputes can surface years later; the file is your protection.",how:"Keep the will, letters, inventory, accountings, tax returns, receipts/releases, and the estate account statements together — one physical folder plus scans in the vault here."},
+/* ---- Circumstance-driven steps (information, not legal advice; the named authority is the final word) ---- */
+{id:"circ_me_release",circ:"me",phase:"first24",cat:"Immediate",due:1,cond:i=>i.meInvestigation==="yes",title:"Coordinate with the medical examiner before finalizing services",why:"When a death is under review, the medical examiner or coroner controls when your loved one is released and whether an autopsy is done — so service timing depends on their clearance.",how:"Ask your funeral home to coordinate directly with the medical examiner's office (this is routine for them). Ask the office for the expected release timeline, and hold off on setting a firm service date until release is confirmed. The office itself is your authority here."},
+{id:"circ_me_records",circ:"me",phase:"week1",cat:"Documents",due:7,cond:i=>i.meInvestigation==="yes",title:"Track the death certificate and any autopsy report",why:"An investigated death often means the death certificate is delayed or first shows a 'pending' cause — which can hold up insurance and benefit claims if you don't get ahead of it.",how:"Ask the medical examiner's office when the final certificate will issue and how to request the autopsy report. Tell insurers and benefit offices the certificate is pending so a claim isn't denied for timing. If a claim stalls because of the delay, an attorney can help."},
+{id:"circ_transport_state",circ:"state",phase:"first24",cat:"Immediate",due:1,cond:i=>i.diedOtherState==="yes",title:"Arrange transport from the state where they passed",why:"A death in another state means your loved one must be brought back, which takes a licensed funeral home in that state, transit permits, and coordination between two funeral homes.",how:"Choose a funeral home in your area and ask them to coordinate with a funeral home in the state of death — a routine arrangement for them. Ask for transport costs up front, since they vary widely. Note: certified death certificates are issued by the state where the death occurred."},
+{id:"circ_repatriation",circ:"abroad",phase:"first24",cat:"Immediate",due:1,cond:i=>i.diedAbroad==="yes",title:"Contact the U.S. embassy or consulate to bring them home",why:"When a U.S. citizen dies abroad, the nearest U.S. embassy or consulate helps document the death and coordinate the return of remains — and requirements and costs vary a great deal by country.",how:"Call the U.S. embassy or consulate in that country, or the U.S. State Department's Office of Overseas Citizens Services. They issue the Consular Report of Death of a U.S. Citizen Abroad. A funeral home experienced in international repatriation can coordinate documents, translation, and transport. For a non-citizen or a complex situation, get professional guidance."},
+{id:"circ_repat_docs",circ:"abroad",phase:"week1",cat:"Documents",due:7,cond:i=>i.diedAbroad==="yes",title:"Obtain the Consular Report of Death Abroad",why:"U.S. banks, insurers, and courts generally accept the Consular Report of Death of a U.S. Citizen Abroad the way they accept a death certificate — often more readily than a foreign-issued one.",how:"Request several certified copies from the U.S. State Department, the same way you'd order multiple death certificates. Keep both the foreign certificate and the consular report; foreign documents may need certified translation and an apostille to be accepted here."},
+{id:"circ_org_honors",circ:"org",phase:"week1",cat:"Funeral",due:4,cond:i=>i.orgHonors==="yes",title:"Notify their organization about funeral honors",why:"Fraternal, military, and service organizations often provide meaningful honors — an honor guard, a ritual, a flag, or a memorial service — but usually only when notified in time to prepare.",how:"Contact the local chapter, lodge, post, or unit as early as possible. Ask what honors they offer and what they need (military honors typically require the DD-214; fraternal orders may check membership records). Coordinate timing with the funeral home so the honors fit the service. For a veteran, military funeral honors are a right the funeral home can request on your behalf."}
 ];
 
 /* ===================== TEMPLATES ===================== */
@@ -1483,7 +1491,11 @@ const WIZ = [
  {k:"medicaid",q:"Were they on Medicaid?",type:"yn"},
  {k:"pension",q:"Did they have a pension or annuity?",type:"yn3"},
  {k:"property",q:"Did they own real estate?",type:"yn"},
- {k:"business",q:"Did they own a business?",type:"yn"}
+ {k:"business",q:"Did they own a business?",type:"yn"},
+ {k:"meInvestigation",q:"Is the death being reviewed by a medical examiner or coroner, or investigated by police?",sub:"This can affect when arrangements are finalized and when the death certificate is issued. Choose \"I'm not sure\" if you don't know yet.",type:"yn3"},
+ {k:"diedOtherState",q:"Did they pass away in a different U.S. state than where they lived?",type:"yn"},
+ {k:"diedAbroad",q:"Did they pass away outside the United States?",type:"yn"},
+ {k:"orgHonors",q:"Were they a member of a fraternal, military, or service organization that may provide funeral honors?",sub:"For example the Masons, a Divine Nine fraternity or sorority, a veterans' post, or a union.",type:"yn"}
 ];
 let wizStep=0, wizAnswers={};
 
@@ -1732,7 +1744,7 @@ function setTab(t){
     $("tab-"+x).classList.toggle("hidden",x!==t);
     document.querySelector(`#eTabs [data-tab="${x}"]`).classList.toggle("active",x===t);
   });
-  if(t==="next") renderNext();
+  if(t==="next"){ renderNext(); renderSmsOptin(); }
   if(t==="roadmap") renderRoadmap();
   if(t==="print" && typeof loadFsOrders==="function") loadFsOrders();
   if(t==="notify"){ renderNotifs(); renderGov(); renderTemplates(); }
@@ -1790,8 +1802,57 @@ async function quickDone(id){
 }
 
 /* ---- Roadmap ---- */
+function circModal(){
+  const i=(S.estate&&S.estate.intake)||{};
+  const row=(id,label,checked,note)=>`<label style="display:flex;gap:9px;align-items:flex-start;padding:9px 0;cursor:pointer;border-bottom:1px solid var(--line)">
+    <input type="checkbox" id="${id}" ${checked?"checked":""} style="width:auto;margin-top:3px">
+    <span style="font-size:13.5px;line-height:1.5"><strong>${label}</strong>${note?`<div class="muted" style="font-size:12px;margin-top:2px">${note}</div>`:""}</span></label>`;
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:560px">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">Circumstances</div><h3 style="margin-bottom:4px">Did any of these apply?</h3>
+    <p class="muted" style="font-size:13px">Check any that fit and we'll add the steps they call for. This is general information, not legal advice — the authority named in each step (the medical examiner, the embassy, the organization) is the final word.</p>
+    <div style="margin-top:10px">
+      ${row("circ_me","A medical examiner, coroner, or police is reviewing the death",i.meInvestigation==="yes","Affects release timing and when the death certificate is issued.")}
+      ${row("circ_state","They passed away in a different U.S. state than where they lived",i.diedOtherState==="yes","Adds interstate transport steps.")}
+      ${row("circ_abroad","They passed away outside the United States",i.diedAbroad==="yes","Adds embassy/consulate and repatriation steps.")}
+      ${row("circ_org","They were a member of a fraternal, military, or service organization",i.orgHonors==="yes","Adds funeral-honors coordination (Masons, Divine Nine, veterans' posts, unions).")}
+    </div>
+    <div class="scard-actions" style="margin-top:16px"><button class="btn btn-primary" onclick="circUpdate()">Update roadmap</button></div>
+  </div></div>`;
+}
+async function circUpdate(){
+  const checks={me:!!($("circ_me")&&$("circ_me").checked),state:!!($("circ_state")&&$("circ_state").checked),abroad:!!($("circ_abroad")&&$("circ_abroad").checked),org:!!($("circ_org")&&$("circ_org").checked)};
+  const dodStr=(S.estate.intake&&S.estate.intake.date_of_death)||S.estate.date_of_death;
+  const dod=dodStr?new Date(dodStr+"T00:00:00"):new Date();
+  const have=new Set((S.tasks||[]).map(t=>t.rule_id).filter(Boolean));
+  const rows=[];
+  RULES.filter(r=>r.circ&&checks[r.circ]).forEach((r,idx)=>{
+    if(have.has(r.id)) return;
+    let due=null;
+    if(r.due){ const d=new Date(dod); d.setDate(d.getDate()+r.due); const min=new Date(); min.setDate(min.getDate()+3); due=(d>new Date(Date.now()-864e5)?d:min).toISOString().slice(0,10); }
+    rows.push({estate_id:S.estate.id,rule_id:r.id,phase:r.phase,category:r.cat,title:r.title,why:r.why,how:r.how,due_at:due,sort_order:20+idx});
+  });
+  // Best-effort: remember the answers on the estate (owners only; ignored otherwise).
+  try{
+    const intake=Object.assign({},S.estate.intake||{},{
+      meInvestigation:checks.me?"yes":((S.estate.intake&&S.estate.intake.meInvestigation)||"no"),
+      diedOtherState:checks.state?"yes":"no",diedAbroad:checks.abroad?"yes":"no",orgHonors:checks.org?"yes":"no"});
+    await sb.from("estates").update({intake}).eq("id",S.estate.id); S.estate.intake=intake;
+  }catch(e){}
+  if(!rows.length){ closeModal(); toast("Those steps are already on your roadmap."); return; }
+  const {data,error}=await sb.from("tasks").insert(rows).select();
+  if(error) return toast(error.message);
+  (data||[]).forEach(t=>S.tasks.push(t));
+  closeModal(); toast("Added "+rows.length+" step"+(rows.length>1?"s":"")+" to your roadmap.");
+  renderRoadmap(); if(typeof renderNext==="function") renderNext();
+}
 function renderRoadmap(){
   const root=$("tab-roadmap"); root.innerHTML="";
+  root.insertAdjacentHTML("beforeend",`<div class="card" style="border-left:3px solid var(--brass);margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px"><strong>Did anything unusual apply?</strong>
+        <div class="muted" style="font-size:13px;margin-top:3px">A medical examiner's involvement, a death in another state or country, or a fraternal or military organization can each add important steps. Tell us and we'll add them to the roadmap.</div></div>
+      <button class="btn btn-brass btn-sm" onclick="circModal()">Review circumstances</button></div></div>`);
   PHASES.forEach(p=>{
     const items=S.tasks.filter(t=>t.phase===p.key); if(items.length===0) return;
     const done=items.filter(t=>t.status==="done"||t.status==="na").length;
@@ -2197,29 +2258,31 @@ async function loadMembers(){
   S.invites=inv||[];
 }
 async function renderSmsOptin(){
-  const root=$("smsOptin"); if(!root||!S.estate) return;
+  if(!S.estate) return;
   const uid=S.session&&S.session.user&&S.session.user.id;
   let sub=null;
   try{ const {data}=await sb.from("sms_subscriptions").select("*").eq("estate_id",S.estate.id).eq("user_id",uid).maybeSingle(); sub=data; }catch(e){}
+  [["family","smsOptin"],["next","smsOptinNext"]].forEach(([slot,cid])=>{ const root=$(cid); if(root) root.innerHTML=smsOptinHTML(sub,slot); });
+}
+function smsOptinHTML(sub,slot){
   const active=sub&&sub.consent&&!sub.opted_out;
   if(active){
     const masked=(sub.phone||"").replace(/.(?=.{4})/g,"•");
-    root.innerHTML=`<div class="card" style="border-left:3px solid var(--sage);margin-bottom:14px">
+    return `<div class="card" style="border-left:3px solid var(--sage);margin-bottom:14px">
       <div class="eyebrow">Text reminders</div>
       <p style="font-size:14px;margin:6px 0 8px">You're receiving deadline reminders at <strong>${esc(masked)}</strong>.</p>
-      <button class="btn btn-ghost btn-sm" onclick="toggleSmsOptin(false)">Turn off text reminders</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleSmsOptin('${slot}',false)">Turn off text reminders</button>
       <div class="muted" style="font-size:11.5px;margin-top:8px">You can also reply STOP to any text.</div></div>`;
-  } else {
-    root.innerHTML=`<div class="card" style="border-left:3px solid var(--brass);margin-bottom:14px">
-      <div class="eyebrow">Text reminders</div>
-      <p class="muted" style="font-size:13.5px;margin:6px 0 10px">Get a text when an important deadline is coming up — probate windows, creditor claims, tax dates — so nothing slips by.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input id="smsPhone" type="tel" placeholder="(313) 555-0100" value="${esc((sub&&sub.phone)||"")}" style="flex:1;min-width:180px">
-        <button class="btn btn-primary btn-sm" onclick="saveSmsOptin()">Text me reminders</button></div>
-      <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-weight:400;font-size:12.5px;line-height:1.5">
-        <input type="checkbox" id="smsConsent" style="width:auto;margin-top:2px">
-        <span>I agree to receive text-message reminders from HomegoingHQ about this estate's tasks and deadlines. Message &amp; data rates may apply. Reply STOP to opt out at any time.</span></label></div>`;
   }
+  return `<div class="card" style="border-left:3px solid var(--brass);margin-bottom:14px">
+    <div class="eyebrow">Text reminders</div>
+    <p class="muted" style="font-size:13.5px;margin:6px 0 10px">Get a text when an important deadline is coming up — probate windows, creditor claims, tax dates — so nothing slips by.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input id="smsPhone_${slot}" type="tel" placeholder="(313) 555-0100" value="${esc((sub&&sub.phone)||"")}" style="flex:1;min-width:180px">
+      <button class="btn btn-primary btn-sm" onclick="saveSmsOptin('${slot}')">Text me reminders</button></div>
+    <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-weight:400;font-size:12.5px;line-height:1.5">
+      <input type="checkbox" id="smsConsent_${slot}" style="width:auto;margin-top:2px">
+      <span>I agree to receive text-message reminders from HomegoingHQ about this estate's tasks and deadlines. Message &amp; data rates may apply. Reply STOP to opt out at any time.</span></label></div>`;
 }
 function smsToE164(raw){
   const d=String(raw||"").replace(/[^\d]/g,"");
@@ -2228,10 +2291,10 @@ function smsToE164(raw){
   if(String(raw||"").trim().charAt(0)==="+"&&d.length>=8) return "+"+d;
   return null;
 }
-async function saveSmsOptin(){
-  const phone=smsToE164($("smsPhone")?$("smsPhone").value:"");
+async function saveSmsOptin(slot){
+  const phone=smsToE164($("smsPhone_"+slot)?$("smsPhone_"+slot).value:"");
   if(!phone) return toast("Enter a valid US mobile number.");
-  if(!$("smsConsent")||!$("smsConsent").checked) return toast("Please check the consent box to receive texts.");
+  if(!$("smsConsent_"+slot)||!$("smsConsent_"+slot).checked) return toast("Please check the consent box to receive texts.");
   const uid=S.session.user.id;
   const {error}=await sb.from("sms_subscriptions").upsert({estate_id:S.estate.id,user_id:uid,phone,consent:true,opted_out:false,consent_at:new Date().toISOString(),updated_at:new Date().toISOString()},{onConflict:"estate_id,user_id"});
   if(error) return toast(error.message);
@@ -2239,7 +2302,7 @@ async function saveSmsOptin(){
   try{ await fetch("/.netlify/functions/sms-optin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({accessToken:S.session.access_token,estateId:S.estate.id})}); }catch(e){}
   renderSmsOptin();
 }
-async function toggleSmsOptin(on){
+async function toggleSmsOptin(slot,on){
   const uid=S.session.user.id;
   const {error}=await sb.from("sms_subscriptions").update({opted_out:!on,updated_at:new Date().toISOString()}).eq("estate_id",S.estate.id).eq("user_id",uid);
   if(error) return toast(error.message);
