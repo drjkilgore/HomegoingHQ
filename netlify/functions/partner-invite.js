@@ -12,7 +12,8 @@ exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
   if (event.httpMethod !== "POST") return { statusCode: 405, headers, body: JSON.stringify({ error: "POST only" }) };
   if (!process.env.SENDGRID_API_KEY || !process.env.FROM_EMAIL) return { statusCode: 500, headers, body: JSON.stringify({ error: "email not configured" }) };
-  const SB = process.env.SUPABASE_URL, ANON = process.env.SUPABASE_ANON_KEY;
+  const SB = process.env.SUPABASE_URL || "https://vohqgmnurnkgbwpvrakp.supabase.co";
+  const ANON = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvaHFnbW51cm5rZ2J3cHZyYWtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNjc0NTYsImV4cCI6MjA5ODk0MzQ1Nn0.fXDBbljOS_p49FS9vU4smAWxyn4STYuLRGFf9rJgp-Q";
   if (!SB || !ANON) return { statusCode: 500, headers, body: JSON.stringify({ error: "db not configured" }) };
 
   try {
