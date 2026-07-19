@@ -4239,18 +4239,18 @@ async function admRevokeFamilies(id){
   toast("Revoked "+((data&&data.revoked)||0)+" link(s)."); admAccountModal(id);
 }
 async function admSaveHeaderText(id){
-  const {data,error}=await sb.rpc("admin_set_header_text",{
-    target:id,
-    p_text:($("acHdrText").value||"").trim(),
-    p_font:$("acHdrFont").value,
-    p_bold:$("acHdrBold").checked,
-    p_italic:$("acHdrItalic").checked,
-    p_size:$("acHdrSize").value,
-    p_logo_size:$("acLogoSize")?$("acLogoSize").value:"md",
-    p_intro_video:$("acIntroVid")?($("acIntroVid").value||"").trim():null
-  });
-  if(error) return toast(error.message);
-  toast(data===true?"Saved.":"Couldn't save — is migration v31 applied?");
+  const payload={
+    header_text:($("acHdrText").value||"").trim(),
+    header_font:$("acHdrFont").value,
+    header_bold:$("acHdrBold").checked,
+    header_italic:$("acHdrItalic").checked,
+    header_size:$("acHdrSize").value,
+    logo_size:$("acLogoSize")?$("acLogoSize").value:"md",
+    intro_video_url:$("acIntroVid")?($("acIntroVid").value||"").trim():""
+  };
+  const {data,error}=await sb.rpc("admin_set_branding_display",{target:id,p:payload});
+  if(error) return toast("Save failed: "+error.message);
+  toast(data===true?"Saved.":"Couldn't save — run migration v31 in Supabase.");
 }
 async function admSaveBusiness(id){
   const name=($("acBiz").value||"").trim();

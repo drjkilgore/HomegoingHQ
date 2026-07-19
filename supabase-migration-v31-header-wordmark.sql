@@ -14,33 +14,29 @@ alter table public.tenant_branding add column if not exists intro_video_url text
 
 drop function if exists public.admin_set_header_text(uuid,text,text,boolean,boolean,text);
 drop function if exists public.admin_set_header_text(uuid,text,text,boolean,boolean,text,text);
+drop function if exists public.admin_set_header_text(uuid,text,text,boolean,boolean,text,text,text);
 
-create or replace function public.admin_set_header_text(
-  target uuid, p_text text, p_font text, p_bold boolean, p_italic boolean,
-  p_size text, p_logo_size text default 'md', p_intro_video text default null)
+-- Single JSON payload so the signature never changes as we add display fields.
+create or replace function public.admin_set_branding_display(target uuid, p jsonb)
 returns boolean language plpgsql security definer set search_path = public as $$
 begin
   if not public.is_admin() then return false; end if;
-  insert into public.tenant_branding
-      (account_id, header_text, header_font, header_bold, header_italic,
-       header_size, logo_size, intro_video_url, updated_at)
-  values
-      (target, nullif(trim(coalesce(p_text,'')),''), nullif(p_font,''),
-       coalesce(p_bold,false), coalesce(p_italic,false),
-       coalesce(nullif(p_size,''),'md'), coalesce(nullif(p_logo_size,''),'md'),
-       nullif(trim(coalesce(p_intro_video,'')),''), now())
-  on conflict (account_id) do update
-    set header_text     = excluded.header_text,
-        header_font     = excluded.header_font,
-        header_bold     = excluded.header_bold,
-        header_italic   = excluded.header_italic,
-        header_size     = excluded.header_size,
-        logo_size       = excluded.logo_size,
-        intro_video_url = excluded.intro_video_url,
-        updated_at      = now();
-  return true;
+  insert into public.tenant_branding(account_id, updated_at)
+    values (target, now())
+    on conflict (account_id) do nothing;
+  update public.tenant_branding set
+    header_text     = nullif(btrim(coalesce(p->>'header_text','')),''),
+    header_font     = nullif(p->>'header_font',''),
+    header_bold     = coalesce((p->>'header_bold')::boolean, false),
+    header_italic   = coalesce((p->>'header_italic')::boolean, false),
+    header_size     = coalesce(nullif(p->>'header_size',''),'md'),
+    logo_size       = coalesce(nullif(p->>'logo_size',''),'md'),
+    intro_video_url = nullif(btrim(coalesce(p->>'intro_video_url','')),''),
+    updated_at      = now()
+  where account_id = target;
+  return found;
 end $$;
-grant execute on function public.admin_set_header_text(uuid,text,text,boolean,boolean,text,text,text) to authenticated;
+grant execute on function public.admin_set_branding_display(uuid,jsonb) to authenticated;
 
 create or replace function public.public_branding(host text)
 returns json language plpgsql stable security definer set search_path = public as $$
