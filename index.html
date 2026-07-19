@@ -4168,6 +4168,32 @@ async function admInvitePartner(){
     else toast((d&&d.error)||"Couldn't send invite.");
   }catch(e){ toast("Couldn't send invite."); }
 }
+async function admSaveOwner(id){
+  const em=($("acOwner").value||"").trim().toLowerCase();
+  if(!em||!em.includes("@")) return toast("Enter the new owner's email.");
+  const {data,error}=await sb.rpc("admin_set_account_owner",{target:id,new_owner_email:em});
+  if(error) return toast(error.message);
+  if(data&&data.ok){ toast("Owner reassigned to "+em+"."); admAccountModal(id); admLoadAccounts(); return; }
+  const e=data&&data.error;
+  toast(e==="no_such_user"?"No HomegoingHQ account with that email — have them sign up first."
+      : e==="owner_has_account"?"That person already owns another white-label account."
+      : e==="not_found"?"Account not found." : e==="forbidden"?"Admin only." : "Couldn't reassign owner.");
+}
+async function admReassignFamilies(id){
+  const to=$("acReassignTo")?$("acReassignTo").value:"";
+  if(!to) return toast("Choose a concierge to reassign to.");
+  if(!confirm("Reassign this concierge's active families to the selected concierge? Families are re-invited and the new concierge must accept before they can see anything.")) return;
+  const {data,error}=await sb.rpc("admin_reassign_concierge_families",{p_from_account:id,p_to_account:to});
+  if(error) return toast(error.message);
+  if(data&&data.ok){ toast("Re-invited "+(data.moved||0)+" family(ies) — the new concierge will accept."); admAccountModal(id); return; }
+  toast((data&&data.error)==="same_account"?"Pick a different concierge.":(data&&data.error)==="not_found"?"Account not found.":"Couldn't reassign.");
+}
+async function admRevokeFamilies(id){
+  if(!confirm("Revoke this concierge's access to all their families? Families keep their data and can invite someone new.")) return;
+  const {data,error}=await sb.rpc("admin_revoke_concierge_links",{p_account:id});
+  if(error) return toast(error.message);
+  toast("Revoked "+((data&&data.revoked)||0)+" link(s)."); admAccountModal(id);
+}
 async function admSaveBusiness(id){
   const name=($("acBiz").value||"").trim();
   if(!name) return toast("Enter a business name.");
@@ -4177,8 +4203,12 @@ async function admSaveBusiness(id){
   else toast("Couldn't save name.");
 }
 async function admDeletePartnerAccount(id){
-  const {data:acct}=await sb.from("concierge_accounts").select("business_name").eq("id",id).maybeSingle();
+  const {data:acct}=await sb.from("concierge_accounts").select("business_name,tenant_type").eq("id",id).maybeSingle();
   const name=((acct&&acct.business_name)||"").trim();
+  if(acct&&acct.tenant_type==="concierge"){
+    let fc=0; try{ const {data}=await sb.rpc("admin_concierge_family_count",{p_account:id}); fc=data||0; }catch(e){}
+    if(fc>0){ toast("This concierge still has "+fc+" active families — reassign or revoke them first."); return; }
+  }
   const typed=prompt("This permanently deletes the white-label account for:\n\n"+(name||"(unnamed)")+"\n\nThe owner's login and any families they created are kept.\n\nType the business name to confirm:");
   if(typed===null) return;
   if(typed.trim()!==name){ toast("Name didn't match — nothing deleted."); return; }
@@ -4305,6 +4335,21 @@ async function admAccountModal(id){
   ]);
   if(!acct){ toast("Couldn't load account."); return; }
   const b=brand||{};
+  const {data:ownerEmail}=await sb.rpc("admin_account_owner_email",{p_account:id});
+  let famCount=0, conciergeList=[];
+  if(acct.tenant_type==="concierge"){
+    try{ const {data:fc}=await sb.rpc("admin_concierge_family_count",{p_account:id}); famCount=fc||0; }catch(e){}
+    try{ const {data:accts}=await sb.rpc("admin_list_accounts",{search:""}); conciergeList=(Array.isArray(accts)?accts:[]).filter(a=>a.tenant_type==="concierge"&&a.id!==id); }catch(e){}
+  }
+  const famSection = acct.tenant_type!=="concierge" ? "" : `
+    <div class="eyebrow" style="margin-top:18px">Families (${famCount})</div>
+    ${famCount===0 ? `<div class="muted" style="font-size:13px;margin-top:4px">No active client families linked.</div>` : `
+    <div class="muted" style="font-size:12px;margin:4px 0 6px">Reassign this concierge's ${famCount} active ${famCount===1?"family":"families"} to another concierge — families are re-invited and the new concierge accepts.</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <select id="acReassignTo" style="flex:1;min-width:180px"><option value="">Choose a concierge…</option>${conciergeList.map(c=>`<option value="${c.id}">${esc(c.business_name)}${c.owner_email?" · "+esc(c.owner_email):""}</option>`).join("")}</select>
+      <button class="btn btn-primary btn-sm" onclick="admReassignFamilies('${id}')">Reassign</button>
+      <button class="btn btn-ghost btn-sm" onclick="admRevokeFamilies('${id}')">Revoke all</button>
+    </div>`}`;
   window.__acLiveUrl = acct.custom_domain ? ("https://"+acct.custom_domain) : (acct.subdomain ? ("https://"+acct.subdomain+".homegoinghq.com") : "");
   const ink=b.color_ink||"#26332E", accent=b.color_accent||"#8F6A24", accentD=b.color_accent_deep||"#75561D";
   $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:620px">
@@ -4315,6 +4360,12 @@ async function admAccountModal(id){
     <div class="eyebrow" style="margin-top:16px">Business name</div>
     <div style="display:flex;gap:6px;margin-top:6px"><input id="acBiz" value="${esc(acct.business_name||"")}" placeholder="Grace Funeral Home" style="flex:1">
       <button class="btn btn-primary btn-sm" onclick="admSaveBusiness('${id}')">Save</button></div>
+
+    <div class="eyebrow" style="margin-top:18px">Owner (login)</div>
+    <div class="muted" style="font-size:12px;margin:4px 0 6px">Current: ${esc(ownerEmail||"—")}</div>
+    <div style="display:flex;gap:6px"><input id="acOwner" placeholder="new-owner@email.com" autocapitalize="none" autocorrect="off" spellcheck="false" style="flex:1">
+      <button class="btn btn-primary btn-sm" onclick="admSaveOwner('${id}')">Reassign</button></div>
+    <div class="muted" style="font-size:11.5px;margin-top:4px">Moves this account to a different existing HomegoingHQ login.</div>
 
     <div class="eyebrow" style="margin-top:18px">Plan &amp; limits</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px">
@@ -4328,7 +4379,7 @@ async function admAccountModal(id){
     </div>
 
     <div class="eyebrow" style="margin-top:18px">Domain</div>
-    <label>Subdomain <span class="muted" style="font-weight:400">(concierge sets this themselves)</span></label>
+    <label>Subdomain <span class="muted" style="font-weight:400">${acct.tenant_type==="concierge"?"(concierge sets this themselves)":"(set when you provision the partner)"}</span></label>
     <input value="${acct.subdomain?esc(acct.subdomain)+".homegoinghq.com":"— none —"}" readonly style="background:#f2eee6">
     <label>Custom domain <span class="muted" style="font-weight:400">(Professional+ — also add it as a Netlify domain alias)</span></label>
     <div style="display:flex;gap:6px"><input id="acDomain" value="${esc(acct.custom_domain||"")}" placeholder="care.example.com" style="flex:1">
@@ -4356,6 +4407,8 @@ async function admAccountModal(id){
     </div>
     <label>Contact email</label><input id="acCEmail" value="${esc(b.contact_email||"")}">
     <label>Footer note</label><input id="acFooter" value="${esc(b.footer_note||"")}" placeholder="© 2026 Grace Concierge · Serving Metro Detroit">
+
+    ${famSection}
 
     <div class="eyebrow" style="margin-top:18px">Live preview</div>
     <div id="acPreview" style="margin-top:6px"></div>
