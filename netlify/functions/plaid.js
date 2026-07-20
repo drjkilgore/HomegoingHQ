@@ -60,7 +60,7 @@ exports.handler = async (event) => {
       const d = await call("/link/token/create", {
         client_name: "HomegoingHQ",
         user: { client_user_id: userId || "anon" },
-        products: Array.isArray(products) && products.length ? products : ["auth"],
+        products: Array.isArray(products) && products.length ? products : ["transactions"],
         country_codes: ["US"], language: "en"
       });
       if (d.error_message) return { statusCode: 502, headers, body: JSON.stringify({ error: d.error_message }) };
