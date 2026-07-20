@@ -1,6 +1,6 @@
 {
   "_comment": "SINGLE SOURCE OF TRUTH for DISPLAYED prices, per-tier document allowances, and the Vault Keeper price \u2014 shared by the marketing site (homegoinghq.com) and the app (app.homegoinghq.com). Edit here, commit, and both update on next load. NOTE: the amount actually CHARGED lives in Stripe (the STRIPE_PRICE_* env vars); keep those in step when you change a dollar amount here.",
-  "updated": "2026-07-19",
+  "updated": "2026-07-20",
   "tiers": {
     "free": {
       "price": "$0",
@@ -8,19 +8,21 @@
       "vaultDocs": 5
     },
     "companion": {
-      "price": "$149",
+      "price": "$249",
       "per": "once, per estate",
       "vaultDocs": 10,
-      "intro": "Limited-time introductory pricing"
+      "intro": "Limited-time introductory pricing",
+      "regularPrice": "$349"
     },
     "settle": {
-      "price": "$249",
+      "price": "$399",
       "per": "once, per estate",
       "vaultDocs": 20,
-      "intro": "Limited-time introductory pricing"
+      "intro": "Limited-time introductory pricing",
+      "regularPrice": "$499"
     },
     "gift": {
-      "price": "$249",
+      "price": "$399",
       "per": "for a family you love"
     }
   },

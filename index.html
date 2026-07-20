@@ -257,11 +257,11 @@ summary::-webkit-details-marker{display:none}
   <div class="card hidden" id="upgradeCard" style="margin-top:14px">
     <div class="eyebrow">Your plan</div>
     <h3 style="margin:6px 0">Free plan — 1 estate, core roadmap</h3>
-    <p class="muted">Free covers the guided roadmap on what to do after a loss. <strong>Companion ($149)</strong> opens the full roadmap with 30 Guide conversations. <strong>Settle ($249)</strong> unlocks every phase and adds the court-ready reports, sealed recordings, all templates, and bank import.</p>
+    <p class="muted">Free covers the guided roadmap on what to do after a loss. <strong>Companion ($249)</strong> opens the full roadmap with 30 Guide conversations. <strong>Settle ($399)</strong> unlocks every phase and adds the court-ready reports, sealed recordings, all templates, and bank import.</p>
     <div style="display:flex;align-items:center;justify-content:center;gap:7px;margin:9px 0 3px;color:#A9832E;font-weight:800;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;line-height:1.3;text-align:center;border-top:1px solid #E4DDCE;border-bottom:1px solid #E4DDCE;padding:8px 0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A9832E" stroke-width="1.8" stroke-linecap="round" style="flex:0 0 auto"><line x1="12" y1="2.5" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="21.5" y2="12"/><line x1="5.8" y1="5.8" x2="9" y2="9"/><line x1="15" y1="15" x2="18.2" y2="18.2"/><line x1="18.2" y1="5.8" x2="15" y2="9"/><line x1="9" y1="15" x2="5.8" y2="18.2"/></svg><span>Limited-time introductory pricing</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A9832E" stroke-width="1.8" stroke-linecap="round" style="flex:0 0 auto"><line x1="12" y1="2.5" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="21.5" y2="12"/><line x1="5.8" y1="5.8" x2="9" y2="9"/><line x1="15" y1="15" x2="18.2" y2="18.2"/><line x1="18.2" y1="5.8" x2="15" y2="9"/><line x1="9" y1="15" x2="5.8" y2="18.2"/></svg></div>
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-primary" id="btnBuyCompanion" onclick="startCheckout('companion')">Companion — $149</button>
-      <button class="btn btn-brass" onclick="startCheckout('settle')">Settle — $249</button>
+      <button class="btn btn-primary" id="btnBuyCompanion" onclick="startCheckout('companion')">Companion — $249</button>
+      <button class="btn btn-brass" onclick="startCheckout('settle')">Settle — $399</button>
       <button class="btn btn-ghost" onclick="openGiftModal()">🎁 Give as a gift</button>
       <button class="btn btn-ghost" onclick="openRedeemModal()">Redeem a gift code</button>
     </div>
@@ -855,7 +855,7 @@ function lockPanelHTML(title){
   return `<div class="card" style="text-align:center;padding:34px 20px">
     <div style="font-size:30px">🔒</div>
     <h3 style="margin:10px 0 6px">${title} is part of the paid plans</h3>
-    <p class="muted" style="max-width:440px;margin:0 auto 16px">Companion ($149, once per estate) opens this — with the full roadmap and the settlement tools. Settle ($249) adds the court-ready reports.</p>
+    <p class="muted" style="max-width:440px;margin:0 auto 16px">Companion ($249, once per estate) opens this — with the full roadmap and the settlement tools. Settle ($399) adds the court-ready reports.</p>
     <button class="btn btn-brass" onclick="upgradeModal('${title}')">See the plans</button>
   </div>`;
 }
@@ -911,7 +911,7 @@ function upgradeModal(context){
     <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
       <div class="card" style="padding:16px;text-align:center">
         <div class="eyebrow">Companion</div>
-        <div style="font-family:var(--font-display);font-size:28px;margin:4px 0">$149</div>
+        <div style="margin:4px 0"><span style="font-family:var(--font-display);font-size:18px;color:#9C9687;text-decoration:line-through;margin-right:7px">$349</span><span style="font-family:var(--font-display);font-size:28px">$249</span></div>
         <div class="muted" style="font-size:12px">once, per estate</div>
         <div style="display:flex;align-items:center;justify-content:center;gap:7px;margin:9px 0 3px;color:#A9832E;font-weight:800;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;line-height:1.3;text-align:center;border-top:1px solid #E4DDCE;border-bottom:1px solid #E4DDCE;padding:8px 0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A9832E" stroke-width="1.8" stroke-linecap="round" style="flex:0 0 auto"><line x1="12" y1="2.5" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="21.5" y2="12"/><line x1="5.8" y1="5.8" x2="9" y2="9"/><line x1="15" y1="15" x2="18.2" y2="18.2"/><line x1="18.2" y1="5.8" x2="15" y2="9"/><line x1="9" y1="15" x2="5.8" y2="18.2"/></svg><span>Limited-time introductory pricing</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A9832E" stroke-width="1.8" stroke-linecap="round" style="flex:0 0 auto"><line x1="12" y1="2.5" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="21.5" y2="12"/><line x1="5.8" y1="5.8" x2="9" y2="9"/><line x1="15" y1="15" x2="18.2" y2="18.2"/><line x1="18.2" y1="5.8" x2="15" y2="9"/><line x1="9" y1="15" x2="5.8" y2="18.2"/></svg></div>
         <ul style="list-style:none;font-size:13px;margin-top:10px;display:grid;gap:5px;text-align:left">
@@ -921,7 +921,7 @@ function upgradeModal(context){
       </div>
       <div class="card" style="padding:16px;border:2px solid var(--brass);text-align:center">
         <div class="eyebrow">Settle · <span style="color:var(--brass-deep)">best value</span></div>
-        <div style="font-family:var(--font-display);font-size:28px;margin:4px 0">$249</div>
+        <div style="margin:4px 0"><span style="font-family:var(--font-display);font-size:18px;color:#9C9687;text-decoration:line-through;margin-right:7px">$499</span><span style="font-family:var(--font-display);font-size:28px">$399</span></div>
         <div class="muted" style="font-size:12px">once, per estate · often reimbursable from the estate</div>
         <div style="display:flex;align-items:center;justify-content:center;gap:7px;margin:9px 0 3px;color:#A9832E;font-weight:800;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;line-height:1.3;text-align:center;border-top:1px solid #E4DDCE;border-bottom:1px solid #E4DDCE;padding:8px 0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A9832E" stroke-width="1.8" stroke-linecap="round" style="flex:0 0 auto"><line x1="12" y1="2.5" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="21.5" y2="12"/><line x1="5.8" y1="5.8" x2="9" y2="9"/><line x1="15" y1="15" x2="18.2" y2="18.2"/><line x1="18.2" y1="5.8" x2="15" y2="9"/><line x1="9" y1="15" x2="5.8" y2="18.2"/></svg><span>Limited-time introductory pricing</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A9832E" stroke-width="1.8" stroke-linecap="round" style="flex:0 0 auto"><line x1="12" y1="2.5" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="21.5" y2="12"/><line x1="5.8" y1="5.8" x2="9" y2="9"/><line x1="15" y1="15" x2="18.2" y2="18.2"/><line x1="18.2" y1="5.8" x2="15" y2="9"/><line x1="9" y1="15" x2="5.8" y2="18.2"/></svg></div>
         <ul style="list-style:none;font-size:13px;margin-top:10px;display:grid;gap:5px;text-align:left">
@@ -1782,7 +1782,7 @@ function renderNext(){
   const stack=$("nextStack"); stack.innerHTML="";
   if(open.length===0){
     if(lockedCount>0){
-      stack.innerHTML=`<div class="scard" style="position:relative"><div class="phase-tag">The urgent first steps — done</div><h3>You've handled the urgent steps. ${lockedCount} more are waiting on the road ahead.</h3><p class="why">The first week, the first month, probate, taxes, and closing the estate — Companion ($149) opens every remaining step with the same gentle guidance.</p><div class="scard-actions"><button class="btn btn-brass" onclick="upgradeModal('Open the rest of the roadmap')">See the plans</button></div></div>`;
+      stack.innerHTML=`<div class="scard" style="position:relative"><div class="phase-tag">The urgent first steps — done</div><h3>You've handled the urgent steps. ${lockedCount} more are waiting on the road ahead.</h3><p class="why">The first week, the first month, probate, taxes, and closing the estate — Companion ($249) opens every remaining step with the same gentle guidance.</p><div class="scard-actions"><button class="btn btn-brass" onclick="upgradeModal('Open the rest of the roadmap')">See the plans</button></div></div>`;
       $("nextCount").textContent=lockedCount+" steps waiting on the full roadmap"; return;
     }
     stack.innerHTML=`<div class="scard" style="position:relative"><div class="phase-tag">All caught up</div><h3>Every step is done — one less thing to carry.</h3><p class="why">You can review the full roadmap anytime, or add your own tasks as new things come up.</p></div>`;
@@ -2427,7 +2427,7 @@ async function sendGuide(){
     const {data:n}=await sb.rpc("increment_ai_use",{p_estate:(S.estate&&S.estate.id)||null});
     if(typeof n==="number"){ S.profile.ai_uses=n; }
     if((S.profile.ai_uses||0)>lim().ai){
-      guideBubble("You've used your "+lim().ai+" Guide conversations on this plan. "+(tier()==="free"?"Companion ($149) includes 30, and Settle makes the Guide unlimited.":"Settle makes the Guide unlimited — along with the court-ready reports."),"ai");
+      guideBubble("You've used your "+lim().ai+" Guide conversations on this plan. "+(tier()==="free"?"Companion ($249) includes 30, and Settle makes the Guide unlimited.":"Settle makes the Guide unlimited — along with the court-ready reports."),"ai");
       const m=document.createElement("div"); m.style.cssText="align-self:flex-start";
       m.innerHTML='<button class="btn btn-brass btn-sm" onclick="upgradeModal(\'Keep the Guide beside you\')">See the plans</button>';
       $("guideMsgs").appendChild(m); $("guideText").value=q; return;
@@ -4386,7 +4386,7 @@ function provAcceptEmail(a){
   const who=a.contact_name||a.business_name||"there";
   const biz=a.business_name||"your business";
   return { subject:"You're approved — HomegoingHQ Preferred Provider Network",
-    body:"Dear "+who+",\n\nCongratulations — your application to the HomegoingHQ Preferred Provider Network has been approved. We're glad to welcome "+biz+" into a network families can trust.\n\nActivate your founding listing here:\n"+PROV_PAY_LINK+"\n\nAs one of our first 50 founding providers, your first year is just $4.99. At checkout, click \"Add a discount code\" and enter:  PROVIDERS50\nYour listing renews at $499/year after the first year, with your founding position locked in your category.\n\nBy enrolling you agree to the Preferred Provider Network terms:\nhttps://providers.homegoinghq.com/terms.html\n\nOnce your enrollment is complete, we'll publish your listing with the Preferred mark in the tools families and certified concierges use to find and book providers.\n\nWelcome aboard,\nThe HomegoingHQ Team\ncare@homegoinghq.com" };
+    body:"Dear "+who+",\n\nCongratulations — your application to the HomegoingHQ Preferred Provider Network has been approved. We're glad to welcome "+biz+" into a network families can trust.\n\nActivate your listing by choosing the term that fits:\n\n\u2022 Full year \u2014 $899:\n"+PROV_PAY_LINK+"\n\n\u2022 Six months \u2014 $599:\n"+PROV_PAY_LINK_6MO+"\n\nYour position is locked in your category once you enroll. No commissions on your work \u2014 families and concierges pay you directly; the network fee is all we charge.\n\nBy enrolling you agree to the Preferred Provider Network terms:\nhttps://providers.homegoinghq.com/terms.html\n\nOnce your enrollment is complete, we'll publish your listing with the Preferred mark in the tools families and certified concierges use to find and book providers.\n\nWelcome aboard,\nThe HomegoingHQ Team\ncare@homegoinghq.com" };
 }
 function provDenyEmail(a){
   const who=a.contact_name||a.business_name||"there";
@@ -4522,7 +4522,7 @@ function admPartnerAppModal(id){
     <input id="paSub" value="${esc(a.desired_subdomain||"")}" placeholder="grace-funeral" autocapitalize="none" spellcheck="false" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')">
     <div class="muted" style="font-size:12px;margin-top:8px">${a.tenant_type==="church"
       ? `Approving makes this church live for <b>free</b>. If <b>${esc(a.owner_email||"this email")}</b> has no account yet, we'll create one and email a set-password link. Remember to add the subdomain as a Netlify domain alias.`
-      : `Approving emails <b>${esc(a.owner_email||"this funeral home")}</b> a set-password link and a <b>$149/mo Stripe checkout</b>. Their co-branded portal activates once they pay — set the subdomain then.`}</div>
+      : `Approving emails <b>${esc(a.owner_email||"this funeral home")}</b> a set-password link and a <b>$399/mo Stripe checkout</b>. Their co-branded portal activates once they pay — set the subdomain then.`}</div>
     <div class="scard-actions" style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-primary" onclick="admApprovePartnerApp('${a.id}')">Approve &amp; provision</button>
       <button class="btn btn-ghost" onclick="admDeclinePartnerApp('${a.id}')">Decline</button>
@@ -5129,7 +5129,7 @@ async function admSaveCounty(id){
 function openGiftModal(){
   $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <button class="close" onclick="closeModal()">×</button>
-    <div class="eyebrow">A gift of a helping hand</div><h3>Give HomegoingHQ Settle — $249</h3>
+    <div class="eyebrow">A gift of a helping hand</div><h3>Give HomegoingHQ Settle — $399</h3>
     <p class="muted" style="margin:8px 0 4px">For the price of flowers, give a grieving family the full guided system: the roadmap, the paperwork, the family coordination, and the memorial. They receive a code by email.</p>
     <label>Your email (for the receipt & a copy of the code)</label><input id="gfFrom" type="email" value="${esc(S.session?.user?.email||"")}">
     <label>Recipient's email</label><input id="gfTo" type="email" placeholder="their-email@example.com">
@@ -5833,7 +5833,7 @@ function tourFree(){
     steps.push(
      {sel:"#estateList",title:"Your estates",text:"Each estate you're part of lives here — tap one to open it."},
      {sel:'#eTabs [data-tab="next"]',go:()=>{openEstate(S.estates[0].id);},title:"The Next tab",text:"One card at a time: what to do, why it matters, and how. On the Free plan, the <strong>urgent first steps after a loss</strong> are open — the most urgent stretch, handled."},
-     {sel:'#eTabs [data-tab="roadmap"]',go:()=>setTab("roadmap"),title:"The full road, visible",text:"Every phase is laid out here. Steps marked 🔒 belong to later phases — Companion ($149, once) opens all of them."},
+     {sel:'#eTabs [data-tab="roadmap"]',go:()=>setTab("roadmap"),title:"The full road, visible",text:"Every phase is laid out here. Steps marked 🔒 belong to later phases — Companion ($249, once) opens all of them."},
      {sel:'#eTabs [data-tab="notify"]',go:()=>setTab("notify"),title:"Who to tell — with the letter written",text:"Track every institution. The bank letter template is included free; it fills itself in with your details."},
      {sel:'#eTabs [data-tab="docs"]',go:()=>setTab("docs"),title:"Documents",text:"A private vault — 3 documents free. Start with the death certificate; nearly everyone will ask for it."},
      {sel:'#eTabs [data-tab="funeral"]',go:()=>setTab("funeral"),title:"Funeral, memorial & music",text:"Budget with honest cost coaching, the obituary builder, a shareable memorial page, the 🕊 Program Designer for a print-ready homegoing program — and live musicians or artist tributes through our booking partner. All free."},
@@ -5844,7 +5844,7 @@ function tourFree(){
   } else {
     steps.push({title:"Create your first estate or plan",text:"The rest of the tour lights up once one exists — it takes about two minutes. Everything is private until you invite someone."});
   }
-  steps.push({sel:"#upgradeCard",go:()=>show("view-home"),title:"When you're ready for the whole road",text:"Companion ($149, once per estate) opens every phase and the tools around it. Settle ($249) unlocks the full toolkit and the court-ready reports."});
+  steps.push({sel:"#upgradeCard",go:()=>show("view-home"),title:"When you're ready for the whole road",text:"Companion ($249, once per estate) opens every phase and the tools around it. Settle ($399) unlocks the full toolkit and the court-ready reports."});
   return steps;
 }
 function tourCompanion(){
@@ -5866,7 +5866,7 @@ function tourCompanion(){
   } else {
     steps.push({title:"Create your estate",text:"Your Companion features light up inside an estate — start one from the home screen in about two minutes."});
   }
-  steps.push({sel:"#upgradeCard",go:()=>show("view-home"),title:"The last unlock",text:"Settle ($249, once) adds the court-ready reports, all six templates, unlimited family members and ledger entries, bank import, and sealed Last Wishes recordings."});
+  steps.push({sel:"#upgradeCard",go:()=>show("view-home"),title:"The last unlock",text:"Settle ($399, once) adds the court-ready reports, all six templates, unlimited family members and ledger entries, bank import, and sealed Last Wishes recordings."});
   return steps;
 }
 function tourSettle(){
