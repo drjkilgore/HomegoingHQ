@@ -5252,7 +5252,7 @@ async function plaidDiscover(){
   try{
     await loadPlaidScript();
     const r=await fetch("/.netlify/functions/plaid",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({action:"link_token",userId:S.session.user.id})});
+      body:JSON.stringify({action:"link_token",userId:S.session.user.id,products:["transactions"]})});
     const d=await r.json();
     if(!d.link_token) return toast(d.error||"Plaid isn't configured yet.");
     const handler=Plaid.create({token:d.link_token,onSuccess:async(public_token)=>{
