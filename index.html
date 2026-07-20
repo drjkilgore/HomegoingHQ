@@ -1039,6 +1039,13 @@ function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.remove("
 function esc(s){ return (s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function show(view){ ["view-auth","view-home","view-intake","view-estate","view-plan","view-memorial","view-admin","view-program","view-designer"].forEach(v=>$(v).classList.add("hidden")); $(view).classList.remove("hidden"); window.scrollTo(0,0); }
 function fmtDate(d){ if(!d) return ""; return new Date(d+"T00:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); }
+/* ---- Human-friendly date/time formatting for pickers (no typing) ---- */
+function fmtNiceDate(iso,withWeekday){ if(!iso) return ""; const d=new Date(iso+"T00:00:00"); if(isNaN(d)) return ""; return d.toLocaleDateString("en-US", withWeekday?{weekday:"long",month:"long",day:"numeric",year:"numeric"}:{month:"long",day:"numeric",year:"numeric"}); }
+function fmtNiceTime(raw){ if(!raw) return ""; const m=/^(\d{1,2}):(\d{2})/.exec(raw); if(!m) return raw; let h=+m[1]; const mi=m[2], ap=h>=12?"PM":"AM"; h=h%12||12; return h+":"+mi+" "+ap; }
+function toISODate(str){ if(!str) return ""; let s=String(str).trim(); if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; s=s.replace(/^(sun|mon|tue|wed|thu|fri|sat)[a-z]*[\s,.\u00B7-]+/i,"").replace(/[\u00B7]/g," ").trim(); const d=new Date(s); return isNaN(d)?"":d.toISOString().slice(0,10); }
+function toRawTime(str){ if(!str) return ""; if(/^\d{2}:\d{2}$/.test(str)) return str; const m=/(\d{1,2}):(\d{2})\s*([ap]\.?m\.?)?/i.exec(str); if(!m) return ""; let h=+m[1]; const mi=m[2], ap=(m[3]||"").toLowerCase(); if(ap.charAt(0)==="p"&&h<12) h+=12; if(ap.charAt(0)==="a"&&h===12) h=0; return String(h).padStart(2,"0")+":"+mi; }
+function pgSetDate(k,iso,withWeekday){ pgSet(k, fmtNiceDate(iso,withWeekday)); }
+function pgSetTime(k,raw){ pgSet(k, fmtNiceTime(raw)); }
 async function logActivity(action, detail){ if(!S.estate) return; await sb.from("activity_log").insert({estate_id:S.estate.id, user_id:S.session.user.id, action, detail}); }
 
 /* ---------- auth ---------- */
@@ -1802,20 +1809,69 @@ async function quickDone(id){
 }
 
 /* ---- Roadmap ---- */
+const SCENARIO_GUIDES={
+  me:{title:"When a death is under investigation",label:"Medical examiner / investigation",intro:"When a death is sudden, unattended, or possibly suspicious, state law usually brings in a medical examiner or coroner. This is routine and does not mean anyone is suspected — but it changes the order of things.",sections:[
+    ["Who has custody now","The medical examiner or coroner — not the family or funeral home — has legal custody of your loved one until they release them. That is why the funeral home cannot collect them yet: the office controls the timing."],
+    ["The autopsy","The medical examiner decides whether an autopsy is needed. It is usually done within a few days, though toxicology results can take weeks. You may ask the office about timing and about religious objections — the rules vary by state."],
+    ["Can there still be an open casket?","In most cases yes — an autopsy generally does not prevent an open-casket service. Funeral professionals are skilled at preparation. Ask your funeral director."],
+    ["Release of remains","Once the exam is complete, the office releases your loved one to the funeral home you choose. Ask them for the expected date before you finalize service plans."],
+    ["Death certificate delays","The certificate may first be issued with a &ldquo;pending&rdquo; cause of death and amended later. Tell insurers and benefit offices that it is pending so a claim is not denied for timing."],
+    ["Insurance and benefits","Some insurers wait for the final cause of death before paying certain claims. Keep records; if a claim is delayed unreasonably, an attorney can help."],
+    ["If it becomes a criminal case","The investigating agency (police or sheriff) leads. Ask whether there is a victim or witness assistance office, and about your state&rsquo;s crime victim compensation program, which can often help with funeral costs."]
+  ],footer:"The medical examiner&rsquo;s office and the investigating agency are your authorities here — call them with specific questions. This is general information, not legal advice."},
+  state:{title:"Bringing them home from another state",label:"Interstate transport",intro:"When someone dies in a different state, two funeral homes usually work together. It can sound overwhelming, but funeral professionals do this all the time and handle nearly all of the coordination.",sections:[
+    ["The two-funeral-home model","One funeral home where the death occurred prepares and ships your loved one; a funeral home in your home area receives them and handles the services. You mostly choose your home-area funeral home and let them coordinate the rest."],
+    ["What the sending home does","Retrieves your loved one, prepares them (embalming is often required for air travel), obtains transit and burial permits, arranges an air tray or shipping container, and books the airline."],
+    ["What the receiving home does","Receives them at the airport, coordinates your services, and handles burial or cremation in your area."],
+    ["Typical costs","A removal or transfer fee, preparation or embalming, an air tray or shipping container, airline charges, and a receiving-home fee. These vary — ask both funeral homes for an itemized price list, which is your right under the FTC Funeral Rule."],
+    ["Death certificates","Certified death certificates are issued by the state where the death occurred. Order several — you will need them for banks, insurers, and benefits."]
+  ],footer:"Your two funeral homes are your guides through the logistics here. This is general information."},
+  abroad:{title:"When a loved one dies overseas",label:"International / repatriation",intro:"A death abroad adds steps, but the U.S. government has a clear process to help the families of U.S. citizens.",sections:[
+    ["Your first call","Contact the nearest U.S. embassy or consulate, or the U.S. State Department&rsquo;s Office of Overseas Citizens Services (available around the clock). They assist families and act as your bridge to local authorities."],
+    ["The Consular Report of Death Abroad","The embassy prepares this official U.S. record based on the local death certificate. U.S. banks, insurers, and courts generally accept it like a U.S. death certificate — order several certified copies."],
+    ["The foreign death certificate","The country where the death occurred issues its own certificate. It may need certified translation and an apostille (international authentication) to be used here."],
+    ["Bringing them home","You can repatriate your loved one or bury or cremate abroad. A funeral home experienced in international shipping — or the embassy&rsquo;s list of local providers — coordinates it. Costs vary widely by country and are often significant."],
+    ["Cremated remains","Cremated remains are generally easier and less costly to transport; the funeral provider handles the airline and customs rules."],
+    ["Loose ends at home","Check travel insurance (some policies cover repatriation), notify Social Security, and cancel the U.S. passport. Foreign bank accounts or assets may need local legal help."]
+  ],footer:"The U.S. embassy or consulate and the State Department are your authorities here. For a non-citizen or a complex situation, get professional guidance. This is general information, not legal advice."},
+  org:{title:"Honoring their membership",label:"Organizational honors",intro:"Fraternal, military, and service organizations often provide meaningful honors — but they need lead time, so reach out as soon as service plans take shape.",sections:[
+    ["Military honors","Any eligible veteran is entitled to military funeral honors — at minimum the folding and presentation of the U.S. flag and the playing of Taps. Your funeral home can request honors on your behalf; you will usually need the DD-214 (discharge papers). The VA and national cemeteries offer further benefits."],
+    ["Fraternal orders and the Divine Nine","Many lodges, fraternities, and sororities — for example the Masons, the Order of the Eastern Star, and the Divine Nine (the historically Black fraternities and sororities) — have their own memorial or ritual services. Contact the local chapter, lodge, or graduate chapter to ask what they offer."],
+    ["What they will usually need","Confirmation of membership, the service date, time, and location, and how they will take part — a ritual segment, an honor guard, pallbearers, or a memorial resolution or reading."],
+    ["Coordinate the service","Work with your funeral home and officiant so the honors fit gracefully into the flow of the service."]
+  ],footer:"Each organization decides its own customs and participation — they are the authority on their traditions. This is general information."}
+};
+function circList(intake){ const i=intake||{}; const out=[]; if(i.meInvestigation==="yes")out.push("Death under review by a medical examiner/coroner or police investigation."); if(i.diedOtherState==="yes")out.push("Died in a different U.S. state than residence (interstate transport needed)."); if(i.diedAbroad==="yes")out.push("Died outside the United States (international/repatriation)."); if(i.orgHonors==="yes")out.push("Belonged to a fraternal, military, or service organization that may provide funeral honors."); return out; }
+function circGuideModal(key){
+  const g=SCENARIO_GUIDES[key]; if(!g) return;
+  const secs=g.sections.map(([h,b])=>`<div style="margin-top:13px"><strong style="font-size:14px">${esc(h)}</strong><p style="font-size:13.5px;line-height:1.6;margin:3px 0 0">${b}</p></div>`).join("");
+  $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:620px">
+    <button class="close" onclick="closeModal()">×</button>
+    <div class="eyebrow">Guidance</div><h3 style="margin-bottom:4px">${esc(g.title)}</h3>
+    <p style="font-size:14px;line-height:1.6;color:var(--ink-soft)">${g.intro}</p>
+    ${secs}
+    <div class="muted" style="font-size:12px;line-height:1.55;margin-top:16px;border-top:1px solid var(--line);padding-top:12px">${g.footer}</div>
+    <div class="scard-actions" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="circModal()">← Circumstances</button>
+      <button class="btn btn-primary btn-sm" onclick="closeModal();openGuide()">Ask the Guide a question</button></div>
+  </div></div>`;
+}
 function circModal(){
   const i=(S.estate&&S.estate.intake)||{};
-  const row=(id,label,checked,note)=>`<label style="display:flex;gap:9px;align-items:flex-start;padding:9px 0;cursor:pointer;border-bottom:1px solid var(--line)">
+  const row=(id,label,checked,note,gkey)=>`<div style="border-bottom:1px solid var(--line);padding:9px 0">
+    <label style="display:flex;gap:9px;align-items:flex-start;cursor:pointer">
     <input type="checkbox" id="${id}" ${checked?"checked":""} style="width:auto;margin-top:3px">
-    <span style="font-size:13.5px;line-height:1.5"><strong>${label}</strong>${note?`<div class="muted" style="font-size:12px;margin-top:2px">${note}</div>`:""}</span></label>`;
+    <span style="font-size:13.5px;line-height:1.5"><strong>${label}</strong>${note?`<div class="muted" style="font-size:12px;margin-top:2px">${note}</div>`:""}</span></label>
+    <button class="btn btn-ghost btn-sm" style="margin:6px 0 0 27px;padding:2px 8px;font-size:12px" onclick="circGuideModal('${gkey}')">Learn more →</button></div>`;
   $("modalRoot").innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:560px">
     <button class="close" onclick="closeModal()">×</button>
     <div class="eyebrow">Circumstances</div><h3 style="margin-bottom:4px">Did any of these apply?</h3>
     <p class="muted" style="font-size:13px">Check any that fit and we'll add the steps they call for. This is general information, not legal advice — the authority named in each step (the medical examiner, the embassy, the organization) is the final word.</p>
     <div style="margin-top:10px">
-      ${row("circ_me","A medical examiner, coroner, or police is reviewing the death",i.meInvestigation==="yes","Affects release timing and when the death certificate is issued.")}
-      ${row("circ_state","They passed away in a different U.S. state than where they lived",i.diedOtherState==="yes","Adds interstate transport steps.")}
-      ${row("circ_abroad","They passed away outside the United States",i.diedAbroad==="yes","Adds embassy/consulate and repatriation steps.")}
-      ${row("circ_org","They were a member of a fraternal, military, or service organization",i.orgHonors==="yes","Adds funeral-honors coordination (Masons, Divine Nine, veterans' posts, unions).")}
+      ${row("circ_me","A medical examiner, coroner, or police is reviewing the death",i.meInvestigation==="yes","Affects release timing and when the death certificate is issued.","me")}
+      ${row("circ_state","They passed away in a different U.S. state than where they lived",i.diedOtherState==="yes","Adds interstate transport steps.","state")}
+      ${row("circ_abroad","They passed away outside the United States",i.diedAbroad==="yes","Adds embassy/consulate and repatriation steps.","abroad")}
+      ${row("circ_org","They were a member of a fraternal, military, or service organization",i.orgHonors==="yes","Adds funeral-honors coordination (Masons, Divine Nine, veterans' posts, unions).","org")}
     </div>
     <div class="scard-actions" style="margin-top:16px"><button class="btn btn-primary" onclick="circUpdate()">Update roadmap</button></div>
   </div></div>`;
@@ -1853,6 +1909,9 @@ function renderRoadmap(){
       <div style="flex:1;min-width:220px"><strong>Did anything unusual apply?</strong>
         <div class="muted" style="font-size:13px;margin-top:3px">A medical examiner's involvement, a death in another state or country, or a fraternal or military organization can each add important steps. Tell us and we'll add them to the roadmap.</div></div>
       <button class="btn btn-brass btn-sm" onclick="circModal()">Review circumstances</button></div></div>`);
+  (function(){ const act=circList(S.estate&&S.estate.intake).length?["me","state","abroad","org"].filter(k=>{const i=(S.estate&&S.estate.intake)||{};return (k==="me"&&i.meInvestigation==="yes")||(k==="state"&&i.diedOtherState==="yes")||(k==="abroad"&&i.diedAbroad==="yes")||(k==="org"&&i.orgHonors==="yes");}):[];
+    if(act.length){ const btns=act.map(k=>`<button class="btn btn-ghost btn-sm" onclick="circGuideModal('${k}')">${esc(SCENARIO_GUIDES[k].label)} →</button>`).join(" ");
+      root.insertAdjacentHTML("beforeend",`<div class="card" style="margin-bottom:14px"><div class="eyebrow">Guidance for your situation</div><p class="muted" style="font-size:13px;margin:6px 0 10px">Plain-language guidance for what applies to this estate — information, with the named authorities as the final word.</p><div style="display:flex;gap:8px;flex-wrap:wrap">${btns}</div></div>`); } })();
   PHASES.forEach(p=>{
     const items=S.tasks.filter(t=>t.phase===p.key); if(items.length===0) return;
     const done=items.filter(t=>t.status==="done"||t.status==="na").length;
@@ -2379,7 +2438,7 @@ async function sendGuide(){
   const thinking=guideBubble("…","ai");
   const estateContext = S.estate ? {
     decedent:S.estate.decedent_name, date_of_death:S.estate.date_of_death, state:S.estate.state_code,
-    relationship:S.estate.relationship, intake:S.estate.intake,
+    relationship:S.estate.relationship, intake:S.estate.intake, circumstances:circList(S.estate.intake),
     open_tasks:S.tasks.filter(t=>t.status==="todo").slice(0,15).map(t=>t.title),
     completed:S.tasks.filter(t=>t.status==="done").length
   } : null;
@@ -6044,6 +6103,8 @@ function pgFormHtml(){
   const t=PG, esc2=esc;
   const inp=(k,label,ph,type)=>`<label>${label}</label><input type="${type||"text"}" value="${esc2(t[k]||"")}" placeholder="${ph||""}" oninput="pgSet('${k}',this.value)">`;
   const ta=(k,label,rows,ph)=>`<label>${label}</label><textarea rows="${rows}" placeholder="${ph||""}" oninput="pgSet('${k}',this.value)">${esc2(t[k]||"")}</textarea>`;
+  const dinp=(k,label,wd)=>{ const iso=toISODate(t[k]); return `<label>${label}</label><input type="date" value="${esc2(iso)}" onchange="pgSetDate('${k}',this.value,${wd?"true":"false"})">${(!iso&&t[k])?`<div class="muted" style="font-size:11.5px;margin-top:3px">Current: ${esc2(t[k])}</div>`:""}`; };
+  const tinp=(k,label)=>{ const raw=toRawTime(t[k]); return `<label>${label}</label><input type="time" value="${esc2(raw)}" onchange="pgSetTime('${k}',this.value)">${(!raw&&t[k])?`<div class="muted" style="font-size:11.5px;margin-top:3px">Current: ${esc2(t[k])}</div>`:""}`; };
   const tog=(k,label)=>`<label style="display:flex;gap:8px;align-items:center;font-weight:400;margin-top:8px"><input type="checkbox" ${t.show[k]?"checked":""} onchange="pgShow('${k}',this.checked)" style="width:auto"> ${label}</label>`;
   return `
   <div class="pg-step">
@@ -6063,16 +6124,16 @@ function pgFormHtml(){
     ${inp("name","Full name","Vivian Martin McDowell")}
     ${inp("firstName","First name (for the script cover)","Vivian")}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div>${inp("sunrise","Sunrise (born)","May 9, 1926")}</div>
-      <div>${inp("sunset","Sunset (passed)","March 24, 2021")}</div></div>
+      <div>${dinp("sunrise","Sunrise (born)",false)}</div>
+      <div>${dinp("sunset","Sunset (passed)",false)}</div></div>
     ${inp("tagline","Cover line","Homegoing Celebration")}
     <div class="scard-actions" style="margin-top:14px"><button class="btn btn-primary btn-sm" onclick="pgGo(2)">Next →</button></div>
   </div>
   <div class="pg-step">
     <div class="eyebrow">The service</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div>${inp("serviceDate","Date","Wednesday · March 30, 2021")}</div>
-      <div>${inp("serviceTime","Time","11:00 AM")}</div></div>
+      <div>${dinp("serviceDate","Date",true)}</div>
+      <div>${tinp("serviceTime","Time")}</div></div>
     ${inp("venue","Church / venue (name & address)","Holy Temple Church · 8590 Esper St, Detroit, MI")}
     ${inp("officiant","Officiant","Pastor Pamela Dixon")}
     ${inp("funeralHome","Funeral home","Swanson Funeral Home · Northwest Chapel")}
