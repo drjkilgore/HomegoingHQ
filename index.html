@@ -90,6 +90,10 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:18px 0}
 .auth-hero h1{font-size:34px;margin:18px 0 8px}
 .auth-hero p{color:var(--slate)}
 .auth-card{max-width:440px;margin:0 auto;text-align:left}
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:42px}
+.pw-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;padding:7px;margin:0;width:auto;cursor:pointer;color:var(--muted);line-height:0;opacity:.7;border-radius:8px}
+.pw-eye:hover{opacity:1;background:transparent}
 .seal{width:64px;height:64px;margin:0 auto}
 .seal img{width:100%;height:100%;display:block;border-radius:50%}
 
@@ -222,7 +226,12 @@ summary::-webkit-details-marker{display:none}
   <div class="auth-card card">
     <div class="eyebrow" id="authModeLabel">Sign in</div>
     <label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com">
-    <label>Password</label><input id="authPass" type="password" autocomplete="current-password" placeholder="••••••••">
+    <label>Password</label>
+    <div class="pw-wrap"><input id="authPass" type="password" autocomplete="current-password" placeholder="••••••••" oninput="if(typeof authMode!=='undefined'&&authMode==='signup')pwLiveCheck()"><button type="button" class="pw-eye" onclick="togglePw('authPass',this)" aria-label="Show password"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    <div id="pwReq" class="hidden" style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5">At least 8 characters, including a letter and a number.</div>
+    <div id="authPass2Wrap" class="hidden"><label style="margin-top:10px">Confirm password</label>
+      <div class="pw-wrap"><input id="authPass2" type="password" autocomplete="new-password" placeholder="Re-enter your password" oninput="pwLiveCheck()"><button type="button" class="pw-eye" onclick="togglePw('authPass2',this)" aria-label="Show password"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      <div id="pwMatch" style="font-size:12px;margin-top:5px;line-height:1.4"></div></div>
     <div style="text-align:right;margin-top:5px"><a href="#" onclick="forgotPass();return false" style="font-size:12.5px;color:var(--muted)">Forgot your password?</a></div>
     <div id="authNameWrap" class="hidden"><label>Your full name</label><input id="authName" placeholder="First Last"></div>
     <div style="margin-top:18px;display:grid;gap:9px">
@@ -1051,18 +1060,36 @@ function pgSetTime(k,raw){ pgSet(k, fmtNiceTime(raw)); }
 async function logActivity(action, detail){ if(!S.estate) return; await sb.from("activity_log").insert({estate_id:S.estate.id, user_id:S.session.user.id, action, detail}); }
 
 /* ---------- auth ---------- */
+const EYE_SVG='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF_SVG='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+function togglePw(id,btn){ const el=$(id); if(!el) return; const showing=el.type==="password"; el.type=showing?"text":"password"; btn.innerHTML=showing?EYE_OFF_SVG:EYE_SVG; btn.setAttribute("aria-label",showing?"Hide password":"Show password"); }
+function pwStrong(pw){ return pw.length>=8 && /[A-Za-z]/.test(pw) && /[0-9]/.test(pw); }
+function pwLiveCheck(){
+  const pw=$("authPass")?$("authPass").value:""; const req=$("pwReq");
+  if(req){ const ok=pwStrong(pw); req.textContent = ok ? "✓ Password meets the minimum requirements" : "At least 8 characters, including a letter and a number."; req.style.color = ok ? "var(--sage)" : "var(--muted)"; }
+  const m=$("pwMatch"), p2=$("authPass2");
+  if(m&&p2){ const v2=p2.value; if(!v2){ m.textContent=""; } else if(v2===pw){ m.textContent="✓ Passwords match"; m.style.color="var(--sage)"; } else { m.textContent="Passwords don't match yet"; m.style.color="var(--clay)"; } }
+}
 function toggleAuthMode(){
   authMode = authMode==="signin" ? "signup" : "signin";
-  $("authModeLabel").textContent = authMode==="signin"?"Sign in":"Create account";
-  $("authGo").textContent = authMode==="signin"?"Sign in":"Create account";
-  $("authSwap").textContent = authMode==="signin"?"New here? Create an account":"Have an account? Sign in";
-  $("authNameWrap").classList.toggle("hidden", authMode==="signin");
+  const signup = authMode==="signup";
+  $("authModeLabel").textContent = signup?"Create account":"Sign in";
+  $("authGo").textContent = signup?"Create account":"Sign in";
+  $("authSwap").textContent = signup?"Have an account? Sign in":"New here? Create an account";
+  $("authNameWrap").classList.toggle("hidden", !signup);
+  if($("authPass2Wrap")) $("authPass2Wrap").classList.toggle("hidden", !signup);
+  if($("pwReq")) $("pwReq").classList.toggle("hidden", !signup);
+  if($("authPass")) $("authPass").setAttribute("autocomplete", signup?"new-password":"current-password");
+  if(signup) pwLiveCheck();
 }
 async function authSubmit(){
   const email=$("authEmail").value.trim(), password=$("authPass").value;
   if(!email||!password) return $("authMsg").textContent="Enter your email and password.";
   $("authMsg").textContent="One moment…";
   if(authMode==="signup"){
+    const pw=$("authPass").value, pw2=$("authPass2")?$("authPass2").value:"";
+    if(!pwStrong(pw)){ $("authMsg").textContent="Please choose a stronger password — at least 8 characters, including a letter and a number."; return; }
+    if(pw!==pw2){ $("authMsg").textContent="The two passwords don't match — re-enter them and try again."; return; }
     const {error} = await sb.auth.signUp({email,password,options:{data:{full_name:$("authName").value.trim()}}});
     if(error) return $("authMsg").textContent=error.message;
     $("authMsg").textContent="Account created. If email confirmation is on, check your inbox — then sign in.";
@@ -1330,14 +1357,15 @@ function resetPassModal(){
   $("modalRoot").innerHTML=`<div class="overlay"><div class="modal" style="max-width:420px">
     <div class="eyebrow">Account</div><h3>Choose a new password</h3>
     <p class="muted" style="font-size:13.5px">You're securely signed in through the email link — set your new password and you're done.</p>
-    <label>New password</label><input id="npw1" type="password" autocomplete="new-password">
-    <label>Confirm it</label><input id="npw2" type="password" autocomplete="new-password">
+    <label>New password</label><div class="pw-wrap"><input id="npw1" type="password" autocomplete="new-password"><button type="button" class="pw-eye" onclick="togglePw('npw1',this)" aria-label="Show password"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    <label style="margin-top:10px">Confirm it</label><div class="pw-wrap"><input id="npw2" type="password" autocomplete="new-password"><button type="button" class="pw-eye" onclick="togglePw('npw2',this)" aria-label="Show password"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px">At least 8 characters, including a letter and a number.</div>
     <div class="scard-actions" style="margin-top:14px"><button class="btn btn-primary" onclick="saveNewPass()">Save new password</button></div>
   </div></div>`;
 }
 async function saveNewPass(){
   const a=$("npw1").value, b=$("npw2").value;
-  if(a.length<8) return toast("Use at least 8 characters.");
+  if(!pwStrong(a)) return toast("Password must be at least 8 characters, including a letter and a number.");
   if(a!==b) return toast("The two passwords don't match.");
   const {error}=await sb.auth.updateUser({password:a});
   if(error) return toast(error.message);

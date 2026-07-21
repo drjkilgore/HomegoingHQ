@@ -103,6 +103,8 @@ input:focus,select:focus{outline:2px solid var(--brass);outline-offset:1px;borde
 .tier-head .amt{margin-left:auto;font-family:var(--serif);font-size:19px;font-weight:600}
 .b-free{background:var(--free)} .b-claim{background:var(--claim)} .b-loan{background:var(--loan)}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:11px;display:flex;gap:16px;align-items:flex-start}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:stretch}
+.card-grid .card{margin-bottom:0;height:100%}
 .card .dot{width:9px;height:9px;border-radius:50%;margin-top:7px;flex:0 0 auto}
 .card .body{flex:1}
 .card .top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
@@ -439,7 +441,7 @@ function renderResults(){
   html+=tierBlock("Free money — claim these first","No repayment. Always exhaust these before financing.","b-free",free,evFree,true);
   html+=tierBlock("Money owed to your family","Already yours — these just need to be filed and claimed.","b-claim",claim,evClaim,true);
   if(loans.length){
-    html+=`<div class="tier"><div class="tier-head"><span class="badge b-loan">Financing</span><span class="n">Cover the remaining ${fmt(gap)}</span></div>`;
+    html+=`<div class="tier"><div class="tier-head"><span class="badge b-loan">Financing</span><span class="n">Cover the remaining ${fmt(gap)}</span></div><div class="card-grid">`;
     loans.forEach(l=>{
       const [ol,oc]=l.approx;
       html+=`<div class="card"><span class="dot" style="background:var(--loan)"></span><div class="body">
@@ -457,7 +459,7 @@ function renderResults(){
         </div>
       </div>`;
     });
-    html+=`</div>`;
+    html+=`</div></div>`;
   }
 
   html+=renderRoadmap(free,claim,loans,gap);
@@ -475,7 +477,7 @@ function tierBlock(title,sub,badge,items,ev,showTotal){
   let h=`<div class="tier"><div class="tier-head">
     <span class="badge ${badge}">${badge==='b-free'?'Free':'Claim'}</span>
     <span class="n">${title}</span>${showTotal&&ev>0?`<span class="amt">≈ ${fmt(ev)}</span>`:''}</div>
-    <p class="sub" style="margin:-6px 0 14px">${sub}</p>`;
+    <p class="sub" style="margin:-6px 0 14px">${sub}</p><div class="card-grid">`;
   uniq.forEach(r=>{
     const [ol,oc]=odds(r.odds);
     const dotc=badge==='b-free'?'var(--free)':'var(--claim)';
@@ -490,7 +492,7 @@ function tierBlock(title,sub,badge,items,ev,showTotal){
       </div>
     </div></div>`;
   });
-  return h+`</div>`;
+  return h+`</div></div>`;
 }
 
 function renderRoadmap(free,claim,loans,gap){
